@@ -1,0 +1,16 @@
+/* Button Styles: */
+a.wpc-button { display: inline-block; padding: 10px 15px; text-decoration: none; color: #fff; transition: .2s opacity ease; }
+a.wpc-button-loading { background: #ff0000; }
+a.wpc-button-complete { background: #ff0000; }
+a.wpc-button-completed { background: grey; }
+a.wpc-button:hover { opacity: .6; }
+a.wpc-button span.wpc-active { display: none; }
+
+/* PREMIUM: */
+/* Reset Link Styles: */
+.wpc-reset-link { display: inline-block; padding: 10px 15px; text-decoration: none; color: #fff; transition: .2s opacity ease; }
+.wpc-reset-link { background: #ff0000; }
+.wpc-reset-link:hover { opacity: .6; }
+a.wpc-reset-link span.wpc-active { display: none; }
+.wpc-reset-message.success { color: #719430; }
+.wpc-reset-message.failed { color: #940130; }

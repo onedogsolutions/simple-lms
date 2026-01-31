@@ -1,0 +1,4 @@
+<a href="<?php echo admin_url( 'admin-post.php?action=mark_uncompleted&button=' . esc_attr($unique_button_id) . (($redirect_url) ? '&redirect=' . esc_attr($redirect_url) : '') ); ?>" class="wpc-button wpc-button-<?php echo esc_attr($this->get_button_class( $unique_button_id )); ?> wpc-button-completed wpc-completed<?php if ($custom_classes) echo " " . esc_attr($custom_classes); ?>"<?php if ($custom_styles) : ?> style="<?php echo esc_attr($custom_styles); ?>"<?php endif;?> data-button="<?php echo esc_attr($unique_button_id); ?>" data-button-text="<?php echo esc_attr(htmlentities($button_text)); ?>">
+  <span class="wpc-inactive"><?php echo html_entity_decode($completed_button_text); ?></span>
+  <span class="wpc-active"><?php echo get_option($this->plugin_name . '_completed_active_text', 'Saving...'); ?></span>
+</a>

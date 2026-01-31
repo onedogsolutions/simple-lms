@@ -1,0 +1,3 @@
+<a href="#" onclick="return false;" class="wpc-button wpc-button-<?php echo esc_attr($this->get_button_class( $unique_button_id )); ?> wpc-button-loading wpc-loading<?php if ($custom_classes) echo " " . esc_attr($custom_classes); ?>"<?php if ($custom_styles) : ?> style="<?php echo esc_attr($custom_styles); ?>"<?php endif;?> data-button="<?php echo esc_attr($unique_button_id); ?>" data-complete-text="<?php echo esc_attr($completed_button_text); ?>" data-incomplete-text="<?php echo esc_attr($button_text); ?>"<?php if ($redirect_url) : ?> data-redirect="<?php echo esc_attr($redirect_url); ?>"<?php endif; ?>>
+  <span><?php _e('loading', $this->plugin_name); ?>...</span>
+</a>

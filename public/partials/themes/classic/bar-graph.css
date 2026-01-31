@@ -1,0 +1,270 @@
+.wpc-bar-progress {
+  position: relative;
+  clear: both;
+}
+.wpc-bar-progress .wpc-progress-bar {
+  float: left;
+  width: 100%;
+}
+
+.wpc-bar-progress .wpc-progress-track {
+  position: relative;
+  width: 100%;
+  background: #ebebeb;
+  text-align: left;
+}
+
+.wpc-bar-progress .wpc-progress-fill {
+  position: relative;
+  background: #97a71d;
+  height: 30px;
+  width: 0%;
+  color: #fff;
+  text-align: center;
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.wpc-bar-progress.wpc-rounded .wpc-progress-track,
+.wpc-bar-progress.wpc-rounded .wpc-progress-fill {
+  border-radius: 3px;
+}
+
+.wpc-bar-progress .wpc-percentage {
+  height: 23px;
+  width: 58px;
+  overflow: hidden;
+  text-align: left;
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  line-height: 1;
+}
+
+.wpc-bar-progress .wpc-numbers {
+  margin-top: -22px;
+  transition: width 1s;
+  color: #97a71d;
+  max-width: none;
+}
+.wpc-bar-progress.wpc-loading .wpc-numbers {
+  margin-top: 0px!important;
+}
+
+.wpc-bar-progress .wpc-numbers span { width: 57px;   display: inline-block;
+  vertical-align: top;
+  text-align: center;
+  font-weight: 800;
+  font-size: 22px;
+}
+
+.wpc-bar-progress[data-progress="0"] .wpc-progress-fill { width: 0%; }
+.wpc-bar-progress[data-progress="0"] .wpc-numbers { width: 57px; }
+.wpc-bar-progress[data-progress="1"] .wpc-progress-fill { width: 1%; }
+.wpc-bar-progress[data-progress="1"] .wpc-numbers { width: 114px; }
+.wpc-bar-progress[data-progress="2"] .wpc-progress-fill { width: 2%; }
+.wpc-bar-progress[data-progress="2"] .wpc-numbers { width: 171px; }
+.wpc-bar-progress[data-progress="3"] .wpc-progress-fill { width: 3%; }
+.wpc-bar-progress[data-progress="3"] .wpc-numbers { width: 228px; }
+.wpc-bar-progress[data-progress="4"] .wpc-progress-fill { width: 4%; }
+.wpc-bar-progress[data-progress="4"] .wpc-numbers { width: 285px; }
+.wpc-bar-progress[data-progress="5"] .wpc-progress-fill { width: 5%; }
+.wpc-bar-progress[data-progress="5"] .wpc-numbers { width: 342px; }
+.wpc-bar-progress[data-progress="6"] .wpc-progress-fill { width: 6%; }
+.wpc-bar-progress[data-progress="6"] .wpc-numbers { width: 399px; }
+.wpc-bar-progress[data-progress="7"] .wpc-progress-fill { width: 7%; }
+.wpc-bar-progress[data-progress="7"] .wpc-numbers { width: 456px; }
+.wpc-bar-progress[data-progress="8"] .wpc-progress-fill { width: 8%; }
+.wpc-bar-progress[data-progress="8"] .wpc-numbers { width: 513px; }
+.wpc-bar-progress[data-progress="9"] .wpc-progress-fill { width: 9%; }
+.wpc-bar-progress[data-progress="9"] .wpc-numbers { width: 570px; }
+.wpc-bar-progress[data-progress="10"] .wpc-progress-fill { width: 10%; }
+.wpc-bar-progress[data-progress="10"] .wpc-numbers { width: 627px; }
+.wpc-bar-progress[data-progress="11"] .wpc-progress-fill { width: 11%; }
+.wpc-bar-progress[data-progress="11"] .wpc-numbers { width: 684px; }
+.wpc-bar-progress[data-progress="12"] .wpc-progress-fill { width: 12%; }
+.wpc-bar-progress[data-progress="12"] .wpc-numbers { width: 741px; }
+.wpc-bar-progress[data-progress="13"] .wpc-progress-fill { width: 13%; }
+.wpc-bar-progress[data-progress="13"] .wpc-numbers { width: 798px; }
+.wpc-bar-progress[data-progress="14"] .wpc-progress-fill { width: 14%; }
+.wpc-bar-progress[data-progress="14"] .wpc-numbers { width: 855px; }
+.wpc-bar-progress[data-progress="15"] .wpc-progress-fill { width: 15%; }
+.wpc-bar-progress[data-progress="15"] .wpc-numbers { width: 912px; }
+.wpc-bar-progress[data-progress="16"] .wpc-progress-fill { width: 16%; }
+.wpc-bar-progress[data-progress="16"] .wpc-numbers { width: 969px; }
+.wpc-bar-progress[data-progress="17"] .wpc-progress-fill { width: 17%; }
+.wpc-bar-progress[data-progress="17"] .wpc-numbers { width: 1026px; }
+.wpc-bar-progress[data-progress="18"] .wpc-progress-fill { width: 18%; }
+.wpc-bar-progress[data-progress="18"] .wpc-numbers { width: 1083px; }
+.wpc-bar-progress[data-progress="19"] .wpc-progress-fill { width: 19%; }
+.wpc-bar-progress[data-progress="19"] .wpc-numbers { width: 1140px; }
+.wpc-bar-progress[data-progress="20"] .wpc-progress-fill { width: 20%; }
+.wpc-bar-progress[data-progress="20"] .wpc-numbers { width: 1197px; }
+.wpc-bar-progress[data-progress="21"] .wpc-progress-fill { width: 21%; }
+.wpc-bar-progress[data-progress="21"] .wpc-numbers { width: 1254px; }
+.wpc-bar-progress[data-progress="22"] .wpc-progress-fill { width: 22%; }
+.wpc-bar-progress[data-progress="22"] .wpc-numbers { width: 1311px; }
+.wpc-bar-progress[data-progress="23"] .wpc-progress-fill { width: 23%; }
+.wpc-bar-progress[data-progress="23"] .wpc-numbers { width: 1368px; }
+.wpc-bar-progress[data-progress="24"] .wpc-progress-fill { width: 24%; }
+.wpc-bar-progress[data-progress="24"] .wpc-numbers { width: 1425px; }
+.wpc-bar-progress[data-progress="25"] .wpc-progress-fill { width: 25%; }
+.wpc-bar-progress[data-progress="25"] .wpc-numbers { width: 1482px; }
+.wpc-bar-progress[data-progress="26"] .wpc-progress-fill { width: 26%; }
+.wpc-bar-progress[data-progress="26"] .wpc-numbers { width: 1539px; }
+.wpc-bar-progress[data-progress="27"] .wpc-progress-fill { width: 27%; }
+.wpc-bar-progress[data-progress="27"] .wpc-numbers { width: 1596px; }
+.wpc-bar-progress[data-progress="28"] .wpc-progress-fill { width: 28%; }
+.wpc-bar-progress[data-progress="28"] .wpc-numbers { width: 1653px; }
+.wpc-bar-progress[data-progress="29"] .wpc-progress-fill { width: 29%; }
+.wpc-bar-progress[data-progress="29"] .wpc-numbers { width: 1710px; }
+.wpc-bar-progress[data-progress="30"] .wpc-progress-fill { width: 30%; }
+.wpc-bar-progress[data-progress="30"] .wpc-numbers { width: 1767px; }
+.wpc-bar-progress[data-progress="31"] .wpc-progress-fill { width: 31%; }
+.wpc-bar-progress[data-progress="31"] .wpc-numbers { width: 1824px; }
+.wpc-bar-progress[data-progress="32"] .wpc-progress-fill { width: 32%; }
+.wpc-bar-progress[data-progress="32"] .wpc-numbers { width: 1881px; }
+.wpc-bar-progress[data-progress="33"] .wpc-progress-fill { width: 33%; }
+.wpc-bar-progress[data-progress="33"] .wpc-numbers { width: 1938px; }
+.wpc-bar-progress[data-progress="34"] .wpc-progress-fill { width: 34%; }
+.wpc-bar-progress[data-progress="34"] .wpc-numbers { width: 1995px; }
+.wpc-bar-progress[data-progress="35"] .wpc-progress-fill { width: 35%; }
+.wpc-bar-progress[data-progress="35"] .wpc-numbers { width: 2052px; }
+.wpc-bar-progress[data-progress="36"] .wpc-progress-fill { width: 36%; }
+.wpc-bar-progress[data-progress="36"] .wpc-numbers { width: 2109px; }
+.wpc-bar-progress[data-progress="37"] .wpc-progress-fill { width: 37%; }
+.wpc-bar-progress[data-progress="37"] .wpc-numbers { width: 2166px; }
+.wpc-bar-progress[data-progress="38"] .wpc-progress-fill { width: 38%; }
+.wpc-bar-progress[data-progress="38"] .wpc-numbers { width: 2223px; }
+.wpc-bar-progress[data-progress="39"] .wpc-progress-fill { width: 39%; }
+.wpc-bar-progress[data-progress="39"] .wpc-numbers { width: 2280px; }
+.wpc-bar-progress[data-progress="40"] .wpc-progress-fill { width: 40%; }
+.wpc-bar-progress[data-progress="40"] .wpc-numbers { width: 2337px; }
+.wpc-bar-progress[data-progress="41"] .wpc-progress-fill { width: 41%; }
+.wpc-bar-progress[data-progress="41"] .wpc-numbers { width: 2394px; }
+.wpc-bar-progress[data-progress="42"] .wpc-progress-fill { width: 42%; }
+.wpc-bar-progress[data-progress="42"] .wpc-numbers { width: 2451px; }
+.wpc-bar-progress[data-progress="43"] .wpc-progress-fill { width: 43%; }
+.wpc-bar-progress[data-progress="43"] .wpc-numbers { width: 2508px; }
+.wpc-bar-progress[data-progress="44"] .wpc-progress-fill { width: 44%; }
+.wpc-bar-progress[data-progress="44"] .wpc-numbers { width: 2565px; }
+.wpc-bar-progress[data-progress="45"] .wpc-progress-fill { width: 45%; }
+.wpc-bar-progress[data-progress="45"] .wpc-numbers { width: 2622px; }
+.wpc-bar-progress[data-progress="46"] .wpc-progress-fill { width: 46%; }
+.wpc-bar-progress[data-progress="46"] .wpc-numbers { width: 2679px; }
+.wpc-bar-progress[data-progress="47"] .wpc-progress-fill { width: 47%; }
+.wpc-bar-progress[data-progress="47"] .wpc-numbers { width: 2736px; }
+.wpc-bar-progress[data-progress="48"] .wpc-progress-fill { width: 48%; }
+.wpc-bar-progress[data-progress="48"] .wpc-numbers { width: 2793px; }
+.wpc-bar-progress[data-progress="49"] .wpc-progress-fill { width: 49%; }
+.wpc-bar-progress[data-progress="49"] .wpc-numbers { width: 2850px; }
+.wpc-bar-progress[data-progress="50"] .wpc-progress-fill { width: 50%; }
+.wpc-bar-progress[data-progress="50"] .wpc-numbers { width: 2907px; }
+.wpc-bar-progress[data-progress="51"] .wpc-progress-fill { width: 51%; }
+.wpc-bar-progress[data-progress="51"] .wpc-numbers { width: 2964px; }
+.wpc-bar-progress[data-progress="52"] .wpc-progress-fill { width: 52%; }
+.wpc-bar-progress[data-progress="52"] .wpc-numbers { width: 3021px; }
+.wpc-bar-progress[data-progress="53"] .wpc-progress-fill { width: 53%; }
+.wpc-bar-progress[data-progress="53"] .wpc-numbers { width: 3078px; }
+.wpc-bar-progress[data-progress="54"] .wpc-progress-fill { width: 54%; }
+.wpc-bar-progress[data-progress="54"] .wpc-numbers { width: 3135px; }
+.wpc-bar-progress[data-progress="55"] .wpc-progress-fill { width: 55%; }
+.wpc-bar-progress[data-progress="55"] .wpc-numbers { width: 3192px; }
+.wpc-bar-progress[data-progress="56"] .wpc-progress-fill { width: 56%; }
+.wpc-bar-progress[data-progress="56"] .wpc-numbers { width: 3249px; }
+.wpc-bar-progress[data-progress="57"] .wpc-progress-fill { width: 57%; }
+.wpc-bar-progress[data-progress="57"] .wpc-numbers { width: 3306px; }
+.wpc-bar-progress[data-progress="58"] .wpc-progress-fill { width: 58%; }
+.wpc-bar-progress[data-progress="58"] .wpc-numbers { width: 3363px; }
+.wpc-bar-progress[data-progress="59"] .wpc-progress-fill { width: 59%; }
+.wpc-bar-progress[data-progress="59"] .wpc-numbers { width: 3420px; }
+.wpc-bar-progress[data-progress="60"] .wpc-progress-fill { width: 60%; }
+.wpc-bar-progress[data-progress="60"] .wpc-numbers { width: 3477px; }
+.wpc-bar-progress[data-progress="61"] .wpc-progress-fill { width: 61%; }
+.wpc-bar-progress[data-progress="61"] .wpc-numbers { width: 3534px; }
+.wpc-bar-progress[data-progress="62"] .wpc-progress-fill { width: 62%; }
+.wpc-bar-progress[data-progress="62"] .wpc-numbers { width: 3591px; }
+.wpc-bar-progress[data-progress="63"] .wpc-progress-fill { width: 63%; }
+.wpc-bar-progress[data-progress="63"] .wpc-numbers { width: 3648px; }
+.wpc-bar-progress[data-progress="64"] .wpc-progress-fill { width: 64%; }
+.wpc-bar-progress[data-progress="64"] .wpc-numbers { width: 3705px; }
+.wpc-bar-progress[data-progress="65"] .wpc-progress-fill { width: 65%; }
+.wpc-bar-progress[data-progress="65"] .wpc-numbers { width: 3762px; }
+.wpc-bar-progress[data-progress="66"] .wpc-progress-fill { width: 66%; }
+.wpc-bar-progress[data-progress="66"] .wpc-numbers { width: 3819px; }
+.wpc-bar-progress[data-progress="67"] .wpc-progress-fill { width: 67%; }
+.wpc-bar-progress[data-progress="67"] .wpc-numbers { width: 3876px; }
+.wpc-bar-progress[data-progress="68"] .wpc-progress-fill { width: 68%; }
+.wpc-bar-progress[data-progress="68"] .wpc-numbers { width: 3933px; }
+.wpc-bar-progress[data-progress="69"] .wpc-progress-fill { width: 69%; }
+.wpc-bar-progress[data-progress="69"] .wpc-numbers { width: 3990px; }
+.wpc-bar-progress[data-progress="70"] .wpc-progress-fill { width: 70%; }
+.wpc-bar-progress[data-progress="70"] .wpc-numbers { width: 4047px; }
+.wpc-bar-progress[data-progress="71"] .wpc-progress-fill { width: 71%; }
+.wpc-bar-progress[data-progress="71"] .wpc-numbers { width: 4104px; }
+.wpc-bar-progress[data-progress="72"] .wpc-progress-fill { width: 72%; }
+.wpc-bar-progress[data-progress="72"] .wpc-numbers { width: 4161px; }
+.wpc-bar-progress[data-progress="73"] .wpc-progress-fill { width: 73%; }
+.wpc-bar-progress[data-progress="73"] .wpc-numbers { width: 4218px; }
+.wpc-bar-progress[data-progress="74"] .wpc-progress-fill { width: 74%; }
+.wpc-bar-progress[data-progress="74"] .wpc-numbers { width: 4275px; }
+.wpc-bar-progress[data-progress="75"] .wpc-progress-fill { width: 75%; }
+.wpc-bar-progress[data-progress="75"] .wpc-numbers { width: 4332px; }
+.wpc-bar-progress[data-progress="76"] .wpc-progress-fill { width: 76%; }
+.wpc-bar-progress[data-progress="76"] .wpc-numbers { width: 4389px; }
+.wpc-bar-progress[data-progress="77"] .wpc-progress-fill { width: 77%; }
+.wpc-bar-progress[data-progress="77"] .wpc-numbers { width: 4446px; }
+.wpc-bar-progress[data-progress="78"] .wpc-progress-fill { width: 78%; }
+.wpc-bar-progress[data-progress="78"] .wpc-numbers { width: 4503px; }
+.wpc-bar-progress[data-progress="79"] .wpc-progress-fill { width: 79%; }
+.wpc-bar-progress[data-progress="79"] .wpc-numbers { width: 4560px; }
+.wpc-bar-progress[data-progress="80"] .wpc-progress-fill { width: 80%; }
+.wpc-bar-progress[data-progress="80"] .wpc-numbers { width: 4617px; }
+.wpc-bar-progress[data-progress="81"] .wpc-progress-fill { width: 81%; }
+.wpc-bar-progress[data-progress="81"] .wpc-numbers { width: 4674px; }
+.wpc-bar-progress[data-progress="82"] .wpc-progress-fill { width: 82%; }
+.wpc-bar-progress[data-progress="82"] .wpc-numbers { width: 4731px; }
+.wpc-bar-progress[data-progress="83"] .wpc-progress-fill { width: 83%; }
+.wpc-bar-progress[data-progress="83"] .wpc-numbers { width: 4788px; }
+.wpc-bar-progress[data-progress="84"] .wpc-progress-fill { width: 84%; }
+.wpc-bar-progress[data-progress="84"] .wpc-numbers { width: 4845px; }
+.wpc-bar-progress[data-progress="85"] .wpc-progress-fill { width: 85%; }
+.wpc-bar-progress[data-progress="85"] .wpc-numbers { width: 4902px; }
+.wpc-bar-progress[data-progress="86"] .wpc-progress-fill { width: 86%; }
+.wpc-bar-progress[data-progress="86"] .wpc-numbers { width: 4959px; }
+.wpc-bar-progress[data-progress="87"] .wpc-progress-fill { width: 87%; }
+.wpc-bar-progress[data-progress="87"] .wpc-numbers { width: 5016px; }
+.wpc-bar-progress[data-progress="88"] .wpc-progress-fill { width: 88%; }
+.wpc-bar-progress[data-progress="88"] .wpc-numbers { width: 5073px; }
+.wpc-bar-progress[data-progress="89"] .wpc-progress-fill { width: 89%; }
+.wpc-bar-progress[data-progress="89"] .wpc-numbers { width: 5130px; }
+.wpc-bar-progress[data-progress="90"] .wpc-progress-fill { width: 90%; }
+.wpc-bar-progress[data-progress="90"] .wpc-numbers { width: 5187px; }
+.wpc-bar-progress[data-progress="91"] .wpc-progress-fill { width: 91%; }
+.wpc-bar-progress[data-progress="91"] .wpc-numbers { width: 5244px; }
+.wpc-bar-progress[data-progress="92"] .wpc-progress-fill { width: 92%; }
+.wpc-bar-progress[data-progress="92"] .wpc-numbers { width: 5301px; }
+.wpc-bar-progress[data-progress="93"] .wpc-progress-fill { width: 93%; }
+.wpc-bar-progress[data-progress="93"] .wpc-numbers { width: 5358px; }
+.wpc-bar-progress[data-progress="94"] .wpc-progress-fill { width: 94%; }
+.wpc-bar-progress[data-progress="94"] .wpc-numbers { width: 5415px; }
+.wpc-bar-progress[data-progress="95"] .wpc-progress-fill { width: 95%; }
+.wpc-bar-progress[data-progress="95"] .wpc-numbers { width: 5472px; }
+.wpc-bar-progress[data-progress="96"] .wpc-progress-fill { width: 96%; }
+.wpc-bar-progress[data-progress="96"] .wpc-numbers { width: 5529px; }
+.wpc-bar-progress[data-progress="97"] .wpc-progress-fill { width: 97%; }
+.wpc-bar-progress[data-progress="97"] .wpc-numbers { width: 5586px; }
+.wpc-bar-progress[data-progress="98"] .wpc-progress-fill { width: 98%; }
+.wpc-bar-progress[data-progress="98"] .wpc-numbers { width: 5643px; }
+.wpc-bar-progress[data-progress="99"] .wpc-progress-fill { width: 99%; }
+.wpc-bar-progress[data-progress="99"] .wpc-numbers { width: 5700px; }
+.wpc-bar-progress[data-progress="100"] .wpc-progress-fill { width: 100%; }
+.wpc-bar-progress[data-progress="100"] .wpc-numbers { width: 5757px; }
+
+.wpc-bar-progress[data-progress="75"] .wpc-percentage, .wpc-bar-progress[data-progress="76"] .wpc-percentage, .wpc-bar-progress[data-progress="77"] .wpc-percentage, .wpc-bar-progress[data-progress="78"] .wpc-percentage, .wpc-bar-progress[data-progress="79"] .wpc-percentage, .wpc-bar-progress[data-progress="80"] .wpc-percentage, .wpc-bar-progress[data-progress="81"] .wpc-percentage, .wpc-bar-progress[data-progress="82"] .wpc-percentage, .wpc-bar-progress[data-progress="83"] .wpc-percentage, .wpc-bar-progress[data-progress="84"] .wpc-percentage, .wpc-bar-progress[data-progress="85"] .wpc-percentage, .wpc-bar-progress[data-progress="86"] .wpc-percentage, .wpc-bar-progress[data-progress="87"] .wpc-percentage, .wpc-bar-progress[data-progress="88"] .wpc-percentage, .wpc-bar-progress[data-progress="89"] .wpc-percentage, .wpc-bar-progress[data-progress="90"] .wpc-percentage, .wpc-bar-progress[data-progress="91"] .wpc-percentage, .wpc-bar-progress[data-progress="92"] .wpc-percentage, .wpc-bar-progress[data-progress="93"] .wpc-percentage, .wpc-bar-progress[data-progress="94"] .wpc-percentage, .wpc-bar-progress[data-progress="95"] .wpc-percentage, .wpc-bar-progress[data-progress="96"] .wpc-percentage, .wpc-bar-progress[data-progress="97"] .wpc-percentage, .wpc-bar-progress[data-progress="98"] .wpc-percentage, .wpc-bar-progress[data-progress="99"] .wpc-percentage, .wpc-bar-progress[data-progress="100"] .wpc-percentage {
+  right: auto;
+  left: 4px;
+}
+.wpc-bar-progress[data-progress="75"] .wpc-numbers, .wpc-bar-progress[data-progress="76"] .wpc-numbers, .wpc-bar-progress[data-progress="77"] .wpc-numbers, .wpc-bar-progress[data-progress="78"] .wpc-numbers, .wpc-bar-progress[data-progress="79"] .wpc-numbers, .wpc-bar-progress[data-progress="80"] .wpc-numbers, .wpc-bar-progress[data-progress="81"] .wpc-numbers, .wpc-bar-progress[data-progress="82"] .wpc-numbers, .wpc-bar-progress[data-progress="83"] .wpc-numbers, .wpc-bar-progress[data-progress="84"] .wpc-numbers, .wpc-bar-progress[data-progress="85"] .wpc-numbers, .wpc-bar-progress[data-progress="86"] .wpc-numbers, .wpc-bar-progress[data-progress="87"] .wpc-numbers, .wpc-bar-progress[data-progress="88"] .wpc-numbers, .wpc-bar-progress[data-progress="89"] .wpc-numbers, .wpc-bar-progress[data-progress="90"] .wpc-numbers, .wpc-bar-progress[data-progress="91"] .wpc-numbers, .wpc-bar-progress[data-progress="92"] .wpc-numbers, .wpc-bar-progress[data-progress="93"] .wpc-numbers, .wpc-bar-progress[data-progress="94"] .wpc-numbers, .wpc-bar-progress[data-progress="95"] .wpc-numbers, .wpc-bar-progress[data-progress="96"] .wpc-numbers, .wpc-bar-progress[data-progress="97"] .wpc-numbers, .wpc-bar-progress[data-progress="98"] .wpc-numbers, .wpc-bar-progress[data-progress="99"] .wpc-numbers, .wpc-bar-progress[data-progress="100"] .wpc-numbers {
+  color: #ebebeb;
+}
