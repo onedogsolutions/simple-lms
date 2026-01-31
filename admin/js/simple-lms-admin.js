@@ -58,10 +58,10 @@
       $edit_row.find( 'input[name="wpcomplete[completable]"]' ).attr( 'checked', $completable != '—' );
       if ($completable != '—') {
         var $completable_course = $( '#completable-course-' + $post_id ).text();
-        $edit_row.find('.inline-edit-group.wpcomplete-course-container').show();
+        $edit_row.find('.inline-edit-group.simple-lms-course-container').show();
         $edit_row.find('.course-toggle option[value="' + $completable_course + '"]').prop('selected', true);//.val($completable_course);
       } else {
-        $edit_row.find('.inline-edit-group.wpcomplete-course-container').hide();
+        $edit_row.find('.inline-edit-group.simple-lms-course-container').hide();
       }
 
     }

@@ -1,7 +1,7 @@
 
   <p>
-    <input type="hidden" name="wpcomplete[completable]" value="false">
-    <label><input type="checkbox" id="completable" name="wpcomplete[completable]" value="true"<?php if ($completable) echo " checked"; ?> onclick="jQuery('#completable-enabled').toggle();"><?php echo __( 'Yes, I want this page to be completable.', $this->plugin_name ); ?></label>
+    <input type="hidden" name="simple-lms[completable]" value="false">
+    <label><input type="checkbox" id="completable" name="simple-lms[completable]" value="true"<?php if ($completable) echo " checked"; ?> onclick="jQuery('#completable-enabled').toggle();"><?php echo __( 'Yes, I want this page to be completable.', $this->plugin_name ); ?></label>
   </p>
 
   <div id="completable-enabled"<?php if (!$completable) echo " style='display:none;'"; ?>>
@@ -13,17 +13,17 @@
       <?php } ?>
     </small></em></p>
 
-    <?php if ( !WPCOMPLETE_IS_ACTIVATED ) : ?>
+    <?php if ( !SIMPLELMS_IS_ACTIVATED ) : ?>
     <!-- FREE: -->
     <p>
-      <?php echo __( 'Upgrade to the <a href="https://wpcomplete.co">PRO version</a> for support and to unlock all available features.', $this->plugin_name ); ?>
+      <?php echo __( 'Upgrade to the <a href="https://simplelms.co">PRO version</a> for support and to unlock all available features.', $this->plugin_name ); ?>
     </p>
 
     <?php else : ?>
     <!-- PREMIUM: -->
     <p>
       <label for="course-assigned"><?php echo __( 'This is a part of:', $this->plugin_name ); ?></label>
-      <select name="wpcomplete[course]" id="course-assigned" class="course-toggle course-rename" onchange="if (this.value == '--new--') { jQuery('.course-toggle').toggle(); jQuery('select.course-toggle').attr('disabled', 'disabled'); jQuery('.course-toggle input').attr('disabled', false); jQuery('.course-toggle input:last-child').focus(); this.selectedIndex = 0; } else if (this.value == '--rename--') { jQuery('.course-rename').toggle(); jQuery('select.course-rename').attr('disabled', 'disabled'); jQuery('.course-rename input').attr('disabled', false); jQuery('.course-rename input:last-child').focus(); this.selectedIndex = 0; }">
+      <select name="simple-lms[course]" id="course-assigned" class="course-toggle course-rename" onchange="if (this.value == '--new--') { jQuery('.course-toggle').toggle(); jQuery('select.course-toggle').attr('disabled', 'disabled'); jQuery('.course-toggle input').attr('disabled', false); jQuery('.course-toggle input:last-child').focus(); this.selectedIndex = 0; } else if (this.value == '--rename--') { jQuery('.course-rename').toggle(); jQuery('select.course-rename').attr('disabled', 'disabled'); jQuery('.course-rename input').attr('disabled', false); jQuery('.course-rename input:last-child').focus(); this.selectedIndex = 0; }">
         <option value="true"><?php echo get_bloginfo( 'name' ); ?></option>
         <?php $course_names = $this->get_course_names(); ?>
         <?php if ($course_names) : ?>
@@ -38,19 +38,19 @@
       </select>
       <?php if ($post_course) : ?>
       <span class="course-rename" style="display: none;">
-        <input type="hidden" name="wpcomplete[course-original]" value="<?php echo $post_course; ?>" disabled>
-        <input type="text" name="wpcomplete[course-rename]" value="<?php echo $post_course; ?>" disabled> or <a href="javascript:void();" onclick="jQuery('.course-rename').toggle(); jQuery('select.course-rename').attr('disabled', false); jQuery('.course-rename input').attr('disabled', 'disabled'); jQuery('select.course-rename').val('<?php echo $post_course; ?>');">cancel</a>
+        <input type="hidden" name="simple-lms[course-original]" value="<?php echo $post_course; ?>" disabled>
+        <input type="text" name="simple-lms[course-rename]" value="<?php echo $post_course; ?>" disabled> or <a href="javascript:void();" onclick="jQuery('.course-rename').toggle(); jQuery('select.course-rename').attr('disabled', false); jQuery('.course-rename input').attr('disabled', 'disabled'); jQuery('select.course-rename').val('<?php echo $post_course; ?>');">cancel</a>
       </span>
       <?php endif; ?>
       <span class="course-toggle" style="display: none;">
-        <input type="text" name="wpcomplete[course-custom]" disabled> or <a href="javascript:void();" onclick="jQuery('.course-toggle').toggle(); jQuery('select.course-toggle').attr('disabled', false); jQuery('.course-toggle input').attr('disabled', 'disabled'); ">cancel</a>
+        <input type="text" name="simple-lms[course-custom]" disabled> or <a href="javascript:void();" onclick="jQuery('.course-toggle').toggle(); jQuery('select.course-toggle').attr('disabled', false); jQuery('.course-toggle input').attr('disabled', 'disabled'); ">cancel</a>
       </span>
     </p>
 
     <p>
       <label for="completion_redirect_url"><?php echo __( 'Where would you like to redirect your students upon marking all buttons on this page as completed?', $this->plugin_name ); ?></label><br>
-      <input type="text" id="completion_redirect_to" name="wpcomplete[completion-redirect-to]" value="<?php echo $redirect['title']; ?>" placeholder="">
-      <input type="hidden" id="completion_redirect_url" name="wpcomplete[completion-redirect-url]" value="<?php echo $redirect['url']; ?>">
+      <input type="text" id="completion_redirect_to" name="simple-lms[completion-redirect-to]" value="<?php echo $redirect['title']; ?>" placeholder="">
+      <input type="hidden" id="completion_redirect_url" name="simple-lms[completion-redirect-url]" value="<?php echo $redirect['url']; ?>">
       <span class="howto"><?php echo __( 'Leave empty to not redirect.', $this->plugin_name ); ?></span>
     </p>
 

@@ -3,11 +3,11 @@
 /**
  * Register all actions and filters for the plugin
  *
- * @link       https://wpcomplete.co
+ * @link       https://simplelms.co
  * @since      1.0.0
  *
- * @package    WPComplete
- * @subpackage wpcomplete/includes
+ * @package    SimpleLMS
+ * @subpackage simple-lms/includes
  */
 
 /**
@@ -17,11 +17,11 @@
  * the plugin, and register them with the WordPress API. Call the
  * run function to execute the list of actions and filters.
  *
- * @package    WPComplete
- * @subpackage wpcomplete/includes
+ * @package    SimpleLMS
+ * @subpackage simple-lms/includes
  * @author     Zack Gilbert <zack@zackgilbert.com>
  */
-class WPComplete_Loader {
+class SimpleLMS_Loader {
 
 	/**
 	 * The array of actions registered with WordPress.

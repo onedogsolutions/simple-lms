@@ -3,12 +3,12 @@
 /**
  * The admin-specific functionality of the plugin.
  *
- * @link       https://wpcomplete.co
+ * @link       https://simplelms.co
  * @since      1.0.0
  * @last       2.0.0
  *
- * @package    WPComplete
- * @subpackage wpcomplete/admin
+ * @package    SimpleLMS
+ * @subpackage simple-lms/admin
  */
 
 /**
@@ -17,11 +17,11 @@
  * Defines the plugin name, version, and two examples hooks for how to
  * enqueue the admin-specific stylesheet and JavaScript.
  *
- * @package    WPComplete
- * @subpackage wpcomplete/admin
+ * @package    SimpleLMS
+ * @subpackage simple-lms/admin
  * @author     Zack Gilbert <zack@zackgilbert.com>
  */
-class WPComplete_Admin extends WPComplete_Common {
+class SimpleLMS_Admin extends SimpleLMS_Common {
 
   /**
    * The ID of this plugin.
@@ -55,12 +55,12 @@ class WPComplete_Admin extends WPComplete_Common {
      * defined in Plugin_Name_Loader as all of the hooks are defined
      * in that particular class.
      *
-     * The WPComplete_Loader will then create the relationship
+     * The SimpleLMS_Loader will then create the relationship
      * between the defined hooks and the functions defined in this
      * class.
      */
 
-    wp_enqueue_style( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'css/wpcomplete-admin.css', array('wp-color-picker'), $this->version, 'all' );
+    wp_enqueue_style( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'css/simple-lms-admin.css', array('wp-color-picker'), $this->version, 'all' );
 
   }
 
@@ -75,7 +75,7 @@ class WPComplete_Admin extends WPComplete_Common {
     if ( !in_array( $pagenow, array( 'edit-tags.php' ) ) ) {
       $deps = array( 'jquery', 'jquery-ui-autocomplete', 'wp-color-picker', 'inline-edit-post' );
 
-      wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/wpcomplete-admin.js', $deps, $this->version, true );
+      wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/simple-lms-admin.js', $deps, $this->version, true );
 
       $admin_nonce = wp_create_nonce( 'wpc_admin_nonce' );
 
@@ -84,24 +84,24 @@ class WPComplete_Admin extends WPComplete_Common {
         'nonce' => $admin_nonce,
       );
 
-      wp_localize_script( $this->plugin_name, WPCOMPLETE_PRODUCT_NAME, $params );
+      wp_localize_script( $this->plugin_name, SIMPLELMS_PRODUCT_NAME, $params );
     }
   }
 
   /**
-   * Add WPComplete specific dashboard widget
+   * Add SimpleLMS specific dashboard widget
    *
    * @since  2.0.0
    * @last   2.3.2
    */
   public function add_dashboard_widget() {
     if ( current_user_can( 'administrator' ) && ( get_option( $this->plugin_name . '_show_widget', 'true' ) === 'true' ) ) {
-      wp_add_dashboard_widget( $this->plugin_name . '-course-statistics', 'WPComplete Course Statistics', array( $this, 'add_dashboard_widget_cb' ) );
+      wp_add_dashboard_widget( $this->plugin_name . '-course-statistics', 'SimpleLMS Course Statistics', array( $this, 'add_dashboard_widget_cb' ) );
     }
   }
 
   /**
-   * Callback for WPComplete dashboard widget. Adds actual content.
+   * Callback for SimpleLMS dashboard widget. Adds actual content.
    *
    * @since  2.0.0
    * @last   2.9.0
@@ -109,25 +109,25 @@ class WPComplete_Admin extends WPComplete_Common {
   public function add_dashboard_widget_cb() {
     $posts = $this->get_completable_posts();
     if ( count( $posts ) <= 0 ) {
-      include_once 'partials/wpcomplete-admin-widget-empty.php';
+      include_once 'partials/simple-lms-admin-widget-empty.php';
       return;
     }
 
     $courses = $this->get_course_stats( $posts );
 
-    include_once 'partials/wpcomplete-admin-widget.php';
+    include_once 'partials/simple-lms-admin-widget.php';
   }
 
   /**
-   * Add WPComplete specific page under the Settings submenu.
+   * Add SimpleLMS specific page under the Settings submenu.
    *
    * @since  1.0.0
    */
   public function add_options_page() {
 
     $this->plugin_screen_hook_suffix = add_options_page(
-      __( 'WPComplete Settings', $this->plugin_name ),
-      __( WPCOMPLETE_PRODUCT_NAME, $this->plugin_name ),
+      __( 'SimpleLMS Settings', $this->plugin_name ),
+      __( SIMPLELMS_PRODUCT_NAME, $this->plugin_name ),
       'manage_options',
       $this->plugin_name,
       array( $this, 'display_settings_page' )
@@ -136,16 +136,16 @@ class WPComplete_Admin extends WPComplete_Common {
   }
 
   /**
-   * Render the WPComplete specific settings page for plugin.
+   * Render the SimpleLMS specific settings page for plugin.
    *
    * @since  1.0.0
    */
   public function display_settings_page() {
-    include_once 'partials/wpcomplete-admin-display.php';
+    include_once 'partials/simple-lms-admin-display.php';
   }
 
   /**
-   * Build all the settings for plugin on the WPComplete settings page.
+   * Build all the settings for plugin on the SimpleLMS settings page.
    *
    * @since  1.0.0
    */
@@ -169,7 +169,7 @@ class WPComplete_Admin extends WPComplete_Common {
       $this->plugin_name . '_general',
       array( 'label_for' => $this->plugin_name . '_role' )
     );
-    if (WPCOMPLETE_IS_ACTIVATED)
+    if (SIMPLELMS_IS_ACTIVATED)
       register_setting( $this->plugin_name . '_general', $this->plugin_name . '_role', 'sanitize_text_field' );
 
     add_settings_field(
@@ -180,7 +180,7 @@ class WPComplete_Admin extends WPComplete_Common {
       $this->plugin_name . '_general',
       array( 'label_for' => $this->plugin_name . '_post_type' )
     );
-    if (WPCOMPLETE_IS_ACTIVATED)
+    if (SIMPLELMS_IS_ACTIVATED)
       register_setting( $this->plugin_name . '_general', $this->plugin_name . '_post_type', array('sanitize_callback' => array( $this, 'sanitize_post_types_cb' ) ) );
 
     add_settings_field(
@@ -229,7 +229,7 @@ class WPComplete_Admin extends WPComplete_Common {
       $this->plugin_name . '_incomplete_button',
       array( 'label_for' => $this->plugin_name . '_incomplete_active_text' )
     );
-    if (WPCOMPLETE_IS_ACTIVATED)
+    if (SIMPLELMS_IS_ACTIVATED)
       register_setting( $this->plugin_name . '_buttons', $this->plugin_name . '_incomplete_active_text', 'sanitize_text_field' );
 
     add_settings_field(
@@ -240,7 +240,7 @@ class WPComplete_Admin extends WPComplete_Common {
       $this->plugin_name . '_incomplete_button',
       array( 'label_for' => $this->plugin_name . '_incomplete_background' )
     );
-    if (WPCOMPLETE_IS_ACTIVATED)
+    if (SIMPLELMS_IS_ACTIVATED)
       register_setting( $this->plugin_name . '_buttons', $this->plugin_name . '_incomplete_background', 'sanitize_text_field' );
 
     add_settings_field(
@@ -251,7 +251,7 @@ class WPComplete_Admin extends WPComplete_Common {
       $this->plugin_name . '_incomplete_button',
       array( 'label_for' => $this->plugin_name . '_incomplete_color' )
     );
-    if (WPCOMPLETE_IS_ACTIVATED)
+    if (SIMPLELMS_IS_ACTIVATED)
       register_setting( $this->plugin_name . '_buttons', $this->plugin_name . '_incomplete_color', 'sanitize_text_field' );
 
     // Section related to the Completed! button:
@@ -280,7 +280,7 @@ class WPComplete_Admin extends WPComplete_Common {
       $this->plugin_name . '_completed_button',
       array( 'label_for' => $this->plugin_name . '_completed_active_text' )
     );
-    if (WPCOMPLETE_IS_ACTIVATED)
+    if (SIMPLELMS_IS_ACTIVATED)
       register_setting( $this->plugin_name . '_buttons', $this->plugin_name . '_completed_active_text', 'sanitize_text_field' );
 
     add_settings_field(
@@ -291,7 +291,7 @@ class WPComplete_Admin extends WPComplete_Common {
       $this->plugin_name . '_completed_button',
       array( 'label_for' => $this->plugin_name . '_completed_background' )
     );
-    if (WPCOMPLETE_IS_ACTIVATED)
+    if (SIMPLELMS_IS_ACTIVATED)
       register_setting( $this->plugin_name . '_buttons', $this->plugin_name . '_completed_background', 'sanitize_text_field' );
 
     add_settings_field(
@@ -302,7 +302,7 @@ class WPComplete_Admin extends WPComplete_Common {
       $this->plugin_name . '_completed_button',
       array( 'label_for' => $this->plugin_name . '_completed_color' )
     );
-    if (WPCOMPLETE_IS_ACTIVATED)
+    if (SIMPLELMS_IS_ACTIVATED)
       register_setting( $this->plugin_name . '_buttons', $this->plugin_name . '_completed_color', 'sanitize_text_field' );
 
     // PREMIUM: Section related to the graphs:
@@ -322,7 +322,7 @@ class WPComplete_Admin extends WPComplete_Common {
       $this->plugin_name . '_graphs',
       array( 'label_for' => $this->plugin_name . '_bar_theme' )
     );
-    if (WPCOMPLETE_IS_ACTIVATED)
+    if (SIMPLELMS_IS_ACTIVATED)
       register_setting( $this->plugin_name . '_graphs', $this->plugin_name . '_bar_theme', 'sanitize_text_field' );
 
     // Radial Graph Theme: classic | none
@@ -334,7 +334,7 @@ class WPComplete_Admin extends WPComplete_Common {
       $this->plugin_name . '_graphs',
       array( 'label_for' => $this->plugin_name . '_radial_theme' )
     );
-    if (WPCOMPLETE_IS_ACTIVATED)
+    if (SIMPLELMS_IS_ACTIVATED)
       register_setting( $this->plugin_name . '_graphs', $this->plugin_name . '_radial_theme', 'sanitize_text_field' );
 
     add_settings_field(
@@ -345,7 +345,7 @@ class WPComplete_Admin extends WPComplete_Common {
       $this->plugin_name . '_graphs',
       array( 'label_for' => $this->plugin_name . '_graph_primary' )
     );
-    if (WPCOMPLETE_IS_ACTIVATED)
+    if (SIMPLELMS_IS_ACTIVATED)
       register_setting( $this->plugin_name . '_graphs', $this->plugin_name . '_graph_primary', 'sanitize_text_field' );
 
     add_settings_field(
@@ -356,7 +356,7 @@ class WPComplete_Admin extends WPComplete_Common {
       $this->plugin_name . '_graphs',
       array( 'label_for' => $this->plugin_name . '_graph_secondary' )
     );
-    if (WPCOMPLETE_IS_ACTIVATED)
+    if (SIMPLELMS_IS_ACTIVATED)
       register_setting( $this->plugin_name . '_graphs', $this->plugin_name . '_graph_secondary', 'sanitize_text_field' );
 
     // PREMIUM: Section related to advanced features:
@@ -375,7 +375,7 @@ class WPComplete_Admin extends WPComplete_Common {
       $this->plugin_name . '_advanced',
       array( 'label_for' => $this->plugin_name . '_zapier' )
     );
-    if (WPCOMPLETE_IS_ACTIVATED)
+    if (SIMPLELMS_IS_ACTIVATED)
       register_setting( $this->plugin_name . '_advanced', $this->plugin_name . '_zapier', 'sanitize_text_field' );
 
     add_settings_field(
@@ -386,7 +386,7 @@ class WPComplete_Admin extends WPComplete_Common {
       $this->plugin_name . '_advanced',
       array( 'label_for' => $this->plugin_name . '_custom_styles' )
     );
-    if (WPCOMPLETE_IS_ACTIVATED)
+    if (SIMPLELMS_IS_ACTIVATED)
       register_setting( $this->plugin_name . '_advanced', $this->plugin_name . '_custom_styles', 'sanitize_text_field' );
 
     add_settings_field(
@@ -397,7 +397,7 @@ class WPComplete_Admin extends WPComplete_Common {
       $this->plugin_name . '_advanced',
       array()
     );
-    if (WPCOMPLETE_IS_ACTIVATED)
+    if (SIMPLELMS_IS_ACTIVATED)
       register_setting( $this->plugin_name . '_advanced', $this->plugin_name . '_show_widget', 'sanitize_text_field' );
 
     add_settings_field(
@@ -408,7 +408,7 @@ class WPComplete_Admin extends WPComplete_Common {
       $this->plugin_name . '_advanced',
       array()
     );
-    if (WPCOMPLETE_IS_ACTIVATED)
+    if (SIMPLELMS_IS_ACTIVATED)
       register_setting( $this->plugin_name . '_advanced', $this->plugin_name . '_show_user_column', 'sanitize_text_field' );
 
   }
@@ -451,9 +451,9 @@ class WPComplete_Admin extends WPComplete_Common {
    */
   public function settings_role_cb() {
     $selected_role = get_option( $this->plugin_name . '_role', 'subscriber' );
-    $disabled = !WPCOMPLETE_IS_ACTIVATED;
+    $disabled = !SIMPLELMS_IS_ACTIVATED;
 
-    include 'partials/wpcomplete-admin-settings-role.php';
+    include 'partials/simple-lms-admin-settings-role.php';
   }
 
   /**
@@ -471,9 +471,9 @@ class WPComplete_Admin extends WPComplete_Common {
       $selected_types = explode( ',', $selected_type );
     }
 
-    $disabled = !WPCOMPLETE_IS_ACTIVATED;
+    $disabled = !SIMPLELMS_IS_ACTIVATED;
 
-    include 'partials/wpcomplete-admin-settings-post-type.php';
+    include 'partials/simple-lms-admin-settings-post-type.php';
   }
 
   /**
@@ -487,7 +487,7 @@ class WPComplete_Admin extends WPComplete_Common {
     $text = "Automatically enable completion for newly created content types.";
     $is_enabled = get_option( $this->plugin_name . '_auto_enable', 'false' );
     $disabled = false;
-    include 'partials/wpcomplete-admin-settings-checkbox.php';
+    include 'partials/simple-lms-admin-settings-checkbox.php';
   }
 
   /**
@@ -501,7 +501,7 @@ class WPComplete_Admin extends WPComplete_Common {
     $text = "Automatically add completion button to enabled content types.";
     $is_enabled = get_option( $this->plugin_name . '_auto_append', 'true' );
     $disabled = false;
-    include 'partials/wpcomplete-admin-settings-checkbox.php';
+    include 'partials/simple-lms-admin-settings-checkbox.php';
   }
 
   /**
@@ -515,7 +515,7 @@ class WPComplete_Admin extends WPComplete_Common {
     $class = '';
     $disabled = false;
 
-    include 'partials/wpcomplete-admin-settings-input.php';
+    include 'partials/simple-lms-admin-settings-input.php';
   }
 
   /**
@@ -529,7 +529,7 @@ class WPComplete_Admin extends WPComplete_Common {
     $class = '';
     $disabled = false;
 
-    include 'partials/wpcomplete-admin-settings-input.php';
+    include 'partials/simple-lms-admin-settings-input.php';
   }
 
   /**
@@ -541,9 +541,9 @@ class WPComplete_Admin extends WPComplete_Common {
     $name = $this->plugin_name . '_incomplete_background';
     $text = get_option( $name, '#ff0000' );
     $class = 'wpc-color-picker';
-    $disabled = !WPCOMPLETE_IS_ACTIVATED;
+    $disabled = !SIMPLELMS_IS_ACTIVATED;
 
-    include 'partials/wpcomplete-admin-settings-input.php';
+    include 'partials/simple-lms-admin-settings-input.php';
   }
 
   /**
@@ -555,9 +555,9 @@ class WPComplete_Admin extends WPComplete_Common {
     $name = $this->plugin_name . '_incomplete_color';
     $text = get_option( $name, '#ffffff' );
     $class = 'wpc-color-picker';
-    $disabled = !WPCOMPLETE_IS_ACTIVATED;
+    $disabled = !SIMPLELMS_IS_ACTIVATED;
 
-    include 'partials/wpcomplete-admin-settings-input.php';
+    include 'partials/simple-lms-admin-settings-input.php';
   }
 
   /**
@@ -571,7 +571,7 @@ class WPComplete_Admin extends WPComplete_Common {
     $class = '';
     $disabled = false;
 
-    include 'partials/wpcomplete-admin-settings-input.php';
+    include 'partials/simple-lms-admin-settings-input.php';
   }
 
   /**
@@ -585,7 +585,7 @@ class WPComplete_Admin extends WPComplete_Common {
     $class = '';
     $disabled = false;
 
-    include 'partials/wpcomplete-admin-settings-input.php';
+    include 'partials/simple-lms-admin-settings-input.php';
   }
 
   /**
@@ -597,9 +597,9 @@ class WPComplete_Admin extends WPComplete_Common {
     $name = $this->plugin_name . '_completed_background';
     $text = get_option( $name, '#666666' );
     $class = 'wpc-color-picker';
-    $disabled = !WPCOMPLETE_IS_ACTIVATED;
+    $disabled = !SIMPLELMS_IS_ACTIVATED;
 
-    include 'partials/wpcomplete-admin-settings-input.php';
+    include 'partials/simple-lms-admin-settings-input.php';
   }
 
   /**
@@ -611,9 +611,9 @@ class WPComplete_Admin extends WPComplete_Common {
     $name = $this->plugin_name . '_completed_color';
     $text = get_option( $name, '#ffffff' );
     $class = 'wpc-color-picker';
-    $disabled = !WPCOMPLETE_IS_ACTIVATED;
+    $disabled = !SIMPLELMS_IS_ACTIVATED;
 
-    include 'partials/wpcomplete-admin-settings-input.php';
+    include 'partials/simple-lms-admin-settings-input.php';
   }
 
   /**
@@ -626,9 +626,9 @@ class WPComplete_Admin extends WPComplete_Common {
     $name = $this->plugin_name . '_bar_theme';
     $themes = array('classic');
     $selected_theme = get_option( $name, 'classic' );
-    $disabled = !WPCOMPLETE_IS_ACTIVATED;
+    $disabled = !SIMPLELMS_IS_ACTIVATED;
 
-    include 'partials/wpcomplete-admin-settings-theme.php';
+    include 'partials/simple-lms-admin-settings-theme.php';
   }
 
     /**
@@ -641,9 +641,9 @@ class WPComplete_Admin extends WPComplete_Common {
     $name = $this->plugin_name . '_radial_theme';
     $themes = array('classic');
     $selected_theme = get_option( $name, 'classic' );
-    $disabled = !WPCOMPLETE_IS_ACTIVATED;
+    $disabled = !SIMPLELMS_IS_ACTIVATED;
 
-    include 'partials/wpcomplete-admin-settings-theme.php';
+    include 'partials/simple-lms-admin-settings-theme.php';
   }
 
 
@@ -657,9 +657,9 @@ class WPComplete_Admin extends WPComplete_Common {
     $name = $this->plugin_name . '_graph_primary';
     $text = get_option( $name, '#97a71d' );
     $class = 'wpc-color-picker';
-    $disabled = !WPCOMPLETE_IS_ACTIVATED;
+    $disabled = !SIMPLELMS_IS_ACTIVATED;
 
-    include 'partials/wpcomplete-admin-settings-input.php';
+    include 'partials/simple-lms-admin-settings-input.php';
   }
 
   /**
@@ -672,9 +672,9 @@ class WPComplete_Admin extends WPComplete_Common {
     $name = $this->plugin_name . '_graph_secondary';
     $text = get_option( $name, '#ebebeb' );
     $class = 'wpc-color-picker';
-    $disabled = !WPCOMPLETE_IS_ACTIVATED;
+    $disabled = !SIMPLELMS_IS_ACTIVATED;
 
-    include 'partials/wpcomplete-admin-settings-input.php';
+    include 'partials/simple-lms-admin-settings-input.php';
   }
 
   /**
@@ -686,11 +686,11 @@ class WPComplete_Admin extends WPComplete_Common {
   public function settings_zapier_cb() {
     $name = $this->plugin_name . '_zapier';
     $text = get_option( $name, '' );
-    $disabled = !WPCOMPLETE_IS_ACTIVATED;
+    $disabled = !SIMPLELMS_IS_ACTIVATED;
 
     $last_error = json_decode( stripslashes( get_option( $name . '_last_error', '{}' ) ), true );
 
-    include 'partials/wpcomplete-admin-settings-zapier.php';
+    include 'partials/simple-lms-admin-settings-zapier.php';
   }
 
   /**
@@ -711,9 +711,9 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
 ';
     }
     $text = str_replace("} ", "}\n", $text);
-    $disabled = !WPCOMPLETE_IS_ACTIVATED;
+    $disabled = !SIMPLELMS_IS_ACTIVATED;
 
-    include 'partials/wpcomplete-admin-settings-textarea.php';
+    include 'partials/simple-lms-admin-settings-textarea.php';
   }
 
   /**
@@ -725,8 +725,8 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
     $name = $this->plugin_name . '_show_widget';
     $text = "Show statistics widget on dashboard.";
     $is_enabled = get_option( $this->plugin_name . '_show_widget', true );
-    $disabled = !WPCOMPLETE_IS_ACTIVATED;
-    include 'partials/wpcomplete-admin-settings-checkbox.php';
+    $disabled = !SIMPLELMS_IS_ACTIVATED;
+    include 'partials/simple-lms-admin-settings-checkbox.php';
   }
 
   /**
@@ -738,8 +738,8 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
     $name = $this->plugin_name . '_show_user_column';
     $text = "Show user completion statistics.";
     $is_enabled = get_option( $this->plugin_name . '_show_user_column', 'true' );
-    $disabled = !WPCOMPLETE_IS_ACTIVATED;
-    include 'partials/wpcomplete-admin-settings-checkbox.php';
+    $disabled = !SIMPLELMS_IS_ACTIVATED;
+    include 'partials/simple-lms-admin-settings-checkbox.php';
   }
 
   /**
@@ -751,7 +751,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
    */
   public function activate_license() {
     // Clear cache...
-    delete_transient( WPCOMPLETE_PREFIX . '_license_status' );
+    delete_transient( SIMPLELMS_PREFIX . '_license_status' );
     // listen for our activate button to be clicked
     if ( isset( $_POST[$this->plugin_name . '_license_activate'] ) ) {
       // run a quick security check
@@ -762,7 +762,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
         wp_die( __( 'You need permission to activate plugins. Please contact your sites administrator.' ) );
       }
 
-      $item_name = WPCOMPLETE_PRODUCT_NAME;
+      $item_name = SIMPLELMS_PRODUCT_NAME;
 
       // retrieve the license from the database
       $license = trim( $_POST[ $this->plugin_name . '_license_key'] );
@@ -773,14 +773,14 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
         update_option( $this->plugin_name . '_license_key', $license);
       }
 
-      // first, lets check the license to see if it's for the right item (WPComplete vs WPComplete Unlimited vs WPComplete Lifetime)
+      // first, lets check the license to see if it's for the right item (SimpleLMS vs SimpleLMS Unlimited vs SimpleLMS Lifetime)
       $api_params = array(
         'edd_action' => 'check_license',
         'license' => $license,
         'item_name'  => urlencode( $item_name )
       );
 
-      $check_response = wp_remote_get( add_query_arg( $api_params, WPCOMPLETE_STORE_URL ), array( 'timeout' => 15, 'sslverify' => false ) );
+      $check_response = wp_remote_get( add_query_arg( $api_params, SIMPLELMS_STORE_URL ), array( 'timeout' => 15, 'sslverify' => false ) );
 
       $license_check = json_decode( wp_remote_retrieve_body( $check_response ) );
 
@@ -801,7 +801,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
       );
 
       // Call the custom API.
-      $response = wp_remote_post( WPCOMPLETE_STORE_URL, array(
+      $response = wp_remote_post( SIMPLELMS_STORE_URL, array(
         'timeout'   => 15,
         'sslverify' => false,
         'body'      => $api_params
@@ -836,7 +836,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
               $message = __( 'Your license is not active for this URL.' );
               break;
             case 'item_name_mismatch' :
-              $message = sprintf( __( 'This appears to be an invalid license key for %s.' ), WPCOMPLETE_PRODUCT_NAME );
+              $message = sprintf( __( 'This appears to be an invalid license key for %s.' ), SIMPLELMS_PRODUCT_NAME );
               break;
             case 'no_activations_left':
               $message = __( 'Your license key has reached its activation limit.' );
@@ -875,7 +875,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
 
     add_meta_box(
       'completable',                                 // Unique ID
-      __( WPCOMPLETE_PRODUCT_NAME, $this->plugin_name ),        // Box title
+      __( SIMPLELMS_PRODUCT_NAME, $this->plugin_name ),        // Box title
       array( $this, 'add_completable_metabox_cb' ),  // Content callback
       $screens,                                        // post type
       'normal', 'high',
@@ -895,7 +895,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
     // get the variables we need to build the form:
     $completable = false;
     $redirect = array('title' => '', 'url' => '');
-    $post_meta = get_post_meta( $post->ID, 'wpcomplete', true);
+    $post_meta = get_post_meta( $post->ID, 'simple-lms', true);
     $post_course = false;
 
     if ($post_meta) {
@@ -914,7 +914,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
       }
       if ( $post_meta['buttons'] != $buttons ) {
         $post_meta['buttons'] = $buttons;
-        update_post_meta( ''.$post->ID, 'wpcomplete', json_encode( $post_meta, JSON_UNESCAPED_UNICODE ) );
+        update_post_meta( ''.$post->ID, 'simple-lms', json_encode( $post_meta, JSON_UNESCAPED_UNICODE ) );
       }
 
     } else if ($post->post_status == 'auto-draft') {
@@ -923,7 +923,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
     // include a nonce to ensure we can save:
     wp_nonce_field( $this->plugin_name . '_completable', 'completable_nonce' );
 
-    include 'partials/wpcomplete-admin-metabox.php';
+    include 'partials/simple-lms-admin-metabox.php';
   }
 
   /**
@@ -964,7 +964,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
   public function save_completable( $post_id, $post ) {
     global $wpdb;
 
-    if ( isset( $_POST['completable_nonce'] ) && isset( $_POST['post_type'] ) && isset( $_POST['wpcomplete'] ) && isset( $_POST['wpcomplete']['completable'] ) ) {
+    if ( isset( $_POST['completable_nonce'] ) && isset( $_POST['post_type'] ) && isset( $_POST['simple-lms'] ) && isset( $_POST['simple-lms']['completable'] ) ) {
 
       if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
         //echo '<!-- Autosave -->';
@@ -990,20 +990,20 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
       }
 
       $rename_course = false;
-      $is_completable = $_POST['wpcomplete']['completable'];
+      $is_completable = $_POST['simple-lms']['completable'];
       // PREMIUM:
       $course_name = 'true';
-      if ( isset( $_POST['wpcomplete']['course-rename'] ) && !empty( $_POST['wpcomplete']['course-rename'] ) ) {
-        $rename_course = $_POST['wpcomplete']['course-original'];
-        $course_name = esc_attr($_POST['wpcomplete']['course-rename']);
-      } else if ( isset( $_POST['wpcomplete']['course-custom'] ) && !empty( $_POST['wpcomplete']['course-custom'] ) ) {
-        $course_name = esc_attr($_POST['wpcomplete']['course-custom']);
-      } else if ( isset( $_POST['wpcomplete']['course'] ) && !empty( $_POST['wpcomplete']['course'] ) ) {
-        $course_name = esc_attr($_POST['wpcomplete']['course']);
+      if ( isset( $_POST['simple-lms']['course-rename'] ) && !empty( $_POST['simple-lms']['course-rename'] ) ) {
+        $rename_course = $_POST['simple-lms']['course-original'];
+        $course_name = esc_attr($_POST['simple-lms']['course-rename']);
+      } else if ( isset( $_POST['simple-lms']['course-custom'] ) && !empty( $_POST['simple-lms']['course-custom'] ) ) {
+        $course_name = esc_attr($_POST['simple-lms']['course-custom']);
+      } else if ( isset( $_POST['simple-lms']['course'] ) && !empty( $_POST['simple-lms']['course'] ) ) {
+        $course_name = esc_attr($_POST['simple-lms']['course']);
       }
 
-      $redirect_to = ( isset( $_POST['wpcomplete']['completion-redirect-to'] ) ) ? esc_attr($_POST['wpcomplete']['completion-redirect-to']) : '';
-      $redirect_url = ( isset( $_POST['wpcomplete']['completion-redirect-url'] ) ) ? esc_url($_POST['wpcomplete']['completion-redirect-url']) : '';
+      $redirect_to = ( isset( $_POST['simple-lms']['completion-redirect-to'] ) ) ? esc_attr($_POST['simple-lms']['completion-redirect-to']) : '';
+      $redirect_url = ( isset( $_POST['simple-lms']['completion-redirect-url'] ) ) ? esc_url($_POST['simple-lms']['completion-redirect-url']) : '';
       $redirect = array('title' => $redirect_to, 'url' => $redirect_url);
 
       if ($is_completable == 'true') {
@@ -1014,7 +1014,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
 
         $post_meta = array();
 
-        $orig_post_meta_json = get_post_meta( $post_id, 'wpcomplete', true);
+        $orig_post_meta_json = get_post_meta( $post_id, 'simple-lms', true);
         if ( $orig_post_meta_json ) {
           $orig_post_meta = json_decode( stripslashes( $orig_post_meta_json ), true );
           if ( isset( $orig_post_meta['buttons'] ) && !is_null( $orig_post_meta['buttons'] ) ) {
@@ -1057,12 +1057,12 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
           $post_meta['redirect'] = $redirect;
         }
 
-        update_post_meta( $post_id, 'wpcomplete', json_encode( $post_meta, JSON_UNESCAPED_UNICODE ) );
+        update_post_meta( $post_id, 'simple-lms', json_encode( $post_meta, JSON_UNESCAPED_UNICODE ) );
 
       } else {
 
         // If the value exists, delete it.
-        delete_post_meta( $post_id, 'wpcomplete' );
+        delete_post_meta( $post_id, 'simple-lms' );
 
       }
       update_option( $this->plugin_name . '_last_updated', time());
@@ -1074,7 +1074,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
         SELECT pm.post_id,pm.meta_value FROM {$wpdb->postmeta} pm
         WHERE pm.meta_key = '%s'
         AND (pm.post_id != " . $post_id . ")
-        AND (pm.meta_value LIKE '%\"course\":\"" . $rename_course . "\"%')", 'wpcomplete'), ARRAY_A );
+        AND (pm.meta_value LIKE '%\"course\":\"" . $rename_course . "\"%')", 'simple-lms'), ARRAY_A );
 
         // loop through all found posts
         foreach ($r as $post_meta_fields) {
@@ -1085,7 +1085,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
             // so we can rename the course to $course_name
             $post_meta['course'] = $course_name;
             // and save back to the database:
-            update_post_meta( $post_meta_fields['post_id'], 'wpcomplete', json_encode( $post_meta, JSON_UNESCAPED_UNICODE ) );
+            update_post_meta( $post_meta_fields['post_id'], 'simple-lms', json_encode( $post_meta, JSON_UNESCAPED_UNICODE ) );
           }
         }
       }
@@ -1128,7 +1128,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
         // do the marking as complete!
         $marked = 0;
         foreach ( $post_ids as $post_id ) {
-          $post_meta = get_post_meta( $post_id, 'wpcomplete', true );
+          $post_meta = get_post_meta( $post_id, 'simple-lms', true );
 
           if ( ! $post_meta ) {
             // Enable the post because it wasn't previously.
@@ -1138,7 +1138,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
             $post_meta = $this->add_multiple_buttons_to_meta($post_id, $post_meta, $post_content);
 
             // TODO: double check this still works:
-            update_post_meta( $post_id, 'wpcomplete', json_encode( $post_meta, JSON_UNESCAPED_UNICODE ) );
+            update_post_meta( $post_id, 'simple-lms', json_encode( $post_meta, JSON_UNESCAPED_UNICODE ) );
             $marked++;
           } else {
             // Already enabled... no need to do anything...
@@ -1175,7 +1175,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
         // do the marking as complete!
         $marked = 0;
         foreach ( $post_ids as $post_id ) {
-          $post_meta = get_post_meta( $post_id, 'wpcomplete', true );
+          $post_meta = get_post_meta( $post_id, 'simple-lms', true );
 
           if ( ! $post_meta ) {
             // Enable the post because it wasn't previously.
@@ -1184,7 +1184,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
             $post_content = get_post_field('post_content', $post_id);
             $post_meta = $this->add_multiple_buttons_to_meta($post_id, $post_meta, $post_content);
 
-            update_post_meta( $post_id, 'wpcomplete', json_encode( $post_meta, JSON_UNESCAPED_UNICODE ) );
+            update_post_meta( $post_id, 'simple-lms', json_encode( $post_meta, JSON_UNESCAPED_UNICODE ) );
             $marked++;
           } else {
             $post_meta = json_decode( stripslashes( $post_meta ), true );
@@ -1195,7 +1195,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
               $post_content = get_post_field('post_content', $post_id);
               $post_meta = $this->add_multiple_buttons_to_meta($post_id, $post_meta, $post_content);
 
-              update_post_meta( $post_id, 'wpcomplete', json_encode( $post_meta, JSON_UNESCAPED_UNICODE ) );
+              update_post_meta( $post_id, 'simple-lms', json_encode( $post_meta, JSON_UNESCAPED_UNICODE ) );
               $marked++;
             } else {
               // Already in this course... no need to do anything...
@@ -1240,13 +1240,13 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
   public function show_license_notice_nag() {
     global $pagenow;
 
-    if ( !WPCOMPLETE_IS_ACTIVATED &&
+    if ( !SIMPLELMS_IS_ACTIVATED &&
          !in_array( $pagenow , array('post.php', 'post_new.php') ) && // don't show on certain pages
          !get_option('dismissed-license', FALSE ) // don't show when already dismissed
        ) {
-      $msg = __( 'Please activate your license key to enable all WPComplete PRO features.', $this->plugin_name );
+      $msg = __( 'Please activate your license key to enable all SimpleLMS PRO features.', $this->plugin_name );
 
-      include 'partials/wpcomplete-admin-license-notice.php';
+      include 'partials/simple-lms-admin-license-notice.php';
     }
   }
 
@@ -1258,13 +1258,13 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
   public function show_development_mode_nag() {
     global $pagenow;
 
-    if ( !wpcomplete_is_production() && // don't show in production
+    if ( !simplelms_is_production() && // don't show in production
          !in_array( $pagenow , array('post.php', 'post_new.php') ) && // don't show on certain pages
          !get_option('dismissed-devmode', FALSE ) // don't show when already dismissed
        ) {
-      $msg = __( 'WPComplete is currently in development mode! While you build your site, please enjoy all <strong>pro features enabled</strong> for free. :)', $this->plugin_name );
+      $msg = __( 'SimpleLMS is currently in development mode! While you build your site, please enjoy all <strong>pro features enabled</strong> for free. :)', $this->plugin_name );
 
-      include 'partials/wpcomplete-admin-devmode-notice.php';
+      include 'partials/simple-lms-admin-devmode-notice.php';
     }
   }
 
@@ -1344,18 +1344,18 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
           $completion = '';
           $selected_role = get_option( $this->plugin_name . '_role', 'subscriber' );
 
-          if ( $users_json = wp_cache_get( 'users-' . $selected_role, 'wpcomplete' ) ) {
+          if ( $users_json = wp_cache_get( 'users-' . $selected_role, 'simple-lms' ) ) {
             $users = json_decode( stripslashes( $users_json ), true );
           } else {
             $args = array('fields' => 'id');
             if ($selected_role != 'all') $args['role'] = $selected_role;
             $users = get_users($args);
-            wp_cache_set( 'users-' . $selected_role, json_encode( $users, JSON_UNESCAPED_UNICODE ), 'wpcomplete' );
+            wp_cache_set( 'users-' . $selected_role, json_encode( $users, JSON_UNESCAPED_UNICODE ), 'simple-lms' );
           }
           $avail_users = count($users);
 
           if ($avail_users > 0) {
-            if ( $users_meta_json = wp_cache_get( 'users-meta-' . $selected_role, 'wpcomplete' ) ) {
+            if ( $users_meta_json = wp_cache_get( 'users-meta-' . $selected_role, 'simple-lms' ) ) {
               $user_activities = json_decode( $users_meta_json, true );
             } else {
               // if we need a specific role, only grab those userse first...
@@ -1363,11 +1363,11 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
               if ( $selected_role != 'all' ) {
                 $from_sql = "(SELECT u.ID FROM {$wpdb->users} u INNER JOIN {$wpdb->usermeta} AS mt1 ON ( u.ID = mt1.user_id ) WHERE ( (mt1.meta_key = '{$wpdb->prefix}capabilities') AND (mt1.meta_value LIKE '%\"$selected_role\"%') ))";
               }
-              $sql = "SELECT um.user_id, um.meta_value FROM {$from_sql} u INNER JOIN {$wpdb->usermeta} AS um ON ( u.ID = um.user_id ) WHERE ( um.meta_key = 'wpcomplete' )";
+              $sql = "SELECT um.user_id, um.meta_value FROM {$from_sql} u INNER JOIN {$wpdb->usermeta} AS um ON ( u.ID = um.user_id ) WHERE ( um.meta_key = 'simple-lms' )";
               $user_activities = $wpdb->get_results( $sql, ARRAY_A );
               // fix key/value association:
               $user_activities = array_column($user_activities, 'meta_value', 'user_id');
-              wp_cache_set( 'users-meta-' . $selected_role, json_encode( $user_activities, JSON_UNESCAPED_UNICODE), 'wpcomplete');
+              wp_cache_set( 'users-meta-' . $selected_role, json_encode( $user_activities, JSON_UNESCAPED_UNICODE), 'simple-lms');
             }
 
             if ( isset( $posts[$post_id]['buttons'] ) ) {
@@ -1385,7 +1385,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
 
                 list($button_post_id, $button_id) = $this->extract_button_info($button);
                 $button_name = ($button === ''.$post_id) ? 'Default Button' : "Button '$button_id'";
-                $completion .= ('<a href="edit.php?page=wpcomplete-buttons&post_id=' . $post_id . '&button=' . $button . '">' . "$button_name: $completed_users/$avail_users Users (" . round(100 * ($completed_users / $avail_users), 1) . '%)</a><br>');
+                $completion .= ('<a href="edit.php?page=simple-lms-buttons&post_id=' . $post_id . '&button=' . $button . '">' . "$button_name: $completed_users/$avail_users Users (" . round(100 * ($completed_users / $avail_users), 1) . '%)</a><br>');
               }
             } else {
               // calculate how many of these users are completed...
@@ -1400,7 +1400,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
                 }
               }
 
-              $completion = '<a href="edit.php?page=wpcomplete-posts&post_id=' . $post_id . '">' . ("$completed_users/$avail_users Users (" . round(100 * ($completed_users / $avail_users), 1) . '%)')  . '</a>';
+              $completion = '<a href="edit.php?page=simple-lms-posts&post_id=' . $post_id . '">' . ("$completed_users/$avail_users Users (" . round(100 * ($completed_users / $avail_users), 1) . '%)')  . '</a>';
             }
           } else {
             $completion = "0 Users";
@@ -1421,30 +1421,30 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
    */
   public function add_course_completion_page() {
     add_menu_page(
-      WPCOMPLETE_PRODUCT_NAME,
-      __( WPCOMPLETE_PRODUCT_NAME, $this->plugin_name ),
+      SIMPLELMS_PRODUCT_NAME,
+      __( SIMPLELMS_PRODUCT_NAME, $this->plugin_name ),
       'manage_options',
-      'wpcomplete-courses',
+      'simple-lms-courses',
       array( $this, 'render_courses_page' ),
       'dashicons-yes',
       50
     );
 
     add_submenu_page(
-      'wpcomplete-courses',
+      'simple-lms-courses',
       __( 'Courses', $this->plugin_name ),
       __( 'Courses', $this->plugin_name ),
       'manage_options',
-      'wpcomplete-courses',
+      'simple-lms-courses',
       array( $this, 'render_courses_page' )
     );
 
     add_submenu_page(
-      'wpcomplete-courses',
+      'simple-lms-courses',
       __( 'General Settings', $this->plugin_name ),
       __( 'General Settings', $this->plugin_name ),
       'manage_options',
-      'wpcomplete-settings',
+      'simple-lms-settings',
       array( $this, 'render_course_settings_page' )
     );
   }
@@ -1459,7 +1459,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
     if ( ! current_user_can( 'manage_options' ) )  {
       wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
     }
-    if ( ! WPCOMPLETE_IS_ACTIVATED ) {
+    if ( ! SIMPLELMS_IS_ACTIVATED ) {
       wp_die( __( 'You only get access to this data once you activate your license.' ) );
     }
 
@@ -1486,14 +1486,14 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
       if ($this->post_has_multiple_buttons($post_id)) {
         if ($button == $post_id) {
           $button_name = get_the_title($post_id) . " (" . ucwords( str_replace( "_", " ", get_post_type( $post_id ) ) ) . " #" . $post_id . ") - Button: Default";
-          $courses[$course_name]['buttons'][$button_name] = array('id' => $button, 'link' => "edit.php?page=wpcomplete-buttons&amp;post_id=" . $post_id . "&amp;button=" . $button, 'started' => 0, 'completed' => 0, 'status' => get_post_status($post_id) );
+          $courses[$course_name]['buttons'][$button_name] = array('id' => $button, 'link' => "edit.php?page=simple-lms-buttons&amp;post_id=" . $post_id . "&amp;button=" . $button, 'started' => 0, 'completed' => 0, 'status' => get_post_status($post_id) );
         } else {
           $button_name = get_the_title($post_id) . " (" . ucwords( str_replace( "_", " ", get_post_type( $post_id ) ) ) . " #" . $post_id . ") - Button: " . $button_id;
-          $courses[$course_name]['buttons'][$button_name] = array('id' => $button, 'link' => "edit.php?page=wpcomplete-buttons&amp;post_id=" . $post_id . "&amp;button=" . $button, 'started' => 0, 'completed' => 0, 'status' => get_post_status($post_id));
+          $courses[$course_name]['buttons'][$button_name] = array('id' => $button, 'link' => "edit.php?page=simple-lms-buttons&amp;post_id=" . $post_id . "&amp;button=" . $button, 'started' => 0, 'completed' => 0, 'status' => get_post_status($post_id));
         }
       } else {
         $button_name = get_the_title($post_id) . " (" . ucwords( str_replace( "_", " ", get_post_type( $post_id ) ) ) . " #" . $post_id . ")";
-        $courses[$course_name]['buttons'][$button_name] = array('id' => $button, 'link' => "edit.php?page=wpcomplete-posts&amp;post_id=" . $button, 'started' => 0, 'completed' => 0, 'status' => get_post_status($post_id));
+        $courses[$course_name]['buttons'][$button_name] = array('id' => $button, 'link' => "edit.php?page=simple-lms-posts&amp;post_id=" . $button, 'started' => 0, 'completed' => 0, 'status' => get_post_status($post_id));
       }
     }
 
@@ -1542,7 +1542,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
       $courses = array($_GET['course'] => $courses[$_GET['course']]);
     }
 
-    include_once 'partials/wpcomplete-admin-courses.php';
+    include_once 'partials/simple-lms-admin-courses.php';
   }
 
   /**
@@ -1556,12 +1556,12 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
     global $wpdb;
 
     // for entire posts or specific buttons...
-    if ( isset( $_GET['page'] ) && in_array( $_GET['page'], array( 'wpcomplete-courses' ) ) && isset( $_GET['export'] ) ) {
+    if ( isset( $_GET['page'] ) && in_array( $_GET['page'], array( 'simple-lms-courses' ) ) && isset( $_GET['export'] ) ) {
 
       if ( ! current_user_can( 'manage_options' ) )  {
         wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
       }
-      if ( ! WPCOMPLETE_IS_ACTIVATED ) {
+      if ( ! SIMPLELMS_IS_ACTIVATED ) {
         wp_die( __( 'You only get access to this data once you activate your license.' ) );
       }
 
@@ -1600,9 +1600,9 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
       header("Cache-Control: private", false);
       header("Content-Type: application/octet-stream");
       if ( $course ) {
-        header("Content-Disposition: attachment; filename=\"wpcomplete-course-" . $this->get_course_class(array('course' => $course)) . ".csv\";");
+        header("Content-Disposition: attachment; filename=\"simple-lms-course-" . $this->get_course_class(array('course' => $course)) . ".csv\";");
       } else {
-        header("Content-Disposition: attachment; filename=\"wpcomplete-courses.csv\";");
+        header("Content-Disposition: attachment; filename=\"simple-lms-courses.csv\";");
       }
       header("Content-Transfer-Encoding: binary");
 
@@ -1651,8 +1651,8 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
    * @last   2.3.0
    */
   public function render_course_settings_page() {
-    echo "<p><em>loading...</em></p><script type='text/javascript'> window.location = 'options-general.php?page=wpcomplete'; </script>";
-    //wp_redirect('options-general.php?page=wpcomplete');
+    echo "<p><em>loading...</em></p><script type='text/javascript'> window.location = 'options-general.php?page=simple-lms'; </script>";
+    //wp_redirect('options-general.php?page=simple-lms');
     //exit;
   }
 
@@ -1667,7 +1667,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
       __( 'Post Completion', $this->plugin_name ),
       __( 'Post Completion', $this->plugin_name ),
       'manage_options',
-      'wpcomplete-posts',
+      'simple-lms-posts',
       array( $this, 'render_post_completion_page' )
     );
   }
@@ -1687,7 +1687,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
     if ( ! $_GET['post_id'] ) {
       wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
     }
-    if ( ! WPCOMPLETE_IS_ACTIVATED ) {
+    if ( ! SIMPLELMS_IS_ACTIVATED ) {
       wp_die( __( 'You only get access to this data once you activate your license.' ) );
     }
     // Get post info:
@@ -1720,7 +1720,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
       }
     }
 
-    include_once 'partials/wpcomplete-admin-post-completion.php';
+    include_once 'partials/simple-lms-admin-post-completion.php';
   }
 
   /**
@@ -1735,7 +1735,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
       __( 'Button Completion', $this->plugin_name ),
       __( 'Button Completion', $this->plugin_name ),
       'manage_options',
-      'wpcomplete-buttons',
+      'simple-lms-buttons',
       array( $this, 'render_button_completion_page' )
     );
   }
@@ -1755,7 +1755,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
     if ( ! $_GET['post_id'] || ! $_GET['button'] ) {
       wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
     }
-    if ( ! WPCOMPLETE_IS_ACTIVATED ) {
+    if ( ! SIMPLELMS_IS_ACTIVATED ) {
       wp_die( __( 'You only get access to this data once you activate your license.' ) );
     }
 
@@ -1794,7 +1794,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
       }
     }
 
-    include_once 'partials/wpcomplete-admin-button-completion.php';
+    include_once 'partials/simple-lms-admin-button-completion.php';
   }
 
   /**
@@ -1807,12 +1807,12 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
     global $wpdb;
 
     // for entire posts or specific buttons...
-    if ( isset( $_GET['page'] ) && in_array( $_GET['page'], array( 'wpcomplete-posts', 'wpcomplete-buttons' ) ) && isset( $_GET['export'] ) ) {
+    if ( isset( $_GET['page'] ) && in_array( $_GET['page'], array( 'simple-lms-posts', 'simple-lms-buttons' ) ) && isset( $_GET['export'] ) ) {
 
       if ( ! current_user_can( 'manage_options' ) )  {
         wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
       }
-      if ( ! WPCOMPLETE_IS_ACTIVATED ) {
+      if ( ! SIMPLELMS_IS_ACTIVATED ) {
         wp_die( __( 'You only get access to this data once you activate your license.' ) );
       }
 
@@ -1854,9 +1854,9 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
       header("Cache-Control: private", false);
       header("Content-Type: application/octet-stream");
       if ($button_id == $post_id) {
-        header("Content-Disposition: attachment; filename=\"wpcomplete-post-$post_id.csv\";");
+        header("Content-Disposition: attachment; filename=\"simple-lms-post-$post_id.csv\";");
       } else {
-        header("Content-Disposition: attachment; filename=\"wpcomplete-button-$button_id.csv\";");
+        header("Content-Disposition: attachment; filename=\"simple-lms-button-$button_id.csv\";");
       }
       header("Content-Transfer-Encoding: binary");
 
@@ -1890,7 +1890,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
    */
   public function add_custom_quick_edit( $column_name, $post_type ) {
     if ( in_array( $post_type, $this->get_enabled_post_types() ) ) {
-      include 'partials/wpcomplete-admin-quickedit.php';
+      include 'partials/simple-lms-admin-quickedit.php';
     }
   }
 
@@ -1957,14 +1957,14 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
           if ($this->post_has_multiple_buttons($post_id)) {
             if ($button != $post_id) {
               $button_name = $post_metadata[$post_id]['title'] . " (" . ucwords( str_replace( "_", " ", $post_metadata[$post_id]['type'] ) ) . " #" . $post_id . ") - Button: " . $button_id;
-              $courses[$course_name]['buttons'][$button_name] = array('link' => "edit.php?page=wpcomplete-buttons&amp;post_id=" . $post_id . "&amp;button=" . $button);
+              $courses[$course_name]['buttons'][$button_name] = array('link' => "edit.php?page=simple-lms-buttons&amp;post_id=" . $post_id . "&amp;button=" . $button);
             } else {
               $button_name = $post_metadata[$post_id]['title'] . " (" . ucwords( str_replace( "_", " ", $post_metadata[$post_id]['type'] ) ) . " #" . $post_id . ") - Default Button";
-              $courses[$course_name]['buttons'][$button_name] = array('link' => "edit.php?page=wpcomplete-posts&amp;post_id=" . $post_id);
+              $courses[$course_name]['buttons'][$button_name] = array('link' => "edit.php?page=simple-lms-posts&amp;post_id=" . $post_id);
             }
           } else {
             $button_name = $post_metadata[$post_id]['title'] . " (" . ucwords( str_replace( "_", " ", $post_metadata[$post_id]['type'] ) ) . " #" . $post_id . ")";
-            $courses[$course_name]['buttons'][$button_name] = array('link' => "edit.php?page=wpcomplete-posts&amp;post_id=" . $post_id);
+            $courses[$course_name]['buttons'][$button_name] = array('link' => "edit.php?page=simple-lms-posts&amp;post_id=" . $post_id);
           }
           if ( isset($user_completed[$button]) ) {
             $courses[$course_name]['buttons'][$button_name]['completed'] = $user_completed[$button];
@@ -1976,7 +1976,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
         ksort($courses);
 
         ob_start();
-        include 'partials/wpcomplete-admin-user-completion-column.php';
+        include 'partials/simple-lms-admin-user-completion-column.php';
         return ob_get_clean();
       } else {
         return '<div id="completable-' . $user_id . '">—</div>';
@@ -1997,7 +1997,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
       __( 'User Completion', $this->plugin_name ),
       __( 'User Completion', $this->plugin_name ),
       'manage_options',
-      'wpcomplete-users',
+      'simple-lms-users',
       array( $this, 'render_user_completion_page' )
     );
   }
@@ -2015,7 +2015,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
     if ( ! $_GET['user_id'] ) {
       wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
     }
-    if ( ! WPCOMPLETE_IS_ACTIVATED ) {
+    if ( ! SIMPLELMS_IS_ACTIVATED ) {
       wp_die( __( 'You only get access to this data once you activate your license.' ) );
     }
 
@@ -2063,14 +2063,14 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
       if ($this->post_has_multiple_buttons($post_id)) {
         if ($button != $post_id) {
           $button_name = get_the_title($post_id) . " (" . ucwords( str_replace( "_", " ", get_post_type( $post_id ) ) ) . " #" . $post_id . ") - Button: " . $button_id;
-          $courses[$course_name]['buttons'][$button_name] = array('link' => "edit.php?page=wpcomplete-buttons&amp;post_id=" . $post_id . "&amp;button=" . $button, 'status' => get_post_status($post_id), 'button' => $button );
+          $courses[$course_name]['buttons'][$button_name] = array('link' => "edit.php?page=simple-lms-buttons&amp;post_id=" . $post_id . "&amp;button=" . $button, 'status' => get_post_status($post_id), 'button' => $button );
         } else {
           $button_name = get_the_title($post_id) . " (" . ucwords( str_replace( "_", " ", get_post_type( $post_id ) ) ) . " #" . $post_id . ") - Default Button";
-          $courses[$course_name]['buttons'][$button_name] = array('link' => "edit.php?page=wpcomplete-posts&amp;post_id=" . $post_id, 'status' => get_post_status($post_id), 'button' => $button );
+          $courses[$course_name]['buttons'][$button_name] = array('link' => "edit.php?page=simple-lms-posts&amp;post_id=" . $post_id, 'status' => get_post_status($post_id), 'button' => $button );
         }
       } else {
         $button_name = get_the_title($post_id) . " (" . ucwords( str_replace( "_", " ", get_post_type( $post_id ) ) ) . " #" . $post_id . ")";
-        $courses[$course_name]['buttons'][$button_name] = array('link' => "edit.php?page=wpcomplete-posts&amp;post_id=" . $button, 'status' => get_post_status($post_id), 'button' => $button );
+        $courses[$course_name]['buttons'][$button_name] = array('link' => "edit.php?page=simple-lms-posts&amp;post_id=" . $button, 'status' => get_post_status($post_id), 'button' => $button );
       }
       $courses[$course_name]['buttons'][$button_name]['started'] = 'No';
       $courses[$course_name]['buttons'][$button_name]['completed'] = 'No';
@@ -2086,7 +2086,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
     }
     ksort($courses);
 
-    include_once 'partials/wpcomplete-admin-user-completion.php';
+    include_once 'partials/simple-lms-admin-user-completion.php';
   }
 
   /**
@@ -2100,12 +2100,12 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
     global $wpdb;
 
     // for a specific user...
-    if ( isset( $_GET['page'] ) && in_array( $_GET['page'], array( 'wpcomplete-users' ) ) && isset( $_GET['export'] ) ) {
+    if ( isset( $_GET['page'] ) && in_array( $_GET['page'], array( 'simple-lms-users' ) ) && isset( $_GET['export'] ) ) {
 
       if ( ! current_user_can( 'manage_options' ) )  {
         wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
       }
-      if ( ! WPCOMPLETE_IS_ACTIVATED ) {
+      if ( ! SIMPLELMS_IS_ACTIVATED ) {
         wp_die( __( 'You only get access to this data once you activate your license.' ) );
       }
 
@@ -2119,7 +2119,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
       header("Cache-Control: must-revalidate, post-check=0, pre-check=0");
       header("Cache-Control: private", false);
       header("Content-Type: application/octet-stream");
-      header("Content-Disposition: attachment; filename=\"wpcomplete-user-$user_id.csv\";");
+      header("Content-Disposition: attachment; filename=\"simple-lms-user-$user_id.csv\";");
       header("Content-Transfer-Encoding: binary");
 
       $csv = '"Post ID","Button ID","Started","Completed"';
@@ -2175,7 +2175,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
       exit;
     }
 
-    $post_meta_json = get_post_meta( $post_id, 'wpcomplete', true );
+    $post_meta_json = get_post_meta( $post_id, 'simple-lms', true );
     $post_meta = json_decode( stripslashes( $post_meta_json ), JSON_UNESCAPED_UNICODE );
 
     //var_dump($post_meta);
@@ -2192,7 +2192,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
 
     //var_dump($post_meta);
 
-    $saved = update_post_meta( $post_id, 'wpcomplete', json_encode( $post_meta, JSON_UNESCAPED_UNICODE ) );
+    $saved = update_post_meta( $post_id, 'simple-lms', json_encode( $post_meta, JSON_UNESCAPED_UNICODE ) );
 
     //wp_redirect( $_SERVER['HTTP_REFERER'] );
     $response = json_encode( $saved, JSON_UNESCAPED_UNICODE );
@@ -2253,8 +2253,8 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
     if ( false !== strpos( $post_content, '[' ) ) {
       // Check for shortcodes to see what buttons we have...
       //$pattern = get_shortcode_regex();
-      // We just want wpcomplete buttons... can ignore anything else:
-      $pattern = '\[(\[?)(complete_button|wpc_complete_button|wpc_button|wpcomplete_button)(?![\w-])([^\]\/]*(?:\/(?!\])[^\]\/]*)*?)(?:(\/)\]|\](?:([^\[]*+(?:\[(?!\/\2\])[^\[]*+)*+)\[\/\2\])?)(\]?)';
+      // We just want simplelms buttons... can ignore anything else:
+      $pattern = '\[(\[?)(complete_button|wpc_complete_button|wpc_button|simplelms_button)(?![\w-])([^\]\/]*(?:\/(?!\])[^\]\/]*)*?)(?:(\/)\]|\](?:([^\[]*+(?:\[(?!\/\2\])[^\[]*+)*+)\[\/\2\])?)(\]?)';
       preg_match_all('/'.$pattern.'/s', $post_content, $matches);
 
       $shortcodes = array_unique( $matches[0] );
@@ -2264,7 +2264,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
         if (strstr($value, '[complete_button') !== false) return true;
         if (strstr($value, '[wpc_complete_button') !== false) return true;
         if (strstr($value, '[wpc_button') !== false) return true;
-        if (strstr($value, '[wpcomplete_button') !== false) return true;
+        if (strstr($value, '[simplelms_button') !== false) return true;
 
         return false;
       });
@@ -2277,7 +2277,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
         // normalize button code...
         $code = str_replace('[complete_button', '[wpc_complete_button', $code);
         $code = str_replace('[wpc_button', '[wpc_complete_button', $code);
-        $code = str_replace('[wpcomplete_button', '[wpc_complete_button', $code);
+        $code = str_replace('[simplelms_button', '[wpc_complete_button', $code);
         $code = str_replace("“", '"', $code);
         $code = str_replace("”", '"', $code);
         $code = str_replace("`", '"', $code);
@@ -2304,13 +2304,13 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
               // let's check again:
               $atts_array = @simplexml_load_string("<div " . $unparsed_args . "></div>");
               if (!$atts_array) {
-                throw new UnexpectedValueException('A WPComplete button shortcode used in post #' . $post_id . ' contains invalid formatting that we attempted to fix but couldn\'t: [wpc_button ' . $orig_unparsed_args . ']');
+                throw new UnexpectedValueException('A SimpleLMS button shortcode used in post #' . $post_id . ' contains invalid formatting that we attempted to fix but couldn\'t: [wpc_button ' . $orig_unparsed_args . ']');
               }
               // ... but for now, throw a specific error letting the user know:
-              //throw new UnexpectedValueException('A WPComplete button shortcode used in post #' . $post_id . ' doesn\'t wrap attribute values in quotes: [wpc_button ' . $unparsed_args . ']');
+              //throw new UnexpectedValueException('A SimpleLMS button shortcode used in post #' . $post_id . ' doesn\'t wrap attribute values in quotes: [wpc_button ' . $unparsed_args . ']');
             } else {
               // Not sure how to handle this, so throw exception and let the user know what is causing the parsing error:
-              throw new UnexpectedValueException('A WPComplete button shortcode used in post #' . $post_id . ' contains invalid formatting and caused an error when attempting to save: [wpc_button ' . $unparsed_args . ']');
+              throw new UnexpectedValueException('A SimpleLMS button shortcode used in post #' . $post_id . ' contains invalid formatting and caused an error when attempting to save: [wpc_button ' . $unparsed_args . ']');
             }
           }
           $parsed_args = current((array) $atts_array);
@@ -2407,7 +2407,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
     if ( ! $_GET['user_id'] ) {
       wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
     }
-    if ( ! WPCOMPLETE_IS_ACTIVATED ) {
+    if ( ! SIMPLELMS_IS_ACTIVATED ) {
       wp_die( __( 'You only get access to this data once you activate your license.' ) );
     }
 
@@ -2442,7 +2442,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
     if ( wp_get_referer() ) {
       wp_safe_redirect( wp_get_referer() );
     } else {
-      wp_safe_redirect( admin_url("users.php?page=wpcomplete-users&user_id=" . $_REQUEST['user_id']) );
+      wp_safe_redirect( admin_url("users.php?page=simple-lms-users&user_id=" . $_REQUEST['user_id']) );
     }
 
   }
@@ -2460,7 +2460,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
     if ( ! $_REQUEST['user_id'] ) {
       wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
     }
-    if ( ! WPCOMPLETE_IS_ACTIVATED ) {
+    if ( ! SIMPLELMS_IS_ACTIVATED ) {
       wp_die( __( 'You only get access to this data once you activate your license.' ) );
     }
 
@@ -2479,8 +2479,8 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
       $post_meta['buttons'][] = $unique_button_id;
       $posts[ $post_id ] = $post_meta;
       // Save changes:
-      update_post_meta( $post_id, 'wpcomplete', json_encode( $post_meta, JSON_UNESCAPED_UNICODE ) );
-      wp_cache_set( "posts", json_encode( $posts, JSON_UNESCAPED_UNICODE ), 'wpcomplete' );
+      update_post_meta( $post_id, 'simple-lms', json_encode( $post_meta, JSON_UNESCAPED_UNICODE ) );
+      wp_cache_set( "posts", json_encode( $posts, JSON_UNESCAPED_UNICODE ), 'simple-lms' );
     }
 
     // Mark this button as completed:
@@ -2499,7 +2499,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
     if ( wp_get_referer() ) {
       wp_safe_redirect( wp_get_referer() );
     } else {
-      wp_safe_redirect( admin_url("users.php?page=wpcomplete-users&user_id=" . $_REQUEST['user_id']) );
+      wp_safe_redirect( admin_url("users.php?page=simple-lms-users&user_id=" . $_REQUEST['user_id']) );
     }
   }
 

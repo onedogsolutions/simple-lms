@@ -3,11 +3,11 @@
 /**
  * The public-facing functionality of the plugin.
  *
- * @link       https://wpcomplete.co
+ * @link       https://simplelms.co
  * @since      1.0.0
  *
- * @package    WPComplete
- * @subpackage wpcomplete/public
+ * @package    SimpleLMS
+ * @subpackage simple-lms/public
  */
 
 /**
@@ -16,11 +16,11 @@
  * Defines the plugin name, version, and two examples hooks for how to
  * enqueue the admin-specific stylesheet and JavaScript.
  *
- * @package    WPComplete
- * @subpackage wpcomplete/public
+ * @package    SimpleLMS
+ * @subpackage simple-lms/public
  * @author     Zack Gilbert <zack@zackgilbert.com>
  */
-class WPComplete_Public extends WPComplete_Common {
+class SimpleLMS_Public extends SimpleLMS_Common {
 
   /**
    * The ID of this plugin.
@@ -49,10 +49,10 @@ class WPComplete_Public extends WPComplete_Common {
   public function enqueue_styles() {
     if (is_user_logged_in()) {
       if ( !function_exists('is_plugin_active') || is_plugin_active( 'optimizePressPlugin/optimizepress.php' ) ) {
-        wp_register_style( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'css/wpcomplete-full.css', array(), $this->version, 'all' );
+        wp_register_style( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'css/simple-lms-full.css', array(), $this->version, 'all' );
         wp_enqueue_style( $this->plugin_name );
       } else {
-        wp_register_style( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'css/wpcomplete-public.css', array(), $this->version, 'all' );
+        wp_register_style( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'css/simple-lms-public.css', array(), $this->version, 'all' );
 
         $bar_theme = get_option( $this->plugin_name . '_theme_bar_graph', 'classic' );
         $radial_theme = get_option( $this->plugin_name . '_theme_radial_graph', 'classic' );
@@ -78,7 +78,7 @@ class WPComplete_Public extends WPComplete_Common {
    */
   public function enqueue_scripts() {
     if (is_user_logged_in()) {
-      wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/wpcomplete-public.js', array( 'jquery' ), $this->version, true );
+      wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/simple-lms-public.js', array( 'jquery' ), $this->version, true );
 
       $completion_nonce = wp_create_nonce( 'wpc-ajax-nonce' );
       $updated_at = get_option( $this->plugin_name . '_last_updated' );
@@ -156,7 +156,7 @@ class WPComplete_Public extends WPComplete_Common {
        * @param string       $content Content of the shortcode. Usually empty.
        * @param string       $tag     The shortcode tag name.
        */
-      do_action( 'wpcomplete_show_button_failed', 'guest', $atts, $content, $tag );
+      do_action( 'simplelms_show_button_failed', 'guest', $atts, $content, $tag );
 
       return; // should replace with button redirect to signup
     }
@@ -183,7 +183,7 @@ class WPComplete_Public extends WPComplete_Common {
      * @param string       $content Content of the shortcode. Usually empty.
      * @param string       $tag     The shortcode tag name.
      */
-    $atts = apply_filters( 'wpcomplete_button_attrs', $atts, $content, $tag );
+    $atts = apply_filters( 'simplelms_button_attrs', $atts, $content, $tag );
 
     $post_id = get_the_ID();
     $button_id = '';
@@ -211,7 +211,7 @@ class WPComplete_Public extends WPComplete_Common {
        * @param string       $content Content of the shortcode. Usually empty.
        * @param string       $tag     The shortcode tag name.
        */
-      do_action( 'wpcomplete_show_button_failed', 'unsupported', $atts, $content, $tag );
+      do_action( 'simplelms_show_button_failed', 'unsupported', $atts, $content, $tag );
 
       return;
     }
@@ -229,7 +229,7 @@ class WPComplete_Public extends WPComplete_Common {
        * @param string       $content Content of the shortcode. Usually empty.
        * @param string       $tag     The shortcode tag name.
        */
-      do_action( 'wpcomplete_show_button_failed', 'not_completable', $atts, $content, $tag );
+      do_action( 'simplelms_show_button_failed', 'not_completable', $atts, $content, $tag );
 
       return;
     }
@@ -254,8 +254,8 @@ class WPComplete_Public extends WPComplete_Common {
         $post_meta['buttons'][] = $unique_button_id;
         $posts[ $post_id ] = $post_meta;
         // Save changes:
-        update_post_meta( $post_id, 'wpcomplete', json_encode( $post_meta, JSON_UNESCAPED_UNICODE ) );
-        wp_cache_set( "posts", json_encode( $posts, JSON_UNESCAPED_UNICODE ), 'wpcomplete' );
+        update_post_meta( $post_id, 'simple-lms', json_encode( $post_meta, JSON_UNESCAPED_UNICODE ) );
+        wp_cache_set( "posts", json_encode( $posts, JSON_UNESCAPED_UNICODE ), 'simple-lms' );
       }
 
       // Mark this button as completed:
@@ -279,7 +279,7 @@ class WPComplete_Public extends WPComplete_Common {
        * @param string       $content Content of the shortcode. Usually empty.
        * @param string       $tag     The shortcode tag name.
        */
-      do_action( 'wpcomplete_show_button_failed', 'hidden', $atts, $content, $tag );
+      do_action( 'simplelms_show_button_failed', 'hidden', $atts, $content, $tag );
 
       return "<!-- hidden button for: $unique_button_id -->";
     }
@@ -308,13 +308,13 @@ class WPComplete_Public extends WPComplete_Common {
 
     ob_start();
     if (isset($atts['async'])) {
-      include 'partials/wpcomplete-public-loading-button.php';
+      include 'partials/simple-lms-public-loading-button.php';
     } else {
       // Start displaying button:
       if ( $this->button_is_completed( $post_id, $button_id ) ) {
-        include 'partials/wpcomplete-public-completed-button.php';
+        include 'partials/simple-lms-public-completed-button.php';
       } else {
-        include 'partials/wpcomplete-public-incomplete-button.php';
+        include 'partials/simple-lms-public-incomplete-button.php';
       }
     }
 
@@ -343,7 +343,7 @@ class WPComplete_Public extends WPComplete_Common {
        * @param string       $content Content of the shortcode. Usually empty.
        * @param string       $tag     The shortcode tag name.
        */
-      do_action( 'wpcomplete_show_progress_failed', 'guest', $atts, $content, $tag );
+      do_action( 'simplelms_show_progress_failed', 'guest', $atts, $content, $tag );
 
       return;
     }
@@ -362,7 +362,7 @@ class WPComplete_Public extends WPComplete_Common {
      * @param string       $content Content of the shortcode. Usually empty.
      * @param string       $tag     The shortcode tag name.
      */
-    $atts = apply_filters( 'wpcomplete_progress_percentage_attrs', $atts, $content, $tag );
+    $atts = apply_filters( 'simplelms_progress_percentage_attrs', $atts, $content, $tag );
 
     // find the current course's
     if ( ( !isset( $atts['course'] ) || empty( $atts['course'] ) ) && is_numeric( get_the_ID() ) ) {
@@ -370,7 +370,7 @@ class WPComplete_Public extends WPComplete_Common {
     }
     $percentage = $this->get_percentage( $atts );
 
-    return '<span class="wpcomplete-progress-percentage ' . $this->get_course_class( $atts ) . '">' . $percentage . "%" . '</span>';
+    return '<span class="simple-lms-progress-percentage ' . $this->get_course_class( $atts ) . '">' . $percentage . "%" . '</span>';
   }
 
   /**
@@ -394,7 +394,7 @@ class WPComplete_Public extends WPComplete_Common {
        * @param string       $content Content of the shortcode. Usually empty.
        * @param string       $tag     The shortcode tag name.
        */
-      do_action( 'wpcomplete_show_progress_ratio_failed', 'guest', $atts, $content, $tag );
+      do_action( 'simplelms_show_progress_ratio_failed', 'guest', $atts, $content, $tag );
 
       return;
     }
@@ -412,7 +412,7 @@ class WPComplete_Public extends WPComplete_Common {
      * @param string       $content Content of the shortcode. Usually empty.
      * @param string       $tag     The shortcode tag name.
      */
-    $atts = apply_filters( 'wpcomplete_progress_ratio_attrs', $atts, $content, $tag );
+    $atts = apply_filters( 'simplelms_progress_ratio_attrs', $atts, $content, $tag );
 
     // find the current course's
     if ( ( !isset( $atts['course'] ) || empty( $atts['course'] ) ) && is_numeric( get_the_ID() ) ) {
@@ -436,7 +436,7 @@ class WPComplete_Public extends WPComplete_Common {
        * @param string       $content Content of the shortcode. Usually empty.
        * @param string       $tag     The shortcode tag name.
        */
-      do_action( 'wpcomplete_show_progress_ratio_failed', 'no_button', $atts, $content, $tag );
+      do_action( 'simplelms_show_progress_ratio_failed', 'no_button', $atts, $content, $tag );
 
       return;
     }
@@ -445,7 +445,7 @@ class WPComplete_Public extends WPComplete_Common {
 
     $completed_posts = array_intersect( $total_buttons, array_keys( $user_completed ) );
 
-    return '<span class="wpcomplete-progress-ratio ' . $this->get_course_class($atts) . '">' . count($completed_posts) . "/" . count($total_buttons) . '</span>';
+    return '<span class="simple-lms-progress-ratio ' . $this->get_course_class($atts) . '">' . count($completed_posts) . "/" . count($total_buttons) . '</span>';
   }
 
   /**
@@ -472,8 +472,8 @@ class WPComplete_Public extends WPComplete_Common {
     foreach ($courses as $course) {
       $atts = array('course' => $course);
 
-      $updates_to_sendback['.wpcomplete-progress-ratio.' . $this->get_course_class($atts)] = $this->progress_ratio_cb( $atts );
-      $updates_to_sendback['.wpcomplete-progress-percentage.' . $this->get_course_class($atts)] = $this->progress_percentage_cb( $atts );
+      $updates_to_sendback['.simple-lms-progress-ratio.' . $this->get_course_class($atts)] = $this->progress_ratio_cb( $atts );
+      $updates_to_sendback['.simple-lms-progress-percentage.' . $this->get_course_class($atts)] = $this->progress_percentage_cb( $atts );
 
       $percentage = $this->get_percentage( $atts );
       if ($radial_theme !== 'false') {
@@ -488,8 +488,8 @@ class WPComplete_Public extends WPComplete_Common {
       }
     }
 
-    $updates_to_sendback['.wpcomplete-progress-ratio.all-courses'] = $this->progress_ratio_cb( array('course' => 'all') );
-    $updates_to_sendback['.wpcomplete-progress-percentage.all-courses'] = $this->progress_percentage_cb( array('course' => 'all') );
+    $updates_to_sendback['.simple-lms-progress-ratio.all-courses'] = $this->progress_ratio_cb( array('course' => 'all') );
+    $updates_to_sendback['.simple-lms-progress-percentage.all-courses'] = $this->progress_percentage_cb( array('course' => 'all') );
 
     $percentage = $this->get_percentage( array('course' => 'all') );
 
@@ -528,7 +528,7 @@ class WPComplete_Public extends WPComplete_Common {
        * @param string       $content Content of the shortcode. Usually empty.
        * @param string       $tag     The shortcode tag name.
        */
-      do_action( 'wpcomplete_show_progress_radial_graph_failed', 'guest', $atts, $content, $tag );
+      do_action( 'simplelms_show_progress_radial_graph_failed', 'guest', $atts, $content, $tag );
 
       return;
     }
@@ -546,7 +546,7 @@ class WPComplete_Public extends WPComplete_Common {
        * @param string       $content Content of the shortcode. Usually empty.
        * @param string       $tag     The shortcode tag name.
        */
-      do_action( 'wpcomplete_show_progress_radial_graph_failed', 'disabled', $atts, $content, $tag );
+      do_action( 'simplelms_show_progress_radial_graph_failed', 'disabled', $atts, $content, $tag );
       return;
     }
     $loading = false;
@@ -590,7 +590,7 @@ class WPComplete_Public extends WPComplete_Common {
        * @param string       $content Content of the shortcode. Usually empty.
        * @param string       $tag     The shortcode tag name.
        */
-      do_action( 'wpcomplete_show_progress_graph_failed', 'guest', $atts, $content, $tag );
+      do_action( 'simplelms_show_progress_graph_failed', 'guest', $atts, $content, $tag );
 
       return;
     }
@@ -608,7 +608,7 @@ class WPComplete_Public extends WPComplete_Common {
        * @param string       $content Content of the shortcode. Usually empty.
        * @param string       $tag     The shortcode tag name.
        */
-      do_action( 'wpcomplete_show_progress_graph_failed', 'disabled', $atts, $content, $tag );
+      do_action( 'simplelms_show_progress_graph_failed', 'disabled', $atts, $content, $tag );
 
       return;
     }
@@ -652,21 +652,21 @@ class WPComplete_Public extends WPComplete_Common {
        * @since 2.9.1
        * @param string       $reason  The reason, why the function failed.
        */
-      do_action( 'wpcomplete_custom_styles_failed', 'guest' );
+      do_action( 'simplelms_custom_styles_failed', 'guest' );
 
       return;
     }
-    if ( ! WPCOMPLETE_IS_ACTIVATED ) {
+    if ( ! SIMPLELMS_IS_ACTIVATED ) {
       /**
        * Action that is fired when attempting to output custom button CSS while
-       * WPComplete is unlicensed.
+       * SimpleLMS is unlicensed.
        *
        * @pst
        *
        * @since 2.9.1
        * @param string       $reason  The reason, why the function failed.
        */
-      do_action( 'wpcomplete_custom_styles_failed', 'disabled' );
+      do_action( 'simplelms_custom_styles_failed', 'disabled' );
 
       return;
     }
@@ -704,7 +704,7 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
    * @since    2.4.3.1
    */
   public function append_script_defer( $tag, $handle ) {
-    if ( 'wpcomplete' !== $handle )
+    if ( 'simple-lms' !== $handle )
       return $tag;
     return str_replace( ' src', ' defer="defer" src', $tag );
   }
@@ -795,8 +795,8 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
       $post_meta['buttons'][] = $unique_button_id;
       $posts[ $post_id ] = $post_meta;
       // Save changes:
-      update_post_meta( $post_id, 'wpcomplete', json_encode( $post_meta, JSON_UNESCAPED_UNICODE ) );
-      wp_cache_set( "posts", json_encode( $posts, JSON_UNESCAPED_UNICODE ), 'wpcomplete' );
+      update_post_meta( $post_id, 'simple-lms', json_encode( $post_meta, JSON_UNESCAPED_UNICODE ) );
+      wp_cache_set( "posts", json_encode( $posts, JSON_UNESCAPED_UNICODE ), 'simple-lms' );
     }
 
     // Mark this button as completed:
@@ -835,7 +835,7 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
     //sleep ( rand ( 0, 2 ) );
 
     // PREMIUM: redirect student if teacher has added redirect url:
-    if (WPCOMPLETE_IS_ACTIVATED) {
+    if (SIMPLELMS_IS_ACTIVATED) {
       // PREMIUM: get info for progress percentage:
       $atts = array();
       if ( $course ) {
@@ -864,10 +864,10 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
       }
 
       // Update premium feature widgets:
-      $updates_to_sendback['.wpcomplete-progress-ratio.' . $this->get_course_class($atts)] = $this->progress_ratio_cb( $atts );
-      $updates_to_sendback['.wpcomplete-progress-percentage.' . $this->get_course_class($atts)] = $this->progress_percentage_cb( $atts );
-      $updates_to_sendback['.wpcomplete-progress-ratio.all-courses'] = $this->progress_ratio_cb( array('course' => 'all') );
-      $updates_to_sendback['.wpcomplete-progress-percentage.all-courses'] = $this->progress_percentage_cb( array('course' => 'all') );
+      $updates_to_sendback['.simple-lms-progress-ratio.' . $this->get_course_class($atts)] = $this->progress_ratio_cb( $atts );
+      $updates_to_sendback['.simple-lms-progress-percentage.' . $this->get_course_class($atts)] = $this->progress_percentage_cb( $atts );
+      $updates_to_sendback['.simple-lms-progress-ratio.all-courses'] = $this->progress_ratio_cb( array('course' => 'all') );
+      $updates_to_sendback['.simple-lms-progress-percentage.all-courses'] = $this->progress_percentage_cb( array('course' => 'all') );
       $updates_to_sendback['.' . $this->get_course_class($atts) . '[data-progress]'] = $this->get_percentage($atts);
       $updates_to_sendback['.all-courses[data-progress]'] = $this->get_percentage(array('course' => 'all') );
       $updates_to_sendback['peer-pressure'] = $this->get_peer_pressure_stats($post_id);
@@ -886,13 +886,13 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
     }
 
     // Add action for other plugins to hook in:
-    do_action( 'wpcomplete_mark_completed', array( 'user_id' => get_current_user_id(), 'post_id' => $post_id, 'button_id' => $unique_button_id, 'course' => $course ) );
-    do_action( 'wpcomplete_button_completed', array( 'user_id' => get_current_user_id(), 'post_id' => $post_id, 'button_id' => $unique_button_id, 'course' => $course ) );
+    do_action( 'simplelms_mark_completed', array( 'user_id' => get_current_user_id(), 'post_id' => $post_id, 'button_id' => $unique_button_id, 'course' => $course ) );
+    do_action( 'simplelms_button_completed', array( 'user_id' => get_current_user_id(), 'post_id' => $post_id, 'button_id' => $unique_button_id, 'course' => $course ) );
     if ( $this->post_completion_status($post_id) == 'completed' ) {
-      do_action( 'wpcomplete_page_completed', array('user_id' => get_current_user_id(), 'post_id' => $post_id, 'button_id' => $unique_button_id, 'course' => $course ) );
+      do_action( 'simplelms_page_completed', array('user_id' => get_current_user_id(), 'post_id' => $post_id, 'button_id' => $unique_button_id, 'course' => $course ) );
     }
     if ( $this->course_completion_status($course) == 'completed' ) {
-      do_action( 'wpcomplete_course_completed', array('user_id' => get_current_user_id(), 'post_id' => $post_id, 'button_id' => $unique_button_id, 'course' => $course ) );
+      do_action( 'simplelms_course_completed', array('user_id' => get_current_user_id(), 'post_id' => $post_id, 'button_id' => $unique_button_id, 'course' => $course ) );
     }
 
     $zapier_url = get_option( $this->plugin_name . '_zapier', '' );
@@ -903,7 +903,7 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
       $user_name = $user_info->display_name;
       $user_email = $user_info->user_email;
 
-      $button_zapier = array( 'wpcomplete' => array(
+      $button_zapier = array( 'simple-lms' => array(
         'user_id' => $user_id,
         'user_email' => $user_email,
         'user_name' => $user_name,
@@ -919,7 +919,7 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
         'total_percentage' => $this->progress_percentage_cb( array( 'course' => 'all' ) ),
         'completed_at' => current_time( 'mysql' ),
         'site_url' => get_site_url(),
-        'version' => WPCOMPLETE_VERSION,
+        'version' => SIMPLELMS_VERSION,
         'referral' => wp_get_referer()
       ) );
 
@@ -934,7 +934,7 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
 
       if ( $this->post_completion_status($post_id) == 'completed' ) {
         // build zapier payload:
-        $post_zapier = array( 'wpcomplete' => array(
+        $post_zapier = array( 'simple-lms' => array(
           'user_id' => $user_id,
           'user_email' => $user_email,
           'user_name' => $user_name,
@@ -949,7 +949,7 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
           'total_percentage' => $this->progress_percentage_cb( array( 'course' => 'all' ) ),
           'completed_at' => current_time( 'mysql' ),
           'site_url' => get_site_url(),
-          'version' => WPCOMPLETE_VERSION,
+          'version' => SIMPLELMS_VERSION,
           'referral' => wp_get_referer()
         ) );
 
@@ -961,7 +961,7 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
         }
       }
       if ( $this->course_completion_status($course) == 'completed' ) {
-        $course_zapier = array( 'wpcomplete' => array(
+        $course_zapier = array( 'simple-lms' => array(
           'user_id' => $user_id,
           'user_email' => $user_email,
           'user_name' => $user_name,
@@ -975,7 +975,7 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
           'total_percentage' => $this->progress_percentage_cb( array( 'course' => 'all' ) ),
           'completed_at' => current_time( 'mysql' ),
           'site_url' => get_site_url(),
-          'version' => WPCOMPLETE_VERSION,
+          'version' => SIMPLELMS_VERSION,
           'referral' => wp_get_referer()
         ) );
 
@@ -1074,7 +1074,7 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
     //sleep ( rand ( 0, 2 ) );
 
     // PREMIUM:
-    if (WPCOMPLETE_IS_ACTIVATED) {
+    if (SIMPLELMS_IS_ACTIVATED) {
       // get info for progress percentage:
       $atts = array();
       if ( $course ) {
@@ -1103,23 +1103,23 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
         $updates_to_sendback['wpc-course-uncompleted::' . $this->get_course_class( array( 'course' => $course ) ) ] = 'trigger';
       }
 
-      $updates_to_sendback['.wpcomplete-progress-ratio.' . $this->get_course_class($atts)] = $this->progress_ratio_cb( $atts );
-      $updates_to_sendback['.wpcomplete-progress-percentage.' . $this->get_course_class($atts)] = $this->progress_percentage_cb( $atts );
-      $updates_to_sendback['.wpcomplete-progress-ratio.all-courses'] = $this->progress_ratio_cb( array('course' => 'all') );
-      $updates_to_sendback['.wpcomplete-progress-percentage.all-courses'] = $this->progress_percentage_cb( array('course' => 'all') );
+      $updates_to_sendback['.simple-lms-progress-ratio.' . $this->get_course_class($atts)] = $this->progress_ratio_cb( $atts );
+      $updates_to_sendback['.simple-lms-progress-percentage.' . $this->get_course_class($atts)] = $this->progress_percentage_cb( $atts );
+      $updates_to_sendback['.simple-lms-progress-ratio.all-courses'] = $this->progress_ratio_cb( array('course' => 'all') );
+      $updates_to_sendback['.simple-lms-progress-percentage.all-courses'] = $this->progress_percentage_cb( array('course' => 'all') );
       $updates_to_sendback['.' . $this->get_course_class($atts) . '[data-progress]'] = $this->get_percentage($atts);
       $updates_to_sendback['.all-courses[data-progress]'] = $this->get_percentage(array('course' => 'all') );
       $updates_to_sendback['peer-pressure'] = $this->get_peer_pressure_stats($post_id);
     }
 
     // Add action for other plugins to hook in:
-    do_action( 'wpcomplete_mark_incomplete', array('user_id' => get_current_user_id(), 'post_id' => $post_id, 'button_id' => $unique_button_id, 'course' => $course ) );
-    do_action( 'wpcomplete_button_uncompleted', array( 'user_id' => get_current_user_id(), 'post_id' => $post_id, 'button_id' => $unique_button_id, 'course' => $course ) );
+    do_action( 'simplelms_mark_incomplete', array('user_id' => get_current_user_id(), 'post_id' => $post_id, 'button_id' => $unique_button_id, 'course' => $course ) );
+    do_action( 'simplelms_button_uncompleted', array( 'user_id' => get_current_user_id(), 'post_id' => $post_id, 'button_id' => $unique_button_id, 'course' => $course ) );
     if ( $previous_post_status == 'completed' ) {
-      do_action( 'wpcomplete_page_uncompleted', array('user_id' => get_current_user_id(), 'post_id' => $post_id, 'button_id' => $unique_button_id, 'course' => $course ) );
+      do_action( 'simplelms_page_uncompleted', array('user_id' => get_current_user_id(), 'post_id' => $post_id, 'button_id' => $unique_button_id, 'course' => $course ) );
     }
     if ( $previous_course_status == 'completed' ) {
-      do_action( 'wpcomplete_course_uncompleted', array('user_id' => get_current_user_id(), 'post_id' => $post_id, 'button_id' => $unique_button_id, 'course' => $course ) );
+      do_action( 'simplelms_course_uncompleted', array('user_id' => get_current_user_id(), 'post_id' => $post_id, 'button_id' => $unique_button_id, 'course' => $course ) );
     }
 
     if (defined('DOING_AJAX') && DOING_AJAX) {
@@ -1251,7 +1251,7 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
 
     ob_start();
     if ( !$should_hide || !isset($atts['hide']) || ( $atts['hide'] === 'false' ) ) {
-      include 'partials/wpcomplete-public-content-button.php';
+      include 'partials/simple-lms-public-content-button.php';
     }
     return ob_get_clean();
   }
@@ -1303,7 +1303,7 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
 
     ob_start();
     if ( !$should_hide || !isset($atts['hide']) || ( $atts['hide'] === 'false' ) ) {
-      include 'partials/wpcomplete-public-content-page.php';
+      include 'partials/simple-lms-public-content-page.php';
     }
     return ob_get_clean();
   }
@@ -1343,7 +1343,7 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
 
     ob_start();
     if ( !$should_hide || !isset($atts['hide']) || ( $atts['hide'] === 'false' ) ) {
-      include 'partials/wpcomplete-public-content-course.php';
+      include 'partials/simple-lms-public-content-course.php';
     }
     return ob_get_clean();
   }
@@ -1400,7 +1400,7 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
 
     ob_start();
     if ( !$should_hide || !isset($atts['hide']) || ( $atts['hide'] === 'false' ) ) {
-      include 'partials/wpcomplete-public-content-button.php';
+      include 'partials/simple-lms-public-content-button.php';
     }
     return ob_get_clean();
   }
@@ -1436,7 +1436,7 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
 
     ob_start();
     if ( !$should_hide || !isset($atts['hide']) || ( $atts['hide'] === 'false' ) ) {
-      include 'partials/wpcomplete-public-content-page.php';
+      include 'partials/simple-lms-public-content-page.php';
     }
     return ob_get_clean();
   }
@@ -1463,7 +1463,7 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
 
     ob_start();
     if ( !$should_hide || !isset($atts['hide']) || ( $atts['hide'] === 'false' ) ) {
-      include 'partials/wpcomplete-public-content-course.php';
+      include 'partials/simple-lms-public-content-course.php';
     }
     return ob_get_clean();
   }
@@ -1522,10 +1522,10 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
     if ( ! in_array( stripslashes( $course ), $this->get_course_names() ) ) {
       $courses = array();
       // but still handle if there's an escaped \, in the course name:
-      $tmp_str = str_replace('\,', "**wpcomplete**", $course);
+      $tmp_str = str_replace('\,', "**simplelms**", $course);
       $tmp_array = explode( ",", strtolower( str_replace( ", ", ",", $tmp_str ) ) );
       foreach ($tmp_array as $tmp) {
-        $courses[] = str_replace( "**wpcomplete**", ",", $tmp );
+        $courses[] = str_replace( "**simplelms**", ",", $tmp );
       }
 
     }
@@ -1860,7 +1860,7 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
     ob_start();
 
     if ( count( $page_ids_in_order ) < 1 ) {
-      echo "<p><b>WPComplete warning:</b> No pages have been set as completable. You can enable them in your Wordpress admin dashboard.</p>";
+      echo "<p><b>SimpleLMS warning:</b> No pages have been set as completable. You can enable them in your Wordpress admin dashboard.</p>";
       return ob_get_clean();
     }
 
@@ -1903,7 +1903,7 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
             'display' => html_entity_decode($prepend, ENT_QUOTES | ENT_HTML401) . $post_title . html_entity_decode($append, ENT_QUOTES | ENT_HTML401)
           ), JSON_UNESCAPED_UNICODE );
         } else {
-          include 'partials/wpcomplete-public-nav-link.php';
+          include 'partials/simple-lms-public-nav-link.php';
         }
 
         return ob_get_clean();
@@ -1927,7 +1927,7 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
       $not_found = '';
       if ( isset( $args['not_found'] ) && !empty( $args['not_found'] ) ) $not_found = sanitize_text_field($args['not_found']);
       $class .= ' wpc-nav-next-to-complete-not-found';
-      include 'partials/wpcomplete-public-nav-link-not-found.php';
+      include 'partials/simple-lms-public-nav-link-not-found.php';
     }
     return ob_get_clean();
   }
@@ -2022,7 +2022,7 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
           'display' => html_entity_decode($prepend, ENT_QUOTES | ENT_HTML401) . $post_title . html_entity_decode($append, ENT_QUOTES | ENT_HTML401)
         ), JSON_UNESCAPED_UNICODE );
       } else {
-        include 'partials/wpcomplete-public-nav-link.php';
+        include 'partials/simple-lms-public-nav-link.php';
       }
     } else {
       if ( $tag == 'wpc_has_last_completed' ) {
@@ -2040,7 +2040,7 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
         $not_found = '';
         if ( isset( $args['not_found'] ) && !empty( $args['not_found'] ) ) $not_found = sanitize_text_field($args['not_found']);
         $class .= ' wpc-nav-last-completed-not-found';
-        include 'partials/wpcomplete-public-nav-link-not-found.php';
+        include 'partials/simple-lms-public-nav-link-not-found.php';
       }
     }
 
@@ -2118,7 +2118,7 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
           'display' => html_entity_decode($prepend, ENT_QUOTES | ENT_HTML401) . $post_title . html_entity_decode($append, ENT_QUOTES | ENT_HTML401)
         ), JSON_UNESCAPED_UNICODE );
       } else {
-        include 'partials/wpcomplete-public-nav-link.php';
+        include 'partials/simple-lms-public-nav-link.php';
       }
     } else {
       if ( $tag == 'wpc_has_next_page' ) {
@@ -2136,7 +2136,7 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
         $not_found = '';
         if ( isset( $args['not_found'] ) && !empty( $args['not_found'] ) ) $not_found = sanitize_text_field($args['not_found']);
         $class .= ' wpc-nav-next-page-not-found';
-        include 'partials/wpcomplete-public-nav-link-not-found.php';
+        include 'partials/simple-lms-public-nav-link-not-found.php';
       }
     }
 
@@ -2214,7 +2214,7 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
           'display' => html_entity_decode($prepend, ENT_QUOTES | ENT_HTML401) . $post_title . html_entity_decode($append, ENT_QUOTES | ENT_HTML401)
         ), JSON_UNESCAPED_UNICODE );
       } else {
-        include 'partials/wpcomplete-public-nav-link.php';
+        include 'partials/simple-lms-public-nav-link.php';
       }
     } else {
       if ( $tag == 'wpc_has_previous_page' ) {
@@ -2232,7 +2232,7 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
         $not_found = '';
         if ( isset( $args['not_found'] ) && !empty( $args['not_found'] ) ) $not_found = sanitize_text_field($args['not_found']);
         $class .= ' wpc-nav-previous-page-not-found';
-        include 'partials/wpcomplete-public-nav-link-not-found.php';
+        include 'partials/simple-lms-public-nav-link-not-found.php';
       }
     }
 
@@ -2356,7 +2356,7 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
     // Get all users that are able to complete the post:
     $args = array('fields' => 'ID');
     if ($selected_role != 'all') $args['role'] = $selected_role;
-    $args['meta_key'] = 'wpcomplete';
+    $args['meta_key'] = 'simple-lms';
     $total_users = get_users($args);
 
     // Bail if we don't have any users to track.
@@ -2365,7 +2365,7 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
     if (count($total_users) > 10000) return false;
 
     $user_ids = join( ",", $total_users );
-    $SQL = "SELECT b.user_id, b.meta_value FROM $wpdb->usermeta b WHERE ( b.meta_key = 'wpcomplete' ) AND ( b.user_id IN ($user_ids) )";
+    $SQL = "SELECT b.user_id, b.meta_value FROM $wpdb->usermeta b WHERE ( b.meta_key = 'simple-lms' ) AND ( b.user_id IN ($user_ids) )";
 
     $total_users_meta = $wpdb->get_results( $SQL, ARRAY_A );
 
@@ -2427,7 +2427,7 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
     // Get all users that are able to complete the post:
     $args = array('fields' => 'ID');
     if ($selected_role != 'all') $args['role'] = $selected_role;
-    $args['meta_key'] = 'wpcomplete';
+    $args['meta_key'] = 'simple-lms';
     $total_users = get_users($args);
 
     // Bail if we don't have any users to track.
@@ -2436,7 +2436,7 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
     if (count($total_users) > 10000) return false;
 
     $user_ids = join( ",", $total_users );
-    $SQL = "SELECT b.user_id, b.meta_value FROM $wpdb->usermeta b WHERE ( b.meta_key = 'wpcomplete' ) AND ( b.user_id IN ($user_ids) )";
+    $SQL = "SELECT b.user_id, b.meta_value FROM $wpdb->usermeta b WHERE ( b.meta_key = 'simple-lms' ) AND ( b.user_id IN ($user_ids) )";
 
     $total_users_meta = $wpdb->get_results( $SQL, ARRAY_A );
 
@@ -2534,7 +2534,7 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
 
     ob_start();
     // Start displaying reset link:
-    include 'partials/wpcomplete-public-reset-link.php';
+    include 'partials/simple-lms-public-reset-link.php';
 
     return ob_get_clean();
 
@@ -2591,14 +2591,14 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
         $course = $_REQUEST['course'];
         $updates_to_sendback['.wpc-content-course-' . $this->get_course_class( array( 'course' => $course ) ) . '-incomplete'] = 'show';
         $updates_to_sendback['.wpc-content-course-' . $this->get_course_class( array( 'course' => $course ) ) . '-completed'] = 'hide';
-        $updates_to_sendback['.wpcomplete-progress-ratio.' . $this->get_course_class( array('course' => $course) )] = $this->progress_ratio_cb( array('course' => $course) );
-        $updates_to_sendback['.wpcomplete-progress-percentage.' . $this->get_course_class( array('course' => $course) )] = $this->progress_percentage_cb( array('course' => $course) );
-        $updates_to_sendback['.wpcomplete-progress-ratio.all-courses'] = $this->progress_ratio_cb( array('course' => 'all') );
-        $updates_to_sendback['.wpcomplete-progress-percentage.all-courses'] = $this->progress_percentage_cb( array('course' => 'all') );
+        $updates_to_sendback['.simple-lms-progress-ratio.' . $this->get_course_class( array('course' => $course) )] = $this->progress_ratio_cb( array('course' => $course) );
+        $updates_to_sendback['.simple-lms-progress-percentage.' . $this->get_course_class( array('course' => $course) )] = $this->progress_percentage_cb( array('course' => $course) );
+        $updates_to_sendback['.simple-lms-progress-ratio.all-courses'] = $this->progress_ratio_cb( array('course' => 'all') );
+        $updates_to_sendback['.simple-lms-progress-percentage.all-courses'] = $this->progress_percentage_cb( array('course' => 'all') );
         $updates_to_sendback['.' . $this->get_course_class( array('course' => $course) ) . '[data-progress]'] = $this->get_percentage( array('course' => $course) );
         $updates_to_sendback['.all-courses[data-progress]'] = $this->get_percentage(array('course' => 'all') );
         // Add action for other plugins to hook in:
-        do_action( 'wpcomplete_reset_course', array('user_id' => $user_id, 'course' => $course ) );
+        do_action( 'simplelms_reset_course', array('user_id' => $user_id, 'course' => $course ) );
       }
     } else {
       // otherwise just delete all user's completion data...
@@ -2618,20 +2618,20 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; }
         $saved = $this->set_user_activity(array(), $user_id);
         if ( $saved ) {
           // Update graphs to not be completed:
-          $updates_to_sendback['.wpcomplete-progress-ratio.all-courses'] = $this->progress_ratio_cb( array('course' => 'all') );
-          $updates_to_sendback['.wpcomplete-progress-percentage.all-courses'] = $this->progress_percentage_cb( array('course' => 'all') );
+          $updates_to_sendback['.simple-lms-progress-ratio.all-courses'] = $this->progress_ratio_cb( array('course' => 'all') );
+          $updates_to_sendback['.simple-lms-progress-percentage.all-courses'] = $this->progress_percentage_cb( array('course' => 'all') );
           $updates_to_sendback['.all-courses[data-progress]'] = $this->get_percentage(array('course' => 'all') );
           // Loop through all courses to update all graphs...
           foreach ( array_merge( $courseNames = $this->get_course_names(), array( get_bloginfo( 'name' ) ) ) as $course ) {
             $courseName = $this->get_course_class( array( 'course' => $course ) );
             $updates_to_sendback['.wpc-content-course-' . $courseName . '-incomplete'] = 'show';
             $updates_to_sendback['.wpc-content-course-' . $courseName . '-completed'] = 'hide';
-            $updates_to_sendback['.wpcomplete-progress-ratio.' . $courseName] = $this->progress_ratio_cb( array('course' => $course) );
-            $updates_to_sendback['.wpcomplete-progress-percentage.' . $courseName] = $this->progress_percentage_cb( array('course' => $course) );
+            $updates_to_sendback['.simple-lms-progress-ratio.' . $courseName] = $this->progress_ratio_cb( array('course' => $course) );
+            $updates_to_sendback['.simple-lms-progress-percentage.' . $courseName] = $this->progress_percentage_cb( array('course' => $course) );
             $updates_to_sendback['.' . $courseName . '[data-progress]'] = $this->get_percentage( array('course' => $course) );
           }
           // Add action for other plugins to hook in:
-          do_action( 'wpcomplete_reset', array('user_id' => $user_id ) );
+          do_action( 'simplelms_reset', array('user_id' => $user_id ) );
         }
 
       }

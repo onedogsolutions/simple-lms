@@ -5,7 +5,7 @@
   <tbody>
     <tr>
       <td>
-    <div class="wpcomplete-checkbox-container">
+    <div class="simple-lms-checkbox-container">
       <input type="hidden" name="<?php echo $name; ?>" value="false">
       <label>
         <input type="checkbox" name="<?php echo esc_attr($name); ?>" id="<?php echo esc_attr($name); ?>" value="true" <?php checked( 'true', $is_enabled ); ?>> 

@@ -59,7 +59,7 @@
             <?php elseif (count($total_users) > 0) : ?>
             <?php echo $info['completed']; ?> / <?php echo count($total_users); ?> (<?php echo round($info['completed'] / count($total_users), 4) * 100; ?>%)
             <?php else : ?>
-            <em title="Adjust your Completable User Types in the <?php echo WPCOMPLETE_PRODUCT_NAME; ?> Settings page">No users found.</em>
+            <em title="Adjust your Completable User Types in the <?php echo SIMPLELMS_PRODUCT_NAME; ?> Settings page">No users found.</em>
             <?php endif; ?>
           </div>
         </td>
@@ -75,8 +75,8 @@
   <?php endforeach; ?>
   <?php if (count($courses) <= 0) : ?>
   <div>
-    <p>Welcome to <?php echo WPCOMPLETE_PRODUCT_NAME; ?>! This page will populate with the courses and completable content that you enable.</p>
-    <p>To adjust your settings, please visit your <a href="<?php echo admin_url( 'options-general.php?page=' . WPCOMPLETE_PREFIX ); ?>"><?php echo WPCOMPLETE_PRODUCT_NAME; ?> Settings</a> page.</p>
+    <p>Welcome to <?php echo SIMPLELMS_PRODUCT_NAME; ?>! This page will populate with the courses and completable content that you enable.</p>
+    <p>To adjust your settings, please visit your <a href="<?php echo admin_url( 'options-general.php?page=' . SIMPLELMS_PREFIX ); ?>"><?php echo SIMPLELMS_PRODUCT_NAME; ?> Settings</a> page.</p>
   </div>
   <?php endif; ?>
 

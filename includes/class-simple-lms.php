@@ -6,11 +6,11 @@
  * A class definition that includes attributes and functions used across both the
  * public-facing side of the site and the admin area.
  *
- * @link       http://wpcomplete.co
+ * @link       http://simplelms.co
  * @since      1.0.0
  *
- * @package    WPComplete
- * @subpackage wpcomplete/includes
+ * @package    SimpleLMS
+ * @subpackage simple-lms/includes
  */
 
 /**
@@ -23,11 +23,11 @@
  * version of the plugin.
  *
  * @since      1.0.0
- * @package    WPComplete
- * @subpackage wpcomplete/includes
+ * @package    SimpleLMS
+ * @subpackage simple-lms/includes
  * @author     Zack Gilbert <zack@zackgilbert.com>
  */
-class WPComplete {
+class SimpleLMS {
 
 	/**
 	 * The loader that's responsible for maintaining and registering all hooks that power
@@ -35,7 +35,7 @@ class WPComplete {
 	 *
 	 * @since    1.0.0
 	 * @access   protected
-	 * @var      WPComplete_Loader    $loader    Maintains and registers all hooks for the plugin.
+	 * @var      SimpleLMS_Loader    $loader    Maintains and registers all hooks for the plugin.
 	 */
 	protected $loader;
 
@@ -68,8 +68,8 @@ class WPComplete {
 	 */
 	public function __construct() {
 
-		$this->plugin_name = WPCOMPLETE_PREFIX;
-		$this->version = WPCOMPLETE_VERSION;
+		$this->plugin_name = SIMPLELMS_PREFIX;
+		$this->version = SIMPLELMS_VERSION;
 		$this->load_dependencies();
 		$this->set_locale();
 		$this->define_admin_hooks();
@@ -82,10 +82,10 @@ class WPComplete {
 	 *
 	 * Include the following files that make up the plugin:
 	 *
-	 * - WPComplete_Loader. Orchestrates the hooks of the plugin.
-	 * - WPComplete_i18n. Defines internationalization functionality.
-	 * - WPComplete_Admin. Defines all hooks for the admin area.
-	 * - WPComplete_Public. Defines all hooks for the public side of the site.
+	 * - SimpleLMS_Loader. Orchestrates the hooks of the plugin.
+	 * - SimpleLMS_i18n. Defines internationalization functionality.
+	 * - SimpleLMS_Admin. Defines all hooks for the admin area.
+	 * - SimpleLMS_Public. Defines all hooks for the public side of the site.
 	 *
 	 * Create an instance of the loader which will be used to register the hooks
 	 * with WordPress.
@@ -99,37 +99,37 @@ class WPComplete {
 		 * The class responsible for orchestrating the actions and filters of the
 		 * core plugin.
 		 */
-		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wpcomplete-loader.php';
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-simple-lms-loader.php';
 
 		/**
 		 * The class responsible for defining internationalization functionality
 		 * of the plugin.
 		 */
-		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wpcomplete-i18n.php';
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-simple-lms-i18n.php';
 
 		/**
 		 * The class responsible for defining actions that are used in both admin and public sections
 		 */
-		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wpcomplete-common.php';
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-simple-lms-common.php';
 
 		/**
 		 * The class responsible for defining all actions that occur in the admin area.
 		 */
-		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'admin/class-wpcomplete-admin.php';
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'admin/class-simple-lms-admin.php';
 
 		/**
 		 * The class responsible for defining all actions that occur in the public-facing
 		 * side of the site.
 		 */
-		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'public/class-wpcomplete-public.php';
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'public/class-simple-lms-public.php';
 
-		$this->loader = new WPComplete_Loader();
+		$this->loader = new SimpleLMS_Loader();
 	}
 
 	/**
 	 * Define the locale for this plugin for internationalization.
 	 *
-	 * Uses the WPComplete_i18n class in order to set the domain and to register the hook
+	 * Uses the SimpleLMS_i18n class in order to set the domain and to register the hook
 	 * with WordPress.
 	 *
 	 * @since    1.0.0
@@ -137,7 +137,7 @@ class WPComplete {
 	 */
 	private function set_locale() {
 
-		$plugin_i18n = new WPComplete_i18n();
+		$plugin_i18n = new SimpleLMS_i18n();
 
 		$this->loader->add_action( 'plugins_loaded', $plugin_i18n, 'load_plugin_textdomain' );
 
@@ -152,7 +152,7 @@ class WPComplete {
 	 */
 	private function define_admin_hooks() {
 
-		$plugin_admin = new WPComplete_Admin( $this->get_plugin_name(), $this->get_version() );
+		$plugin_admin = new SimpleLMS_Admin( $this->get_plugin_name(), $this->get_version() );
 
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
@@ -181,7 +181,7 @@ class WPComplete {
 		$this->loader->add_action( 'admin_init', $plugin_admin, 'activate_license' );
 
 		// Show alert about being in development mode and having all of the features.
-		if ( !wpcomplete_is_production() ) {
+		if ( !simplelms_is_production() ) {
 			//update_option( 'dismissed-devmode', FALSE );
 			$this->loader->add_action( 'admin_notices', $plugin_admin, 'show_development_mode_nag' );
 			$this->loader->add_action( 'wp_ajax_dismissed_devmode_notice_handler', $plugin_admin, 'dismiss_devmode_notice_handler' );
@@ -193,7 +193,7 @@ class WPComplete {
 		}
 
 		// PREMIUM:
-		if (WPCOMPLETE_IS_ACTIVATED) {
+		if (SIMPLELMS_IS_ACTIVATED) {
 			// PREMIUM: add specific pages to show completion
 			$this->loader->add_action( 'admin_menu', $plugin_admin, 'add_course_completion_page' );
 			$this->loader->add_action( 'admin_menu', $plugin_admin, 'add_post_completion_page' );
@@ -230,7 +230,7 @@ class WPComplete {
 	private function define_public_hooks() {
 		//header('X-LiteSpeed-Cache-Control: no-cache');
 
-		$plugin_public = new WPComplete_Public( $this->get_plugin_name(), $this->get_version() );
+		$plugin_public = new SimpleLMS_Public( $this->get_plugin_name(), $this->get_version() );
 
 		$this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_styles' );
 		$this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_scripts' );
@@ -256,10 +256,10 @@ class WPComplete {
 		$this->loader->add_shortcode( 'complete_button', $plugin_public, 'complete_button_cb' );
 		$this->loader->add_shortcode( 'wpc_complete_button', $plugin_public, 'complete_button_cb' );
 		$this->loader->add_shortcode( 'wpc_button', $plugin_public, 'complete_button_cb' );
-		$this->loader->add_shortcode( 'wpcomplete_button', $plugin_public, 'complete_button_cb' );
+		$this->loader->add_shortcode( 'simplelms_button', $plugin_public, 'complete_button_cb' );
 
 		// PREMIUM:
-		if (WPCOMPLETE_IS_ACTIVATED) {
+		if (SIMPLELMS_IS_ACTIVATED) {
 			$this->loader->add_shortcode( 'progress_percentage', $plugin_public, 'progress_percentage_cb' );
 			$this->loader->add_shortcode( 'progress_in_percentage', $plugin_public, 'progress_percentage_cb' );
 			$this->loader->add_shortcode( 'progress_ratio', $plugin_public, 'progress_ratio_cb' );
@@ -272,20 +272,20 @@ class WPComplete {
 			$this->loader->add_shortcode( 'wpc_progress_in_ratio', $plugin_public, 'progress_ratio_cb' );
 			$this->loader->add_shortcode( 'wpc_progress_graph', $plugin_public, 'progress_radial_graph_cb' );
 			$this->loader->add_shortcode( 'wpc_progress_bar', $plugin_public, 'progress_bar_graph_cb' );
-			$this->loader->add_shortcode( 'wpcomplete_progress_percentage', $plugin_public, 'progress_percentage_cb' );
-			$this->loader->add_shortcode( 'wpcomplete_progress_in_percentage', $plugin_public, 'progress_percentage_cb' );
-			$this->loader->add_shortcode( 'wpcomplete_progress_ratio', $plugin_public, 'progress_ratio_cb' );
-			$this->loader->add_shortcode( 'wpcomplete_progress_in_ratio', $plugin_public, 'progress_ratio_cb' );
-			$this->loader->add_shortcode( 'wpcomplete_progress_graph', $plugin_public, 'progress_radial_graph_cb' );
-			$this->loader->add_shortcode( 'wpcomplete_progress_bar', $plugin_public, 'progress_bar_graph_cb' );
+			$this->loader->add_shortcode( 'simplelms_progress_percentage', $plugin_public, 'progress_percentage_cb' );
+			$this->loader->add_shortcode( 'simplelms_progress_in_percentage', $plugin_public, 'progress_percentage_cb' );
+			$this->loader->add_shortcode( 'simplelms_progress_ratio', $plugin_public, 'progress_ratio_cb' );
+			$this->loader->add_shortcode( 'simplelms_progress_in_ratio', $plugin_public, 'progress_ratio_cb' );
+			$this->loader->add_shortcode( 'simplelms_progress_graph', $plugin_public, 'progress_radial_graph_cb' );
+			$this->loader->add_shortcode( 'simplelms_progress_bar', $plugin_public, 'progress_bar_graph_cb' );
 
 			add_filter( 'widget_text', 'do_shortcode' ); // allow text widgets to render shortcodes
 
 			// conditional shortcodes
 			$this->loader->add_shortcode( 'wpc_completed_content', $plugin_public, 'completed_content_cb' );
 			$this->loader->add_shortcode( 'wpc_incomplete_content', $plugin_public, 'incomplete_content_cb' );
-			$this->loader->add_shortcode( 'wpcomplete_completed_content', $plugin_public, 'completed_content_cb' );
-			$this->loader->add_shortcode( 'wpcomplete_incomplete_content', $plugin_public, 'incomplete_content_cb' );
+			$this->loader->add_shortcode( 'simplelms_completed_content', $plugin_public, 'completed_content_cb' );
+			$this->loader->add_shortcode( 'simplelms_incomplete_content', $plugin_public, 'incomplete_content_cb' );
 			$this->loader->add_shortcode( 'wpc_if_completed', $plugin_public, 'completed_content_cb' );
 			$this->loader->add_shortcode( 'wpc_if_incomplete', $plugin_public, 'incomplete_content_cb' );
 			$this->loader->add_shortcode( 'wpc_if_button_completed', $plugin_public, 'if_button_completed_cb' );
@@ -312,15 +312,15 @@ class WPComplete {
   	  $this->loader->add_action( 'wp_ajax_nopriv_reset', $plugin_public , 'reset_account' );
 
   	  // Add custom helper filters:
-  	  $this->loader->add_filter( 'wpcomplete_button_is_completed', $plugin_public, 'button_is_completed', 10, 2 );
-  	  $this->loader->add_filter( 'wpcomplete_page_is_completed', $plugin_public, 'page_is_completed', 10, 1 );
-  	  $this->loader->add_filter( 'wpcomplete_course_is_completed', $plugin_public, 'course_is_completed', 10, 1 );
+  	  $this->loader->add_filter( 'simplelms_button_is_completed', $plugin_public, 'button_is_completed', 10, 2 );
+  	  $this->loader->add_filter( 'simplelms_page_is_completed', $plugin_public, 'page_is_completed', 10, 1 );
+  	  $this->loader->add_filter( 'simplelms_course_is_completed', $plugin_public, 'course_is_completed', 10, 1 );
 
 		  // Shortode to build a list of course pages:
 		  $this->loader->add_shortcode('wpc_list_completable', $plugin_public, 'list_completable_shortcode');
 		  $this->loader->add_shortcode('wpc_list_pages', $plugin_public, 'list_completable_shortcode');
 		  //$this->loader->add_shortcode('wpc_list_buttons', $plugin_public, 'list_buttons_shortcode');
-		  $this->loader->add_filter( 'wpcomplete_list_pages', $plugin_public, 'list_completable_filter', 10, 1 );
+		  $this->loader->add_filter( 'simplelms_list_pages', $plugin_public, 'list_completable_filter', 10, 1 );
   	  // Navigation shortcodes:
 		  $this->loader->add_shortcode('wpc_next_to_complete', $plugin_public, 'next_to_complete_shortcode');
 		  $this->loader->add_shortcode('wpc_has_next_to_complete', $plugin_public, 'next_to_complete_shortcode');
@@ -365,7 +365,7 @@ class WPComplete {
 	 * The reference to the class that orchestrates the hooks with the plugin.
 	 *
 	 * @since     1.0.0
-	 * @return    WPComplete_Loader    Orchestrates the hooks of the plugin.
+	 * @return    SimpleLMS_Loader    Orchestrates the hooks of the plugin.
 	 */
 	public function get_loader() {
 		return $this->loader;
@@ -390,7 +390,7 @@ class WPComplete {
 	 * @return    An array of posts and their completion status.
 	 */
 	/*public static function test() {
-		$plugin_public = new WPComplete_Public( WPCOMPLETE_PREFIX, WPCOMPLETE_VERSION );
+		$plugin_public = new SimpleLMS_Public( SIMPLELMS_PREFIX, SIMPLELMS_VERSION );
 		$pages_raw = $plugin_public->get_completable_list( false );
 		$pages_to_display = array();
 		foreach ( $pages_raw as $post_url => $post_data ) {
@@ -402,7 +402,7 @@ class WPComplete {
   }*/
 
   /**
-	 * Retrieve available WPComplete courses.
+	 * Retrieve available SimpleLMS courses.
 	 * Accepts: "posts" => false|true, "stats" => false|true, "user_stats" => false|true
 	 *
 	 * @since     2.9.0
@@ -419,7 +419,7 @@ class WPComplete {
 	 */
 	public static function courses( $atts = array() ) {
 		$args = array_change_key_case((array)$atts, CASE_LOWER); // normalize attribute keys, lowercase
-		$wpc = new WPComplete_Public( WPCOMPLETE_PREFIX, WPCOMPLETE_VERSION );
+		$wpc = new SimpleLMS_Public( SIMPLELMS_PREFIX, SIMPLELMS_VERSION );
 
 		$post_data = $wpc->get_completable_posts();
     $courses = array();
@@ -489,34 +489,34 @@ class WPComplete {
   }
 
   /**
-	 * Retrieve a user's WPComplete activity.
+	 * Retrieve a user's SimpleLMS activity.
 	 *
 	 * @since     2.9.0
 	 * @last 			2.9.0
-	 * @return    The current user's WPComplete activity
+	 * @return    The current user's SimpleLMS activity
 	 */
 	public static function user() {
-		$wpc = new WPComplete_Public( WPCOMPLETE_PREFIX, WPCOMPLETE_VERSION );
+		$wpc = new SimpleLMS_Public( SIMPLELMS_PREFIX, SIMPLELMS_VERSION );
 		return $wpc->get_user_activity();
 	}
 
 	/**
-	 * Retrieve all user's WPComplete activity.
+	 * Retrieve all user's SimpleLMS activity.
 	 *
 	 * @since     2.9.0
 	 * @last 			2.9.0
-	 * @return    An array of all users and their WPComplete activity. User ID is the array key.
+	 * @return    An array of all users and their SimpleLMS activity. User ID is the array key.
 	 */
 	public static function users() {
 		global $wpdb;
-		$wpc = new WPComplete_Public( WPCOMPLETE_PREFIX, WPCOMPLETE_VERSION );
-		if ( $users_json = wp_cache_get( 'users-all', 'wpcomplete' ) ) {
+		$wpc = new SimpleLMS_Public( SIMPLELMS_PREFIX, SIMPLELMS_VERSION );
+		if ( $users_json = wp_cache_get( 'users-all', 'simple-lms' ) ) {
       $users_raw = json_decode( $users_json, true );
     } else {
-      // if not, fetch ALL users' WPComplete metadata from the database...
-      $users_raw = $wpdb->get_results( $wpdb->prepare( "SELECT um.user_id, um.meta_value FROM {$wpdb->usermeta} um WHERE um.meta_key = %s", 'wpcomplete' ), ARRAY_A );
+      // if not, fetch ALL users' SimpleLMS metadata from the database...
+      $users_raw = $wpdb->get_results( $wpdb->prepare( "SELECT um.user_id, um.meta_value FROM {$wpdb->usermeta} um WHERE um.meta_key = %s", 'simple-lms' ), ARRAY_A );
       // store it in cache for easy access...
-      wp_cache_set( "users-all", json_encode( $users_raw, JSON_UNESCAPED_UNICODE ), 'wpcomplete' );
+      wp_cache_set( "users-all", json_encode( $users_raw, JSON_UNESCAPED_UNICODE ), 'simple-lms' );
     }
 
     $users = array();
@@ -532,11 +532,11 @@ class WPComplete {
 	 *
 	 * @since     2.9.0
 	 * @last 			2.9.0
-	 * @return    An array of all users and their WPComplete activity. User ID is the array key.
+	 * @return    An array of all users and their SimpleLMS activity. User ID is the array key.
 	 */
 	public static function pages( $atts = array() ) {
 		$args = array_change_key_case((array)$atts, CASE_LOWER); // normalize attribute keys, lowercase
-		$wpc = new WPComplete_Public( WPCOMPLETE_PREFIX, WPCOMPLETE_VERSION );
+		$wpc = new SimpleLMS_Public( SIMPLELMS_PREFIX, SIMPLELMS_VERSION );
 
     // need to send in a user's completion activity if we want to filter by this:
     if ( isset( $args['completed'] ) ) {

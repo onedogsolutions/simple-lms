@@ -1,21 +1,21 @@
 <?php
 
 /**
- * @link              https://wpcomplete.co
+ * @link              https://simplelms.co
  * @since             1.0.0
- * @package           WPComplete
+ * @package           SimpleLMS
  *
  * @wordpress-plugin
- * Plugin Name:       WPComplete
+ * Plugin Name:       SimpleLMS
  * Description:       A WordPress plugin that helps your students keep track of their progress through your course or membership site.
  * Version:           2.9.8
- * Author:            iThemes
- * Author URI:        https://ithemes.com/
+ * Author:            SimpleLMS
+ * Author URI:        https://simplelms.co/
  * License:           GPL-2.0+
  * License URI:       http://www.gnu.org/licenses/gpl-2.0.txt
- * Text Domain:       wpcomplete
+ * Text Domain:       simple-lms
  * Domain Path:       /languages
- * iThemes Package:   wpcomplete
+ * SimpleLMS Package: simple-lms
  */
 
 // If this file is called directly, abort.
@@ -29,25 +29,25 @@ if ( ! defined( 'JSON_UNESCAPED_UNICODE' ) ) {
 }
 
 // Define some variables we will use throughout the plugin:
-define( 'WPCOMPLETE_STORE_URL', 'https://wpcomplete.co' );
-define( 'WPCOMPLETE_PRODUCT_NAME', 'WPComplete' );
-define( 'WPCOMPLETE_PREFIX', 'wpcomplete' );
-define( 'WPCOMPLETE_VERSION', '2.9.8' );
-define( 'WPCOMPLETE_IS_ACTIVATED', true );
+define( 'SIMPLELMS_STORE_URL', 'https://simplelms.co' );
+define( 'SIMPLELMS_PRODUCT_NAME', 'SimpleLMS' );
+define( 'SIMPLELMS_PREFIX', 'simple-lms' );
+define( 'SIMPLELMS_VERSION', '2.9.8' );
+define( 'SIMPLELMS_IS_ACTIVATED', true );
 
 /**
  * PREMIUM:
  * The code that runs to determine if a premium license is valid.
  */
-function wpcomplete_license_is_valid() {
-  if ( !wpcomplete_is_production() ) return true;
+function simplelms_license_is_valid() {
+  if ( !simplelms_is_production() ) return true;
 
-  $result = get_option( WPCOMPLETE_PREFIX . '_license_status' );
+  $result = get_option( SIMPLELMS_PREFIX . '_license_status' );
 
   if ( ( false === $result ) || ( $result === 'valid' ) ) {
-    $store_url = WPCOMPLETE_STORE_URL;
-    $item_name = WPCOMPLETE_PRODUCT_NAME;
-    $license = get_option( WPCOMPLETE_PREFIX . '_license_key' );
+    $store_url = SIMPLELMS_STORE_URL;
+    $item_name = SIMPLELMS_PRODUCT_NAME;
+    $license = get_option( SIMPLELMS_PREFIX . '_license_key' );
 
     if ( !$license || empty( $license ) )
       return false;
@@ -67,7 +67,7 @@ function wpcomplete_license_is_valid() {
     $result = false;
 
     if ( ( $license_data->license == 'valid') || $license_data->success ) {
-      update_option( WPCOMPLETE_PREFIX . '_license_status', $license_data->expires);
+      update_option( SIMPLELMS_PREFIX . '_license_status', $license_data->expires);
       $result = $license_data->expires;
     }
   }
@@ -75,7 +75,7 @@ function wpcomplete_license_is_valid() {
   return ( $result !== false ) && (( $result === 'lifetime') || ( strtotime($result) ));
 }
 
-function wpcomplete_is_production() {
+function simplelms_is_production() {
   if ( defined( 'WPCOM_IS_VIP_ENV' ) && ( true === WPCOM_IS_VIP_ENV ) ) return true;
   if ( $_SERVER['SERVER_NAME'] == 'localhost' ) return false;
   if ( $_SERVER['SERVER_NAME'] == '127.0.0.1' ) return false;
@@ -91,37 +91,37 @@ function wpcomplete_is_production() {
  */
 if (@include plugin_dir_path( __FILE__ ) . 'includes/plugin-update-checker-3.1.php') {
   $myUpdateChecker = PucFactory::buildUpdateChecker(
-    'https://wpcomplete.co/premium.json',
+    'https://simplelms.co/premium.json',
     __FILE__
   );
 }
 
 /**
  * The code that runs during plugin activation.
- * This action is documented in includes/class-wpcomplete-activator.php
+ * This action is documented in includes/class-simple-lms-activator.php
  */
-function activate_wpcomplete() {
-  require_once plugin_dir_path( __FILE__ ) . 'includes/class-wpcomplete-activator.php';
-  WPComplete_Activator::activate();
+function activate_simplelms() {
+  require_once plugin_dir_path( __FILE__ ) . 'includes/class-simple-lms-activator.php';
+  SimpleLMS_Activator::activate();
 }
 
 /**
  * The code that runs during plugin deactivation.
- * This action is documented in includes/class-wpcomplete-deactivator.php
+ * This action is documented in includes/class-simple-lms-deactivator.php
  */
-function deactivate_wpcomplete() {
-  require_once plugin_dir_path( __FILE__ ) . 'includes/class-wpcomplete-deactivator.php';
-  WPComplete_Deactivator::deactivate();
+function deactivate_simplelms() {
+  require_once plugin_dir_path( __FILE__ ) . 'includes/class-simple-lms-deactivator.php';
+  SimpleLMS_Deactivator::deactivate();
 }
 
-register_activation_hook( __FILE__, 'activate_wpcomplete' );
-register_deactivation_hook( __FILE__, 'deactivate_wpcomplete' );
+register_activation_hook( __FILE__, 'activate_simplelms' );
+register_deactivation_hook( __FILE__, 'deactivate_simplelms' );
 
 /**
  * The core plugin class that is used to define internationalization,
  * admin-specific hooks, and public-facing site hooks.
  */
-require plugin_dir_path( __FILE__ ) . 'includes/class-wpcomplete.php';
+require plugin_dir_path( __FILE__ ) . 'includes/class-simple-lms.php';
 
 /**
  * Begins execution of the plugin.
@@ -132,21 +132,21 @@ require plugin_dir_path( __FILE__ ) . 'includes/class-wpcomplete.php';
  *
  * @since    1.0.0
  */
-function run_wpcomplete() {
+function run_simplelms() {
 
-  $plugin = new WPComplete();
+  $plugin = new SimpleLMS();
   $plugin->run();
 
 }
-run_wpcomplete();
+run_simplelms();
 
 
 
-if ( ! function_exists( 'ithemes_repository_name_updater_register' ) ) {
-	function ithemes_repository_name_updater_register( $updater ) {
-		$updater->register( 'wpcomplete', __FILE__ );
+if ( ! function_exists( 'simplelms_repository_name_updater_register' ) ) {
+	function simplelms_repository_name_updater_register( $updater ) {
+		$updater->register( 'simple-lms', __FILE__ );
 	}
-	add_action( 'ithemes_updater_register', 'ithemes_repository_name_updater_register' );
+	add_action( 'ithemes_updater_register', 'simplelms_repository_name_updater_register' );
 
 	require( __DIR__ . '/lib/updater/load.php' );
 }

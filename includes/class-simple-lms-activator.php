@@ -3,11 +3,11 @@
 /**
  * Fired during plugin activation
  *
- * @link       https://wpcomplete.co
+ * @link       https://simplelms.co
  * @since      1.0.0
  *
- * @package    WPComplete
- * @subpackage wpcomplete/includes
+ * @package    SimpleLMS
+ * @subpackage simple-lms/includes
  */
 
 /**
@@ -16,11 +16,11 @@
  * This class defines all code necessary to run during the plugin's activation.
  *
  * @since      1.0.0
- * @package    WPComplete
- * @subpackage wpcomplete/includes
+ * @package    SimpleLMS
+ * @subpackage simple-lms/includes
  * @author     Zack Gilbert <zack@zackgilbert.com>
  */
-class WPComplete_Activator {
+class SimpleLMS_Activator {
 
   /**
    * Short Description. (use period)
@@ -32,8 +32,8 @@ class WPComplete_Activator {
   public static function activate() {
     // if install is using OptimizePress, the auto append probably won't work correctly...
     if ( is_plugin_active('optimizePressHelperTools/optimizepress-helper.php') ) {
-      if ( ! get_option( 'wpcomplete_auto_append' ) ) {
-        update_option( 'wpcomplete_auto_append', 'false' );
+      if ( ! get_option( 'simplelms_auto_append' ) ) {
+        update_option( 'simplelms_auto_append', 'false' );
       }
     }
 

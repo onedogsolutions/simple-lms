@@ -3,21 +3,21 @@
 /**
  * Common functionality of the plugin.
  *
- * @link       https://wpcomplete.co
+ * @link       https://simplelms.co
  * @since      2.0.0
  *
- * @package    WPComplete
- * @subpackage wpcomplete/includes
+ * @package    SimpleLMS
+ * @subpackage simple-lms/includes
  */
 
 /**
  * The common functionality throughout the plugin.
  *
- * @package    WPComplete
- * @subpackage wpcomplete/includes
+ * @package    SimpleLMS
+ * @subpackage simple-lms/includes
  * @author     Zack Gilbert <zack@zackgilbert.com>
  */
-class WPComplete_Common {
+class SimpleLMS_Common {
 
   /**
    * The ID of this plugin.
@@ -106,17 +106,17 @@ class WPComplete_Common {
   public function get_user_activity($user_id = false) {
     if (!$user_id) $user_id = get_current_user_id();
     // First: check if we have this cached already in the page request:
-    if ( $user_completed_json = wp_cache_get( "user-" . $user_id, 'wpcomplete' ) ) {
+    if ( $user_completed_json = wp_cache_get( "user-" . $user_id, 'simple-lms' ) ) {
       return json_decode( $user_completed_json, true );     
     }
     // Second: check if we have all users already cached previously in the page request:
-    //if ( wp_cache_get( "user-all", 'wpcomplete' ) ) {
+    //if ( wp_cache_get( "user-all", 'simple-lms' ) ) {
     //  return $this->get_user_activity_from_all( $user_id );     
     //}
     // Third: check the database for newest database structure (2.0 format):
-    if ( $user_completed_json = get_user_meta( $user_id, 'wpcomplete', true ) ) {
+    if ( $user_completed_json = get_user_meta( $user_id, 'simple-lms', true ) ) {
       // Save new format into page request cache:
-      wp_cache_set( "user-" . $user_id, $user_completed_json, 'wpcomplete' );
+      wp_cache_set( "user-" . $user_id, $user_completed_json, 'simple-lms' );
       return json_decode( $user_completed_json, true );
     }
     // Otherwise, we have the older format version... 
@@ -147,7 +147,7 @@ class WPComplete_Common {
     }
 
     $this->set_user_activity($user_completed, $user_id);
-    //delete_user_meta( $user_id, 'wpcomplete' );
+    //delete_user_meta( $user_id, 'simple-lms' );
 
     return $user_completed;
   }
@@ -162,20 +162,20 @@ class WPComplete_Common {
     if (!$user_id) $user_id = get_current_user_id();
     
     // check to see if we've already cached this user's data...
-    if ( $user_completed_json = wp_cache_get( "user-" . $user_id, 'wpcomplete' ) ) {
+    if ( $user_completed_json = wp_cache_get( "user-" . $user_id, 'simple-lms' ) ) {
       return json_decode( $user_completed_json, true );     
     }
     // TODO: optimize this... if it's too big, it causes timeouts
     // It's grabbing too much unnecessary data and storing all of it.
-    /*if ( $users_json = wp_cache_get( 'users-all', 'wpcomplete' ) ) {
+    /*if ( $users_json = wp_cache_get( 'users-all', 'simple-lms' ) ) {
       var_dump($users_json);
       $users = json_decode( $users_json, true );
     } else {
-      // if not, fetch ALL users' WPComplete metadata from the database...
-      $users = $wpdb->get_results( $wpdb->prepare( "SELECT um.user_id, um.meta_value FROM {$wpdb->usermeta} um WHERE um.meta_key = %s", 'wpcomplete' ), ARRAY_A );
+      // if not, fetch ALL users' SimpleLMS metadata from the database...
+      $users = $wpdb->get_results( $wpdb->prepare( "SELECT um.user_id, um.meta_value FROM {$wpdb->usermeta} um WHERE um.meta_key = %s", 'simple-lms' ), ARRAY_A );
       // store it in cache for easy access...
       var_dump($users);      
-      wp_cache_set( "users-all", json_encode( $users, JSON_UNESCAPED_UNICODE ), 'wpcomplete' );
+      wp_cache_set( "users-all", json_encode( $users, JSON_UNESCAPED_UNICODE ), 'simple-lms' );
     }
     // return just the specific user we want...
     foreach ($users as $key => $user) {
@@ -207,12 +207,12 @@ class WPComplete_Common {
     }
 
     // Update the database with the new data:
-    $saved = update_user_meta( $user_id, 'wpcomplete', $data );
+    $saved = update_user_meta( $user_id, 'simple-lms', $data );
 
     // If database saved, we should try to cache it for the rest of the page request:
     if ( $saved ) {
       // Save new user completion data into page request cache:
-      wp_cache_set( "user-" . $user_id, $data, 'wpcomplete' );
+      wp_cache_set( "user-" . $user_id, $data, 'simple-lms' );
     }
 
     return $saved;
@@ -282,7 +282,7 @@ class WPComplete_Common {
   public function get_completable_posts( $include_scheduled = 'true' ) {
     global $wpdb;
 
-    if ( $posts_json = wp_cache_get( 'posts-' . $include_scheduled, 'wpcomplete' ) ) {
+    if ( $posts_json = wp_cache_get( 'posts-' . $include_scheduled, 'simple-lms' ) ) {
       return json_decode( $posts_json, true );      
     }
 
@@ -295,14 +295,14 @@ class WPComplete_Common {
           AND (p.post_status != '%s')
           AND (p.post_status != '%s')
           AND (p.post_status != '%s')
-          AND (p.post_type = '" . join("' OR p.post_type = '", $this->get_enabled_post_types()) . "') ORDER BY p.menu_order, p.post_title ASC", 'wpcomplete', 'trash', 'draft', 'future', 'pending'), ARRAY_A );
+          AND (p.post_type = '" . join("' OR p.post_type = '", $this->get_enabled_post_types()) . "') ORDER BY p.menu_order, p.post_title ASC", 'simple-lms', 'trash', 'draft', 'future', 'pending'), ARRAY_A );
     } else {
       $r = $wpdb->get_results( $wpdb->prepare( "
           SELECT pm.post_id,pm.meta_value,p.post_status FROM {$wpdb->postmeta} pm
           LEFT JOIN {$wpdb->posts} p ON p.ID = pm.post_id
           WHERE pm.meta_key = '%s' 
           AND (p.post_status != '%s')
-          AND (p.post_type = '" . join("' OR p.post_type = '", $this->get_enabled_post_types()) . "') ORDER BY p.menu_order, p.post_title ASC", 'wpcomplete', 'trash'), ARRAY_A );
+          AND (p.post_type = '" . join("' OR p.post_type = '", $this->get_enabled_post_types()) . "') ORDER BY p.menu_order, p.post_title ASC", 'simple-lms', 'trash'), ARRAY_A );
     }
 
     if ($r && ( count($r) > 0 ) ) {
@@ -311,7 +311,7 @@ class WPComplete_Common {
       foreach ($r as $row) {
         $posts[$row['post_id']] = json_decode( stripslashes( $row['meta_value'] ), true );
       }
-      wp_cache_set( "posts-" . $include_scheduled, json_encode( $posts, JSON_UNESCAPED_UNICODE ), 'wpcomplete' );
+      wp_cache_set( "posts-" . $include_scheduled, json_encode( $posts, JSON_UNESCAPED_UNICODE ), 'simple-lms' );
       return $posts;
     }
 
@@ -327,7 +327,7 @@ class WPComplete_Common {
   public function get_completable_posts_metadata( ) {
     $post_metadata = array();
     
-    if ( $meta_json = wp_cache_get( 'posts_metadata', 'wpcomplete' ) ) {
+    if ( $meta_json = wp_cache_get( 'posts_metadata', 'simple-lms' ) ) {
       return json_decode( $meta_json, true );      
     }
 
@@ -340,7 +340,7 @@ class WPComplete_Common {
       );
     }
 
-    wp_cache_set( "posts_metadata", json_encode( $post_metadata, JSON_UNESCAPED_UNICODE ), 'wpcomplete' );
+    wp_cache_set( "posts_metadata", json_encode( $post_metadata, JSON_UNESCAPED_UNICODE ), 'simple-lms' );
 
     return $post_metadata;
   }
@@ -367,7 +367,7 @@ class WPComplete_Common {
     }
 
     // check to see if we already cached this:
-    if ( $buttons_json = wp_cache_get( "get_buttons-" . $this->get_course_class($atts['course']) . '-' . $atts['child_of'] . '-' . $atts['scheduled'], 'wpcomplete' ) ) {
+    if ( $buttons_json = wp_cache_get( "get_buttons-" . $this->get_course_class($atts['course']) . '-' . $atts['child_of'] . '-' . $atts['scheduled'], 'simple-lms' ) ) {
       return json_decode( $buttons_json, true );     
     }
 
@@ -394,7 +394,7 @@ class WPComplete_Common {
     $buttons = $this->get_course_buttons($atts['course'], $posts);
 
     // let's cache it so we don't have to do this again:
-    wp_cache_set( "get_buttons-" . $this->get_course_class($atts['course']) . '-' . $atts['child_of'] . '-' . $atts['scheduled'], json_encode( $buttons, JSON_UNESCAPED_UNICODE ), 'wpcomplete' );
+    wp_cache_set( "get_buttons-" . $this->get_course_class($atts['course']) . '-' . $atts['child_of'] . '-' . $atts['scheduled'], json_encode( $buttons, JSON_UNESCAPED_UNICODE ), 'simple-lms' );
 
     return $buttons;
   }
@@ -569,7 +569,7 @@ class WPComplete_Common {
     }
     $course = html_entity_decode( $course, ENT_QUOTES | ENT_HTML401 );
     // check to see if we already cached this:
-    if ( $buttons_json = wp_cache_get( "course_buttons-" . $this->get_course_class($course), 'wpcomplete' ) ) {
+    if ( $buttons_json = wp_cache_get( "course_buttons-" . $this->get_course_class($course), 'simple-lms' ) ) {
       return json_decode( $buttons_json, true );      
     }
     
@@ -577,10 +577,10 @@ class WPComplete_Common {
     $courses = array();
     if ( !empty( $course ) ) {
       if ( !in_array( stripslashes( $course ), $this->get_course_names() ) ) { 
-        $tmp_str = str_replace('\,', "**wpcomplete**", $course);
+        $tmp_str = str_replace('\,', "**simplelms**", $course);
         $tmp_array = explode( ",", strtolower( str_replace( ", ", ",", $tmp_str ) ) );
         foreach ($tmp_array as $tmp) {
-          $courses[] = $this->get_course_class( str_replace("**wpcomplete**", ",", $tmp) );
+          $courses[] = $this->get_course_class( str_replace("**simplelms**", ",", $tmp) );
         }
       } else {
         $courses = array($this->get_course_class( $course ));
@@ -634,7 +634,7 @@ class WPComplete_Common {
       }
     }
     // let's cache it so we don't have to do this again:
-    wp_cache_set( "course_buttons-" . $this->get_course_class($course), json_encode( $buttons, JSON_UNESCAPED_UNICODE ), 'wpcomplete' );
+    wp_cache_set( "course_buttons-" . $this->get_course_class($course), json_encode( $buttons, JSON_UNESCAPED_UNICODE ), 'simple-lms' );
 
     return $buttons;
   }
@@ -659,7 +659,7 @@ class WPComplete_Common {
    * @last   2.0.4
    */
   public function get_course_names($posts = false) {
-    if ( $course_names = wp_cache_get( 'course_names', 'wpcomplete' ) ) {
+    if ( $course_names = wp_cache_get( 'course_names', 'simple-lms' ) ) {
       return json_decode( $course_names, true );
     }
 
@@ -674,7 +674,7 @@ class WPComplete_Common {
 
     $course_names = array_unique( $course_names );
 
-    wp_cache_set( "course_names", json_encode( $course_names, JSON_UNESCAPED_UNICODE ), 'wpcomplete' );
+    wp_cache_set( "course_names", json_encode( $course_names, JSON_UNESCAPED_UNICODE ), 'simple-lms' );
 
     return $course_names;
   }
@@ -718,7 +718,7 @@ class WPComplete_Common {
    */
   function user_has_role( $primary_user_id, $selected_role ) {
     // check if we can use cached results:
-    if ( $users = wp_cache_get( 'user_roles-' . $selected_role, 'wpcomplete' ) ) {
+    if ( $users = wp_cache_get( 'user_roles-' . $selected_role, 'simple-lms' ) ) {
       $users = json_decode( $users, true );
     } else {
       // if not, cache the results we get:
@@ -728,7 +728,7 @@ class WPComplete_Common {
       foreach ($users_obj as $key => $user) {
         $users["".$user->ID] = $user->roles;
       }
-      wp_cache_set( "user_roles-" . $selected_role, json_encode($users, JSON_UNESCAPED_UNICODE), 'wpcomplete' );
+      wp_cache_set( "user_roles-" . $selected_role, json_encode($users, JSON_UNESCAPED_UNICODE), 'simple-lms' );
     }
     // loop through all users to find this specific user:
     foreach($users as $user_id => $user_roles) {
@@ -803,7 +803,7 @@ class WPComplete_Common {
     if ( $selected_role != 'all' ) {
       $from_sql = "(SELECT u.ID FROM {$wpdb->users} u INNER JOIN {$wpdb->usermeta} AS mt1 ON ( u.ID = mt1.user_id ) WHERE ( (mt1.meta_key = '{$wpdb->prefix}capabilities') AND (mt1.meta_value LIKE '%\"$selected_role\"%') ))";
     }
-    $sql = "SELECT um.user_id, um.meta_value FROM {$from_sql} u INNER JOIN {$wpdb->usermeta} AS um ON ( u.ID = um.user_id ) WHERE ( um.meta_key = 'wpcomplete' )";
+    $sql = "SELECT um.user_id, um.meta_value FROM {$from_sql} u INNER JOIN {$wpdb->usermeta} AS um ON ( u.ID = um.user_id ) WHERE ( um.meta_key = 'simple-lms' )";
     $user_activities = $wpdb->get_results( $sql, ARRAY_A );
     // fix key/value association:
     $user_activities = array_column($user_activities, 'meta_value', 'user_id');
