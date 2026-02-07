@@ -591,31 +591,4 @@ class SimpleLMS
 		return $pages;
 	}
 
-}	}
-
-		return $pages;
-	}
-
-}		$args['user_activity'] = $wpc->get_user_activity();
-		}
-
-		$r = $wpc->build_post_criteria($args);
-
-		$pages = (empty($r['include'])) ? array() : get_posts($r);
-
-		if (isset($args['buttons']) && ($args['buttons'] === true)) {
-			$post_data = $wpc->get_completable_posts();
-			foreach ($pages as $key => $page) {
-				$pages[$key]->buttons = (isset($post_data[$page->ID]['buttons'])) ? $post_data[$page->ID]['buttons'] : array('' . $page->ID);
-			}
-		}
-
-		return $pages;
-	}
-
-}	}
-
-		return $pages;
-	}
-
 }

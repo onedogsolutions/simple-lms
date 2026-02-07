@@ -33,13 +33,22 @@ class SimpleLMS_Admin extends SimpleLMS_Common {
   protected $plugin_name;
 
   /**
-   * The version of this plugin.
+   * The current version of this plugin.
    *
    * @since    1.0.0
    * @access   protected
    * @var      string    $version    The current version of this plugin.
    */
   protected $version;
+
+  /**
+   * The suffix for the plugin screen hook.
+   *
+   * @since    1.0.0
+   * @access   protected
+   * @var      string    $plugin_screen_hook_suffix    The suffix for the plugin screen hook.
+   */
+  protected $plugin_screen_hook_suffix;
 
   /**
    * Register the stylesheets for the admin area.
@@ -1571,7 +1580,7 @@ li .wpc-lesson {} li .wpc-lesson-complete {} li .wpc-lesson-completed { opacity:
             $user_completed_raw[$post_id]['completed'] = 'Yes';
           }
           if ( ! isset( $user_started[$user->ID] ) ) {
-            $user_started[$user->ID] = $user_completed_raw[$button_id]['completed'];
+            $user_started[$user->ID] = $user_completed_raw[$post_id]['completed'];
           }
           $user_completed[$user->ID] = $user_completed_raw[$post_id]['completed'];
         }

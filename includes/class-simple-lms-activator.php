@@ -32,6 +32,9 @@ class SimpleLMS_Activator
    */
   public static function activate()
   {
+    if (!function_exists('is_plugin_active')) {
+      include_once(ABSPATH . 'wp-admin/includes/plugin.php');
+    }
     // if install is using OptimizePress, the auto append probably won't work correctly...
     if (is_plugin_active('optimizePressHelperTools/optimizepress-helper.php')) {
       if (!get_option('simple_lms_auto_append')) {
@@ -65,6 +68,7 @@ class SimpleLMS_Activator
         if (!get_option($new_name)) {
           // Get value using SQL to avoid serialization issues requiring unserialize/serialize loop if not needed, 
           // but get_option is safer for handling serialized data.
+          $val = get_option($old_name);
           $val = get_option($old_name);
           update_option($new_name, $val);
         // Optionally delete old option? Let's keep it for safety for now, or delete it?
