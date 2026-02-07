@@ -21,5 +21,7 @@
 	Bug Fix: Version Bump.
 2.9.7 - 2025-09-17 - StellarWP
 	Security Fix: Tightened security around `wpc_button` shortcode.
-2.9.8 - 2025-10-09 - StellarWP
-	Security Fix: Tightened security around actions.
+1.0.0 - 2026-02-06 - Ryan Waterbury
+	Forked from WP Complete 2.9.8
+	Rebranded to SimpleLMS
+	Refactored to One Dog Solutions standards

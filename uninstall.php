@@ -14,10 +14,10 @@
  * - Repeat things for multisite. Once for a single site in the network, once sitewide.
  *
  *
- * @link       https://wpcomplete.co
+ * @link       https://onedog.solutions
  * @since      1.0.0
  *
- * @package    WPComplete
+ * @package    SimpleLMS
  */
 
 // If uninstall not called from WordPress, then exit.

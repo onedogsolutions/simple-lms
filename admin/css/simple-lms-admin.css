@@ -1,0 +1,96 @@
+/**
+ * All of the CSS for your admin-specific functionality should be
+ * included in this file.
+ */
+
+@media (min-width: 960px) {
+
+  .simple-lms-settings {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+  }
+
+  .simple-lms-settings .content {
+    width: calc(100% - 350px);
+  }
+
+  .simple-lms-settings .sidebar {
+    width: 330px;
+  }
+
+}
+
+.simple-lms-settings .logo,
+.wrap .logo {
+  max-width: 28px;
+  margin: 0 auto;
+}
+
+.column-utilities,
+.column-completable,
+.column-started {
+  width: 150px;
+}
+
+.column-completable a {
+  display: block;
+}
+
+.simple-lms-settings .content select {
+  max-width: 400px;
+}
+
+.simple-lms-settings .wp-picker-container {
+  display: inline-block;
+}
+
+.simple-lms-settings .simple-lms-checkbox-container {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
+.simple-lms-settings .simple-lms-checkbox-container input {
+  margin-right: 10px;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.simple-lms-settings .sidebar ul {
+  list-style: inside disc;
+}
+
+.simple-lms-settings .postbox h2 {
+  font-size: 14px;
+  padding: 8px 12px;
+  margin: 0;
+  line-height: 1.4;
+  border-bottom: 1px solid #eee;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.profeature:after {
+  content: "PRO FEATURE";
+  display: inline-block;
+  color: #fff;
+  background: #9d9fcf;
+  border-radius: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  margin: 10px 0;
+  line-height: 1;
+}
+
+#completion_redirect_to {
+  padding: 3px 8px;
+  font-size: 1.7em;
+  line-height: 100%;
+  height: 1.7em;
+  width: 100%;
+  outline: 0;
+  margin: 0 0 3px;
+  background-color: #fff;
+}

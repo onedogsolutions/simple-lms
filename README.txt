@@ -1,19 +1,19 @@
-=== WPComplete ===
-Contributors: ithemes, layotte
+=== SimpleLMS ===
+Contributors: one_dog_solutions
 Tags: courses, teaching, read, mark, complete, lms, membership, pages, page, posts, post, widget, plugin, admin, shortcode, progress, progress bar, completion, tracking, dashboard, groups, learning
 Requires at least: 4.5.3
 Tested up to: 6.8.3
-Stable tag: 2.9.8
-License: GPLv2 or later
-License URI: http://www.gnu.org/licenses/gpl-2.0.html
-A WordPress plugin that helps your students keep track of their progress through your course.
+Stable tag: 1.0.0
+License: GPLv3 or later
+License URI: http://www.gnu.org/licenses/gpl-3.0.html
+SimpleLMS is a system to connect WordPress Custom Post Types to be a completable set of lessons. A lightweight Learning Management System.
 
 
 == Description ==
 
-[WPComplete has joined the iThemes family!](https://ithemes.com/wpcomplete-joining-ithemes-family)
+[SimpleLMS has joined the One Dog Solutions family!](https://onedog.solutions)
 
-WPComplete is a WordPress plugin that helps your students keep track of their progress through your course or membership site.
+SimpleLMS is a WordPress plugin that helps your students keep track of their progress through your course or membership site.
 
 All you have to do is pick which pages or posts can be marked as “Completed”.
 
@@ -24,12 +24,12 @@ There’s no programming required, it works with every WordPress theme, WordPres
 
 * Mark lessons as complete - students can complete lessons so they know how far they’ve progressed in your course.
 * Quick toggle - set which pages or posts are completable via Quick Edit or by editing the page/post.
-* Any theme, any plugin - use WPComplete with any WordPress theme or membership plugin.
+* Any theme, any plugin - use SimpleLMS with any WordPress theme or membership plugin.
 
 
 **PRO version**
 
-WPComplete is available as a PRO version with lots of extra features to help you customize and visually show students their progress.
+SimpleLMS is available as a PRO version with lots of extra features to help you customize and visually show students their progress.
 * Supports multiple courses within a single WordPress site.
 * Supports multiple buttons per lesson (if each lesson has multiple aspects, think: completed video lesson, completed workbooks, completed spreadsheet)
 * Custom post types - Using something other than pages and posts? Not a problem!
@@ -44,19 +44,19 @@ WPComplete is available as a PRO version with lots of extra features to help you
 * Email support - we are available to quickly answer questions, fix bugs and take feature requests.
 
 
-[https://wpcomplete.co](https://wpcomplete.co)
+[https://onedog.solutions](https://onedog.solutions)
 
 
-Although WPC is course platform agnostic, we've thoroughly tested it with: [Restrict Content Pro](https://restrictcontentpro.com/), Memberful and WOO.
+Although SimpleLMS is course platform agnostic, we've thoroughly tested it with: [Restrict Content Pro](https://restrictcontentpro.com/), Memberful and WOO.
 
 **Please vote & enjoy**
-If you like WPComplete, please [leave us a ★★★★★ rating](https://wordpress.org/support/view/plugin-reviews/wpcomplete). Your votes really make a difference! Thanks.
+If you like SimpleLMS, please [leave us a ★★★★★ rating](https://wordpress.org/support/plugin/simple-lms/reviews/). Your votes really make a difference! Thanks.
 
 
 == Installation ==
-1. Upload ‘wpcomplete.*.zip’ to your /wp-content/plugins/‘ directory or use the WordPress plugin uploader.
+1. Upload ‘simple-lms.*.zip’ to your /wp-content/plugins/‘ directory or use the WordPress plugin uploader.
 1. Activate the plugin through the ‘Plugins’ menu in WordPress.
-1. Go to ‘Settings’ then ‘WPComplete’ to customize the text and colours.
+1. Go to ‘Settings’ then ‘SimpleLMS’ to customize the text and colours.
 1. Edit any page or post and check the box beside ‘Enable Complete button’ to set a page or post as completable.
 
 
@@ -65,21 +65,21 @@ If you like WPComplete, please [leave us a ★★★★★ rating](https://wordp
 = How do I enable a page so that it is completable? =
 To enable a page so that it's completable:
 1. Find the page from your WordPress admin page directory and click in to edit.
-2. Scroll to the WPComplete meta box.
+2. Scroll to the SimpleLMS meta box.
 3. Check the "Enable Complete button" checkbox.
 4. (Optional) Place the `[wpc_complete_button]` shortcode in the content of your post, where you want the button to exist.
 5. Update or Publish the page to save the changes.
-6. (Optional) On the WPComplete settings page, update your button's custom css to update the appearance of your buttons.
+6. (Optional) On the SimpleLMS settings page, update your button's custom css to update the appearance of your buttons.
 
 = How do I style the buttons? =
-There are two options to add custom branding/style your WPComplete buttons:
-1. On the settings page (Settings > WPComplete) you can customize the following, without any programming or HTML/CSS knowledge: the color of the button, the color of the font on the button, the words on the button (for both completed buttons and incomplete buttons), and the wording for “Saving…”.
-2. You can create and add your own custom CSS for buttons to add graphics, icons, rounded corners, etc, by adding your own CSS code to the Advanced Settings section. WPC buttons use the class: a.wpc-button with two states (which can be styled differently): a.wpc-completed (for finished lessons) and a.wpc-complete (for unfinished lessons).
+There are two options to add custom branding/style your SimpleLMS buttons:
+1. On the settings page (Settings > SimpleLMS) you can customize the following, without any programming or HTML/CSS knowledge: the color of the button, the color of the font on the button, the words on the button (for both completed buttons and incomplete buttons), and the wording for “Saving…”.
+2. You can create and add your own custom CSS for buttons to add graphics, icons, rounded corners, etc, by adding your own CSS code to the Advanced Settings section. SimpleLMS buttons use the class: a.wpc-button with two states (which can be styled differently): a.wpc-completed (for finished lessons) and a.wpc-complete (for unfinished lessons).
 
 = Why isn't my button showing up? =
 It could be one of a couple reasons:
 1. You're not logged in to your wordpress site. Only logged in users can see the button.
-2. That page doesn't have buttons enabled. Make sure the `Enable Complete button` checkbox is checked in the WPComplete metabox when editting that page.
+2. That page doesn't have buttons enabled. Make sure the `Enable Complete button` checkbox is checked in the SimpleLMS metabox when editting that page.
 3. You don't have `Automatically add complete button to enabled posts & pages for me.` checked and you haven't added the `[wpc_complete_button]` shortcode to your page content.
 Still not showing up? Let us know and we can help figure out what's going on.
 
@@ -87,16 +87,16 @@ Still not showing up? Let us know and we can help figure out what's going on.
 Whether you use pages, posts or custom post types for your lessons, you can see on the list page (i.e. PAGES > ALL PAGES or POSTS > ALL POSTS) beside the published date a column for user completion is shown, [which displays the number of students/total students and then the percentage](https://i0.wp.com/plugins.svn.wordpress.org/!svn/bc/1572621/wpcomplete/assets/screenshot-8.png).
 If you go to Users > All Users then the final column on the user table will show the number of lessons completed vs the total lessons for each user on your site.
 
-= Does WPComplete allow for multiple buttons per lesson? =
-Heck yes it does (in the pro version)! You can add your first button by adding the `[wpc_complete_button]` shortcode to any page content with WPComplete enabled. To add additional buttons, just make sure to provide each button with a specific name, like: `[wpc_complete_button name="Button Name"]` or `[wpc_complete_button name="Video Module"]` or `[wpc_complete_button name="Workbooks"]`.
+= Does SimpleLMS allow for multiple buttons per lesson? =
+Heck yes it does (in the pro version)! You can add your first button by adding the `[wpc_complete_button]` shortcode to any page content with SimpleLMS enabled. To add additional buttons, just make sure to provide each button with a specific name, like: `[wpc_complete_button name="Button Name"]` or `[wpc_complete_button name="Video Module"]` or `[wpc_complete_button name="Workbooks"]`.
 
-= How do I delete courses in WPComplete? =
-Courses show up once you’ve added more than one lesson to them. To delete a course from WPComplete, simply remove all lessons from that course. Then the course will no longer show up on the list.
+= How do I delete courses in SimpleLMS? =
+Courses show up once you’ve added more than one lesson to them. To delete a course from SimpleLMS, simply remove all lessons from that course. Then the course will no longer show up on the list.
 
 = How do I list the lessons in my course and show if they are completed or not to students? =
 You’ll have to use your course software/LMS to show what lessons are available in your course, or simply create a list of pages that are lessons on any WP content.
 
-From any list (ordered or unordered), WPComplete automatically will show each user if they’ve completed the lesson or not, using custom CSS. We add this automatically for users who don’t want to edit code (completed lessons are faded slightly and a checkmark is added beside them). For customers who want to update the CSS, it’s found in Advanced Settings:
+From any list (ordered or unordered), SimpleLMS automatically will show each user if they’ve completed the lesson or not, using custom CSS. We add this automatically for users who don’t want to edit code (completed lessons are faded slightly and a checkmark is added beside them). For customers who want to update the CSS, it’s found in Advanced Settings:
 `
 li .wpc-lesson {}
 li .wpc-lesson-complete {}
@@ -110,15 +110,15 @@ li .wpc-lesson-completed:after { content: "✔"; margin-left: 5px; text-decorati
 `[progress_ratio]` or `[wpc_progress_ratio]` will display the current student's progress as a ratio (ex: 10/35).
 `[progress_graph]` or `[wpc_progress_graph]` will display a radial (donut) graph showing the current student's progress with percentage.
 `[progress_bar]` or `[wpc_progress_bar]` will display a bar graph showing the current student's progress with percentage.
-`[complete_button name="Button Name"]` will create another button on a lesson with an existing button. You can use any number of buttons on any page where WPC is activated.
-`[wpc_completed_content]This content shows only once the WPC button is pressed.[/wpc_completed_content]`
-`[wpc_incomplete_content]This content shows only until the WPC button is presesd.[/wpc_incomplete_content]`
+`[complete_button name="Button Name"]` will create another button on a lesson with an existing button. You can use any number of buttons on any page where SimpleLMS is activated.
+`[wpc_completed_content]This content shows only once the SimpleLMS button is pressed.[/wpc_completed_content]`
+`[wpc_incomplete_content]This content shows only until the SimpleLMS button is presesd.[/wpc_incomplete_content]`
 `[wpc_completed_content name="Button Name"]This content shows only once the button Button Name is pressed.[/wpc_completed_content]`
 `[wpc_incomplete_content name="Button Name"]This content shows only until the button Button Name is presesd.[/wpc_incomplete_content]`
 
-For a complete list of available shortcodes and features, please visit: [https://wpcomplete.co/cheatsheet/](https://wpcomplete.co/cheatsheet/)
+For a complete list of available shortcodes and features, please visit: [https://onedog.solutions/simple-lms/cheatsheet/](https://onedog.solutions/simple-lms/cheatsheet/)
 
-= Can WPComplete handle multiple courses within the same WordPress installation? =
+= Can SimpleLMS handle multiple courses within the same WordPress installation? =
 Yes! Once you enable completion for a page or post, in the pro version, you will be given the option to assign it to a specific course. If you use any progress shortcodes, by default it will display the progress for the course of that post, but progress shortcodes also accept a course attribute if you want to force showing progress for a specific course. Ex:
 `[wpc_progress_bar course="All"]`
 `[wpc_progress_bar course="My Awesome Course"]`
@@ -129,7 +129,7 @@ Yes! By default, only posts and pages are enabled. But in the pro version, you h
 = Can I style links to posts and pages that are completable? =
 Yes! In the pro version, we append the css class .wpc-lesson to ALL links to posts and pages. Links that have not been completed by the logged in student will also have the class .wpc-lesson-complete added. And links that have been completed by the logged in student will also have the class .wpc-lesson-completed added, along with some really basic styles that are easy to override manually.
 
-= I use OptimizePress. Can I use WPComplete? =
+= I use OptimizePress. Can I use SimpleLMS? =
 Yes! OptimizePress is a little tricky to get working, but it does work! We automatically disable automatic insertion of the completion button, but you can easily add it where you want the button to show up!
 To add the button to your page:
 1. Edit the page you want to add completion to.
@@ -148,20 +148,22 @@ To add the button to your page:
 
 
 == Screenshots ==
-1. WPComplete Settings page.
+1. SimpleLMS Settings page.
 2. Example of a "Mark as complete" button your students see.
-3. Example of a WPComplete circle graph (PRO FEATURE).
-4. Example of a WPComplete progress bar (PRO FEATURE).
-5. Quick Edit WPComplete toggle.
-6. WPComplete metabox options on a page or post.
+3. Example of a SimpleLMS circle graph (PRO FEATURE).
+4. Example of a SimpleLMS progress bar (PRO FEATURE).
+5. Quick Edit SimpleLMS toggle.
+6. SimpleLMS metabox options on a page or post.
 7. Example of visual indicators of a student's lesson completion status.
 8. Example of displaying a lesson completion percentage in the WordPress admin.
 
 
 == Changelog ==
 
-= 2.9.8 =
-* Security Fix: Tightened security around actions.
+= 1.0.0 =
+* Forked from WP Complete 2.9.8
+* Rebranded to SimpleLMS
+* Refactored to One Dog Solutions standards
 
 = 2.9.7 =
 * Security Fix: Tightened security around `wpc_button` shortcode.
@@ -198,7 +200,7 @@ To add the button to your page:
 = 2.6 =
 * Various bug fixes.
 * Added ability to set new content as default enabled.
-* Added blank state copy for WPComplete page.
+* Added blank state copy for SimpleLMS page.
 * Cleaned up and simplified code.
 * Javascript completion triggers.
 
@@ -225,7 +227,7 @@ To add the button to your page:
 * PRO FEATURE ONLY: Add child_of to progress bars/ratios.
 * PRO FEATURE ONLY: Allow admins to delete user's course/lesson data.
 * PRO FEATURE ONLY: Created course specific dashboard pages.
-* PRO FEATURE ONLY: Added custom WPComplete wordpress action hooks.
+* PRO FEATURE ONLY: Added custom SimpleLMS wordpress action hooks.
 
 = 2.2 =
 * Various bug fixes.
@@ -262,8 +264,8 @@ To add the button to your page:
 * PRO FEATURE ONLY: Added advanced custom styles textarea in settings page, allowing for easier styling.
 
 = 1.1 =
-* Added support for custom post types. Default is still posts and pages, but the pro version can now select individual custom post types or all post types. [Thanks, Scott Winterroth](https://www.producthunt.com/tech/wpcomplete#comment-342255)
-* Fixed a bug where the completion button would sometimes display twice if other plugins would render content before WPComplete. Thanks, Philip Morgan
+* Added support for custom post types. Default is still posts and pages, but the pro version can now select individual custom post types or all post types. [Thanks, Scott Winterroth](https://www.producthunt.com/tech/onedog.solutionsmment-342255)
+* Fixed a bug where the completion button would sometimes display twice if other plugins would render content before SimpleLMS. Thanks, Philip Morgan
 * Fixed a bug relating to pro version license activation and validity checking.
 
 = 1.0 =
