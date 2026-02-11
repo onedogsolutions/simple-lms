@@ -31,6 +31,10 @@ require_once SLMS_PLUGIN_DIR . 'includes/class-cpt.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-rest.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-metaboxes.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-pmpro.php';
+require_once SLMS_PLUGIN_DIR . 'includes/class-expiration.php';
+require_once SLMS_PLUGIN_DIR . 'includes/class-certificates.php';
+require_once SLMS_PLUGIN_DIR . 'includes/class-migration.php';
+
 
 /* ─── Boot ───────────────────────────────────────────────────────────── */
 
@@ -44,6 +48,9 @@ function slms_init()
 	CPT::init();
 	REST::init();
 	MetaBoxes::init();
+	Expiration::init();
+	Certificates::init();
+	Migration::init();
 
 	// Conditionally boot PMPro integration.
 	if (function_exists('pmpro_getMembershipLevelForUser')) {
@@ -135,3 +142,36 @@ function slms_enqueue_admin_assets($hook_suffix)
 	));
 }
 add_action('admin_enqueue_scripts', __NAMESPACE__ . '\\slms_enqueue_admin_assets');
+
+/* ─── Beaver Builder Integration ─────────────────────────────────────── */
+
+/**
+ * Load Beaver Builder modules.
+ *
+ * @return void
+ */
+function slms_load_bb_modules()
+{
+	if (class_exists('FLBuilder')) {
+		require_once SLMS_PLUGIN_DIR . 'includes/bb-modules/lms-content/lms-content.php';
+		require_once SLMS_PLUGIN_DIR . 'includes/bb-modules/lms-outline/lms-outline.php';
+		require_once SLMS_PLUGIN_DIR . 'includes/bb-modules/lms-complete-button/lms-complete-button.php';
+	}
+}
+add_action('init', __NAMESPACE__ . '\\slms_load_bb_modules');
+
+/**
+ * Enqueue frontend assets for LMS modules.
+ *
+ * @return void
+ */
+function slms_enqueue_frontend_assets()
+{
+	wp_enqueue_style(
+		'slms-frontend',
+		SLMS_PLUGIN_URL . 'assets/css/frontend.css',
+		array(),
+		SLMS_VERSION
+	);
+}
+add_action('wp_enqueue_scripts', __NAMESPACE__ . '\\slms_enqueue_frontend_assets');

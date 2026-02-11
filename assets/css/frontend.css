@@ -1,6 +1,81 @@
-/**
- * SimpleLMS Frontend Styles
- * Placeholder – will match lms.onedog.solutions CSS variables.
- *
- * @package SimpleLMS
- */
+/* Beaver Builder Module Styles */
+
+.slms-lesson-content .slms-lesson-title {
+    margin-bottom: 1.5rem;
+}
+
+.slms-course-outline {
+    background: #f9f9f9;
+    padding: 1.5rem;
+    border-radius: 8px;
+    border: 1px solid #eee;
+}
+
+.slms-outline-title {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+}
+
+.slms-lesson-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.slms-lesson-item {
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #eee;
+}
+
+.slms-lesson-item:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.slms-lesson-item a {
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    color: #444;
+}
+
+.slms-lesson-item.is-current a {
+    font-weight: bold;
+    color: #0073aa;
+}
+
+.slms-status-icon {
+    margin-right: 10px;
+    display: flex;
+    align-items: center;
+}
+
+.is-completed .slms-status-icon {
+    color: #46b450;
+}
+
+/* Complete Button */
+.slms-complete-toggle .slms-label-complete {
+    display: none;
+}
+
+.slms-complete-toggle.is-completed .slms-label-incomplete {
+    display: none;
+}
+
+.slms-complete-toggle.is-completed .slms-label-complete {
+    display: inline;
+}
+
+.slms-complete-toggle.is-completed {
+    background-color: #46b450;
+    border-color: #46b450;
+    color: white;
+}
+
+.slms-complete-toggle.is-completed:hover {
+    background-color: #3e9f45;
+    border-color: #3e9f45;
+}
