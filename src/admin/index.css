@@ -1,0 +1,144 @@
+/**
+ * SimpleLMS Admin styles.
+ *
+ * @package SimpleLMS
+ */
+
+/* ── Root container ─────────────────────────────────────────────── */
+#slms-admin-root {
+	margin-top: 12px;
+}
+
+#slms-admin-root .components-panel {
+	border: 1px solid #c3c4c7;
+}
+
+/* ── Lesson Sorter ──────────────────────────────────────────────── */
+.slms-lesson-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.slms-lesson-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 12px;
+	margin-bottom: 4px;
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	cursor: default;
+	user-select: none;
+}
+
+.slms-lesson-item:hover {
+	background: #f0f0f1;
+}
+
+.slms-drag-handle {
+	cursor: grab;
+	font-size: 18px;
+	color: #787c82;
+	line-height: 1;
+	padding: 2px 4px;
+}
+
+.slms-drag-handle:active {
+	cursor: grabbing;
+}
+
+.slms-lesson-title {
+	flex: 1;
+	font-weight: 500;
+}
+
+/* ── Save Bar ───────────────────────────────────────────────────── */
+.slms-save-bar {
+	padding: 12px 0;
+	border-top: 1px solid #dcdcde;
+	margin-top: 12px;
+}
+
+/* ── Student Manager ────────────────────────────────────────────── */
+.slms-student-manager {
+	max-width: 960px;
+}
+
+.slms-search {
+	margin-bottom: 16px;
+}
+
+.slms-student-table {
+	margin-top: 8px;
+}
+
+.slms-student-table th {
+	font-weight: 600;
+	text-align: left;
+}
+
+.slms-course-badge {
+	display: inline-block;
+	background: #e7e8ea;
+	border-radius: 3px;
+	padding: 2px 8px;
+	margin: 2px 4px 2px 0;
+	font-size: 13px;
+}
+
+.slms-course-badge small {
+	color: #656970;
+}
+
+.slms-detail-row td {
+	background: #f9f9f9;
+	padding: 16px !important;
+}
+
+.slms-course-detail {
+	margin-bottom: 12px;
+}
+
+.slms-course-detail h4 {
+	margin: 0 0 8px;
+}
+
+.slms-lesson-checkboxes {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+/* ── Pagination ─────────────────────────────────────────────────── */
+.slms-pagination {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-top: 16px;
+	justify-content: center;
+}
+
+.slms-page-info {
+	color: #656970;
+	font-size: 13px;
+}
+
+/* ── Empty state ────────────────────────────────────────────────── */
+.slms-empty {
+	color: #787c82;
+	font-style: italic;
+	padding: 12px 0;
+}
+
+/* ── PMPro Levels ───────────────────────────────────────────────── */
+.slms-pmpro-levels .components-checkbox-control__label {
+	font-size: 13px;
+}
+
+.slms-panel-desc {
+	color: #656970;
+	font-size: 12px;
+	margin: 0 0 8px;
+}
