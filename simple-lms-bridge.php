@@ -232,3 +232,37 @@ function slms_register_post_types() {
 }
 
 add_action( 'init', 'slms_register_post_types' );
+
+/**
+ * Register Course Category Taxonomy and Lesson Relationships
+ */
+function slms_register_taxonomies() {
+    
+    // 1. Create a "Course Category" Taxonomy
+    $labels = array(
+        'name'              => 'Course Categories',
+        'singular_name'     => 'Course Category',
+        'search_items'      => 'Search Categories',
+        'all_items'         => 'All Categories',
+        'parent_item'       => 'Parent Category',
+        'edit_item'         => 'Edit Category',
+        'update_item'       => 'Update Category',
+        'add_new_item'      => 'Add New Category',
+        'menu_name'         => 'Course Categories',
+    );
+
+    $args = array(
+        'hierarchical'      => true, // Makes it behave like Categories, not Tags
+        'labels'            => $labels,
+        'show_ui'           => true,
+        'show_admin_column' => true,
+        'query_var'         => true,
+        'show_in_rest'      => true, // Required for the Block Editor
+        'rewrite'           => array( 'slug' => 'course-category' ),
+    );
+
+    // Register taxonomy for both post types so they can share categories
+    register_taxonomy( 'slms_course_cat', array( 'slms_course', 'slms_lesson' ), $args );
+}
+
+add_action( 'init', 'slms_register_taxonomies' );
