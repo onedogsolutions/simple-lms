@@ -4,7 +4,7 @@
  * Plugin URI:  https://onedog.solutions
  * Description: A lightweight, CPT-based LMS with React admin UI and Beaver Builder integration.
  * Version:     1.0.0
- * Author:      One Dog Solutions
+ * Author:      Ryan D. Waterbury
  * Author URI:  https://onedog.solutions
  * Text Domain: simple-lms-bridge
  * Domain Path: /languages
@@ -175,3 +175,60 @@ function slms_enqueue_frontend_assets()
 	);
 }
 add_action('wp_enqueue_scripts', __NAMESPACE__ . '\\slms_enqueue_frontend_assets');
+
+<?php
+/**
+ * Register Custom Post Types for Simple LMS
+ */
+function slms_register_post_types() {
+
+    // 1. Register Courses
+    $course_labels = array(
+        'name'               => 'Courses',
+        'singular_name'      => 'Course',
+        'menu_name'          => 'LMS Courses',
+        'add_new'            => 'Add New Course',
+        'add_new_item'       => 'Add New Course',
+        'edit_item'          => 'Edit Course',
+        'all_items'          => 'All Courses',
+    );
+
+    $course_args = array(
+        'labels'             => $course_labels,
+        'public'             => true,
+        'has_archive'        => true,
+        'show_in_menu'       => true, // Ensures it appears in the sidebar
+        'show_in_rest'       => true, // Enables the Block Editor
+        'supports'           => array( 'title', 'editor', 'thumbnail', 'excerpt' ),
+        'rewrite'            => array( 'slug' => 'courses' ),
+        'menu_icon'          => 'dashicons-welcome-learn-more',
+    );
+
+    register_post_type( 'slms_course', $course_args );
+
+    // 2. Register Lessons
+    $lesson_labels = array(
+        'name'               => 'Lessons',
+        'singular_name'      => 'Lesson',
+        'menu_name'          => 'LMS Lessons',
+        'add_new'            => 'Add New Lesson',
+        'add_new_item'       => 'Add New Lesson',
+        'edit_item'          => 'Edit Lesson',
+        'all_items'          => 'All Lessons',
+    );
+
+    $lesson_args = array(
+        'labels'             => $lesson_labels,
+        'public'             => true,
+        'has_archive'        => true,
+        'show_in_menu'       => true, 
+        'show_in_rest'       => true,
+        'supports'           => array( 'title', 'editor', 'revisions' ),
+        'rewrite'            => array( 'slug' => 'lessons' ),
+        'menu_icon'          => 'dashicons-media-text',
+    );
+
+    register_post_type( 'slms_lesson', $lesson_args );
+}
+
+add_action( 'init', 'slms_register_post_types' );
