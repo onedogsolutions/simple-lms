@@ -252,7 +252,7 @@ function slms_register_taxonomies() {
     );
 
     $args = array(
-        'hierarchical'      => true, // Makes it behave like Categories, not Tags
+        'hierarchical'      => true, // Makes it behaves like Categories, not Tags
         'labels'            => $labels,
         'show_ui'           => true,
         'show_admin_column' => true,
