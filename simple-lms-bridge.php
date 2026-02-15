@@ -187,10 +187,17 @@ function slms_register_post_types()
         'name' => 'Courses',
         'singular_name' => 'Course',
         'menu_name' => 'LMS Courses',
-        'add_new' => 'Add New Course',
+        'name_admin_bar' => 'Course',
+        'add_new' => 'Add New',
         'add_new_item' => 'Add New Course',
+        'new_item' => 'New Course',
         'edit_item' => 'Edit Course',
+        'view_item' => 'View Course',
         'all_items' => 'All Courses',
+        'search_items' => 'Search Courses',
+        'parent_item_colon' => 'Parent Courses:',
+        'not_found' => 'No courses found.',
+        'not_found_in_trash' => 'No courses found in Trash.',
     );
 
     $course_args = array(
@@ -211,10 +218,16 @@ function slms_register_post_types()
         'name' => 'Lessons',
         'singular_name' => 'Lesson',
         'menu_name' => 'LMS Lessons',
-        'add_new' => 'Add New Lesson',
+        'name_admin_bar' => 'Lesson',
+        'add_new' => 'Add New',
         'add_new_item' => 'Add New Lesson',
+        'new_item' => 'New Lesson',
         'edit_item' => 'Edit Lesson',
+        'view_item' => 'View Lesson',
         'all_items' => 'All Lessons',
+        'search_items' => 'Search Lessons',
+        'not_found' => 'No lessons found.',
+        'not_found_in_trash' => 'No lessons found in Trash.',
     );
 
     $lesson_args = array(
