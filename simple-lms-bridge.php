@@ -34,6 +34,9 @@ require_once SLMS_PLUGIN_DIR . 'includes/class-pmpro.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-expiration.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-certificates.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-migration.php';
+require_once SLMS_PLUGIN_DIR . 'includes/class-user-meta.php';
+require_once SLMS_PLUGIN_DIR . 'includes/class-relationships.php';
+require_once SLMS_PLUGIN_DIR . 'includes/class-account-dashboard.php';
 
 
 /* ─── Boot ───────────────────────────────────────────────────────────── */
@@ -51,11 +54,15 @@ function slms_init()
     Expiration::init();
     Certificates::init();
     Migration::init();
+    Relationships::init();
 
     // Conditionally boot PMPro integration.
     if (function_exists('pmpro_getMembershipLevelForUser')) {
         PMPro::init();
     }
+
+    UserMeta::init();
+    AccountDashboard::init();
 }
 add_action('init', __NAMESPACE__ . '\\slms_init');
 
@@ -69,6 +76,7 @@ add_action('init', __NAMESPACE__ . '\\slms_init');
 function slms_activate()
 {
     CPT::register_post_types();
+    Relationships::create_table();
     flush_rewrite_rules();
 }
 register_activation_hook(__FILE__, __NAMESPACE__ . '\\slms_activate');
@@ -156,6 +164,7 @@ function slms_load_bb_modules()
         require_once SLMS_PLUGIN_DIR . 'includes/bb-modules/lms-content/lms-content.php';
         require_once SLMS_PLUGIN_DIR . 'includes/bb-modules/lms-outline/lms-outline.php';
         require_once SLMS_PLUGIN_DIR . 'includes/bb-modules/lms-complete-button/lms-complete-button.php';
+        require_once SLMS_PLUGIN_DIR . 'includes/bb-modules/lms-account-dashboard/lms-account-dashboard.php';
     }
 }
 add_action('init', __NAMESPACE__ . '\\slms_load_bb_modules');
@@ -176,107 +185,7 @@ function slms_enqueue_frontend_assets()
 }
 add_action('wp_enqueue_scripts', __NAMESPACE__ . '\\slms_enqueue_frontend_assets');
 
-/**
- * Register Custom Post Types for Simple LMS
- */
-function slms_register_post_types()
-{
 
-    // 1. Register Courses
-    $course_labels = array(
-        'name' => 'Courses',
-        'singular_name' => 'Course',
-        'menu_name' => 'LMS Courses',
-        'name_admin_bar' => 'Course',
-        'add_new' => 'Add New',
-        'add_new_item' => 'Add New Course',
-        'new_item' => 'New Course',
-        'edit_item' => 'Edit Course',
-        'view_item' => 'View Course',
-        'all_items' => 'All Courses',
-        'search_items' => 'Search Courses',
-        'parent_item_colon' => 'Parent Courses:',
-        'not_found' => 'No courses found.',
-        'not_found_in_trash' => 'No courses found in Trash.',
-    );
+/* ─── Shortcodes (Legacy) ────────────────────────────────────────────── */
 
-    $course_args = array(
-        'labels' => $course_labels,
-        'public' => true,
-        'has_archive' => true,
-        'show_in_menu' => true, // Ensures it appears in the sidebar
-        'show_in_rest' => true, // Enables the Block Editor
-        'supports' => array('title', 'editor', 'thumbnail', 'excerpt'),
-        'rewrite' => array('slug' => 'courses'),
-        'menu_icon' => 'dashicons-welcome-learn-more',
-    );
-
-    register_post_type('slms_course', $course_args);
-
-    // 2. Register Lessons
-    $lesson_labels = array(
-        'name' => 'Lessons',
-        'singular_name' => 'Lesson',
-        'menu_name' => 'LMS Lessons',
-        'name_admin_bar' => 'Lesson',
-        'add_new' => 'Add New',
-        'add_new_item' => 'Add New Lesson',
-        'new_item' => 'New Lesson',
-        'edit_item' => 'Edit Lesson',
-        'view_item' => 'View Lesson',
-        'all_items' => 'All Lessons',
-        'search_items' => 'Search Lessons',
-        'not_found' => 'No lessons found.',
-        'not_found_in_trash' => 'No lessons found in Trash.',
-    );
-
-    $lesson_args = array(
-        'labels' => $lesson_labels,
-        'public' => true,
-        'has_archive' => true,
-        'show_in_menu' => true,
-        'show_in_rest' => true,
-        'supports' => array('title', 'editor', 'revisions'),
-        'rewrite' => array('slug' => 'lessons'),
-        'menu_icon' => 'dashicons-media-text',
-    );
-
-    register_post_type('slms_lesson', $lesson_args);
-}
-
-add_action('init', 'slms_register_post_types');
-
-/**
- * Register Course Category Taxonomy and Lesson Relationships
- */
-function slms_register_taxonomies()
-{
-
-    // 1. Create a "Course Category" Taxonomy
-    $labels = array(
-        'name' => 'Course Categories',
-        'singular_name' => 'Course Category',
-        'search_items' => 'Search Categories',
-        'all_items' => 'All Categories',
-        'parent_item' => 'Parent Category',
-        'edit_item' => 'Edit Category',
-        'update_item' => 'Update Category',
-        'add_new_item' => 'Add New Category',
-        'menu_name' => 'Course Categories',
-    );
-
-    $args = array(
-        'hierarchical' => true, // Makes it behaves like Categories, not Tags
-        'labels' => $labels,
-        'show_ui' => true,
-        'show_admin_column' => true,
-        'query_var' => true,
-        'show_in_rest' => true, // Required for the Block Editor
-        'rewrite' => array('slug' => 'course-category'),
-    );
-
-    // Register taxonomy for both post types so they can share categories
-    register_taxonomy('slms_course_cat', array('slms_course', 'slms_lesson'), $args);
-}
-
-add_action('init', 'slms_register_taxonomies');
+// If we need any legacy shortcodes, they would go here.

@@ -31,6 +31,13 @@ class PMPro
     {
         // Fires after a user's membership level is changed.
         add_action('pmpro_after_change_membership_level', array(__CLASS__, 'handle_level_change'), 10, 3);
+
+        // Optional: filter for runtime access checks.
+        add_filter('simple_lms_check_access', array(__CLASS__, 'filter_access_check'), 10, 3);
+
+        // Admin Columns.
+        add_filter('manage_lms_course_posts_columns', array(__CLASS__, 'add_admin_columns'));
+        add_action('manage_lms_course_posts_custom_column', array(__CLASS__, 'render_admin_columns'), 10, 2);
     }
 
     /* ───────────────────────────────────────────────────────────────────
@@ -186,9 +193,84 @@ class PMPro
         );
     }
 
-    /* ───────────────────────────────────────────────────────────────────
-     * Enrollment Helpers
-     * ─────────────────────────────────────────────────────────────────── */
+    /**
+     * Add PMPro Levels column.
+     *
+     * @param array $columns Columns.
+     * @return array
+     */
+    public static function add_admin_columns($columns)
+    {
+        $columns['pmpro_levels'] = __('PMPro Levels', 'simple-lms-bridge');
+        return $columns;
+    }
+
+    /**
+     * Render PMPro Levels column.
+     *
+     * @param string $column  Column name.
+     * @param int    $post_id Post ID.
+     * @return void
+     */
+    public static function render_admin_columns($column, $post_id)
+    {
+        if ('pmpro_levels' === $column) {
+            $levels = get_post_meta($post_id, '_lms_pmpro_levels', true);
+            if (empty($levels) || !is_array($levels)) {
+                echo '—';
+                return;
+            }
+
+            $level_names = array();
+            foreach ($levels as $level_id) {
+                if (function_exists('pmpro_getLevel')) {
+                    $level = \pmpro_getLevel($level_id);
+                    $level_names[] = $level ? esc_html($level->name) : '#' . esc_html($level_id);
+                } else {
+                    $level_names[] = '#' . esc_html($level_id);
+                }
+            }
+            echo implode(', ', $level_names);
+        }
+    }
+
+    /**
+     * Runtime access check filter.
+     *
+     * @param bool $has_access Existing access state.
+     * @param int  $user_id    User ID.
+     * @param int  $course_id  Course ID.
+     * @return bool
+     */
+    public static function filter_access_check($has_access, $user_id, $course_id)
+    {
+        if ($has_access) {
+            return true;
+        }
+
+        return self::has_course_access($user_id, $course_id);
+    }
+
+    /**
+     * Check if a user has access to a course based on PMPro levels.
+     *
+     * @param int $user_id   User ID.
+     * @param int $course_id Course ID.
+     * @return bool
+     */
+    public static function has_course_access($user_id, $course_id)
+    {
+        if (!function_exists('pmpro_hasMembershipLevel')) {
+            return false;
+        }
+
+        $required_levels = get_post_meta($course_id, '_lms_pmpro_levels', true);
+        if (empty($required_levels) || !is_array($required_levels)) {
+            return false;
+        }
+
+        return pmpro_hasMembershipLevel($required_levels, $user_id);
+    }
 
     /**
      * Get all course IDs mapped to a PMPro level.
@@ -236,19 +318,10 @@ class PMPro
      */
     public static function enroll_user($user_id, $course_id)
     {
-        $progress = get_user_meta($user_id, '_lms_progress', true);
+        // 1. Sync to Join Table.
+        Relationships::enroll_user($user_id, $course_id, 'pmpro');
 
-        if (!is_array($progress)) {
-            $progress = array();
-        }
-
-        // Only initialize if not already enrolled.
-        if (!isset($progress[$course_id])) {
-            $progress[$course_id] = array();
-            update_user_meta($user_id, '_lms_progress', $progress);
-        }
-
-        // Record enrollment timestamp.
+        // 2. Record enrollment timestamp in user meta (legacy/backup).
         $enrolled = get_user_meta($user_id, '_lms_enrolled_at', true);
         if (!is_array($enrolled)) {
             $enrolled = array();
@@ -268,15 +341,18 @@ class PMPro
      */
     public static function de_enroll_user($user_id, $course_id)
     {
-        $progress = get_user_meta($user_id, '_lms_progress', true);
+        // 1. Sync to Join Table.
+        Relationships::unenroll_user($user_id, $course_id);
 
+        // 2. Clear progress meta.
+        $progress = get_user_meta($user_id, '_lms_progress', true);
         if (is_array($progress) && isset($progress[$course_id])) {
             unset($progress[$course_id]);
             update_user_meta($user_id, '_lms_progress', $progress);
         }
 
+        // 3. Clear enrollment timestamp.
         $enrolled = get_user_meta($user_id, '_lms_enrolled_at', true);
-
         if (is_array($enrolled) && isset($enrolled[$course_id])) {
             unset($enrolled[$course_id]);
             update_user_meta($user_id, '_lms_enrolled_at', $enrolled);

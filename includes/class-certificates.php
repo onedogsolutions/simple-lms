@@ -102,7 +102,75 @@ class Certificates
             }
         }
 
+
         // Trigger action for others to hook into.
         do_action('slms_certificate_generated', $user_id, $course_id);
+    }
+
+    /**
+     * Check if a course is completed and handle certificate automation.
+     *
+     * @param int $user_id   User ID.
+     * @param int $course_id Course post ID.
+     * @return void
+     */
+    public static function check_course_completion($user_id, $course_id)
+    {
+        $lesson_ids = get_post_meta($course_id, '_simple_lms_order', true);
+        if (!is_array($lesson_ids) || empty($lesson_ids)) {
+            return;
+        }
+
+        $progress = get_user_meta($user_id, '_lms_progress', true);
+        $course_progress = isset($progress[$course_id]) ? $progress[$course_id] : array();
+
+        $all_done = true;
+        foreach ($lesson_ids as $lesson_id) {
+            if (!isset($course_progress[$lesson_id])) {
+                $all_done = false;
+                break;
+            }
+        }
+
+        if ($all_done) {
+            // Check if we've already handled completion for this course.
+            $completion_recorded = get_user_meta($user_id, '_lms_completed_at', true);
+            if (!is_array($completion_recorded)) {
+                $completion_recorded = array();
+            }
+
+            if (!isset($completion_recorded[$course_id])) {
+                $completion_recorded[$course_id] = time();
+                update_user_meta($user_id, '_lms_completed_at', $completion_recorded);
+
+                do_action('slms_course_completed', $user_id, $course_id);
+
+                // Automate certificate generation.
+                $form_id = (int)get_post_meta($course_id, '_lms_certificate_form', true);
+
+                if ($form_id > 0 && class_exists('GFAPI')) {
+                    // Check if an entry already exists for this user and form to avoid duplicates.
+                    $entry_query = array(
+                        'form_id' => $form_id,
+                        'field_filters' => array(
+                            array('key' => 'created_by', 'value' => $user_id)
+                        )
+                    );
+                    $entries = \GFAPI::get_entries($form_id, $entry_query['field_filters']);
+
+                    if (empty($entries)) {
+                        $entry = array(
+                            'form_id' => $form_id,
+                            'created_by' => $user_id,
+                            'status' => 'active',
+                        );
+                        \GFAPI::add_entry($entry);
+                    }
+                }
+
+                // Revoke access automatically upon completion (if configured or standard behavior).
+                self::remove_course_access($user_id, $course_id);
+            }
+        }
     }
 }

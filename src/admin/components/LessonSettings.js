@@ -36,19 +36,22 @@ const LessonSettings = ({ postId }) => {
     const [saving, setSaving] = useState(false);
     const [notice, setNotice] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [assignedCourses, setAssignedCourses] = useState([]);
 
     // ── Load initial data ─────────────────────────────────────────
     useEffect(() => {
         const load = async () => {
             try {
-                const [videosRes, formsRes, postRes] = await Promise.all([
+                const [videosRes, formsRes, postRes, relationshipsRes] = await Promise.all([
                     apiFetch({ path: '/simple-lms/v1/videos' }),
                     apiFetch({ path: '/simple-lms/v1/forms' }),
                     apiFetch({ path: `/wp/v2/lms-lessons/${postId}` }),
+                    apiFetch({ path: `/simple-lms/v1/relationships/lesson/${postId}/courses` }),
                 ]);
 
                 setVideos(videosRes);
                 setForms(formsRes);
+                setAssignedCourses(relationshipsRes);
 
                 const meta = postRes.meta || {};
                 setLessonType(meta._lms_lesson_type || '');
@@ -165,6 +168,30 @@ const LessonSettings = ({ postId }) => {
                             }
                         />
                     </>
+                )}
+            </PanelBody>
+
+            <PanelBody
+                title={__('Assigned Courses', 'simple-lms-bridge')}
+                initialOpen={false}
+            >
+                <p className="slms-panel-desc">
+                    {__('This lesson is assigned to the following courses:', 'simple-lms-bridge')}
+                </p>
+                {assignedCourses.length === 0 ? (
+                    <p className="slms-empty">
+                        {__('Not assigned to any course.', 'simple-lms-bridge')}
+                    </p>
+                ) : (
+                    <ul className="slms-assigned-courses">
+                        {assignedCourses.map((course) => (
+                            <li key={course.id} className="slms-assigned-course-item">
+                                <a href={`post.php?post=${course.id}&action=edit`}>
+                                    {course.title}
+                                </a>
+                            </li>
+                        ))}
+                    </ul>
                 )}
             </PanelBody>
 

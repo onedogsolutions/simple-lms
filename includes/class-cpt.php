@@ -27,6 +27,7 @@ class CPT
     public static function init()
     {
         add_action('init', array(__CLASS__, 'register_post_types'), 5);
+        add_action('init', array(__CLASS__, 'register_taxonomies'), 5);
         add_action('init', array(__CLASS__, 'register_meta'), 6);
     }
 
@@ -66,6 +67,24 @@ class CPT
             'supports' => array('title', 'editor', 'thumbnail', 'custom-fields'),
             'menu_icon' => 'dashicons-media-text',
             'menu_position' => 26,
+        ));
+    }
+
+    /**
+     * Register Taxonomies.
+     *
+     * @return void
+     */
+    public static function register_taxonomies()
+    {
+        \register_taxonomy('lms_course_cat', 'lms_course', array(
+            'labels' => self::labels('Course Category', 'Course Categories'),
+            'hierarchical' => true,
+            'show_ui' => true,
+            'show_admin_column' => true,
+            'show_in_rest' => true,
+            'rest_base' => 'lms-course-categories',
+            'rewrite' => array('slug' => 'course-category'),
         ));
     }
 
@@ -121,6 +140,19 @@ class CPT
             'show_in_rest' => true,
             'default' => 0,
             'sanitize_callback' => 'absint',
+            'auth_callback' => function () {
+            return current_user_can('edit_posts');
+        },
+        ));
+
+        // Course Price.
+        register_post_meta('lms_course', '_lms_course_price', array(
+            'type' => 'number',
+            'description' => 'The price of the course.',
+            'single' => true,
+            'show_in_rest' => true,
+            'default' => 0,
+            'sanitize_callback' => 'floatval',
             'auth_callback' => function () {
             return current_user_can('edit_posts');
         },

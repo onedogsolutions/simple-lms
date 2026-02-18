@@ -11,6 +11,12 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+/**
+ * @var object $settings
+ * @var string $id
+ * @var object $module
+ */
+
 $post = get_post();
 
 if (!$post || 'lms_lesson' !== $post->post_type) {

@@ -12,11 +12,12 @@ import {
     PanelRow,
     SelectControl,
     TextControl,
+    SearchControl,
     Button,
     Spinner,
     Notice,
 } from '@wordpress/components';
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 import { Reorder } from 'motion/react';
 
@@ -39,27 +40,32 @@ const CourseEditor = ({ postId }) => {
     const [accessDays, setAccessDays] = useState(0);
     const [pmproLevels, setPmproLevels] = useState([]);
     const [allPMProLevels, setAllPMProLevels] = useState([]);
+    const [enrolledStudents, setEnrolledStudents] = useState([]);
     const [saving, setSaving] = useState(false);
     const [notice, setNotice] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [lessonSearch, setLessonSearch] = useState('');
 
     // ── Load initial data ─────────────────────────────────────────
     useEffect(() => {
         const load = async () => {
             try {
-                const [lessonsRes, formsRes, levelsRes, postRes] = await Promise.all([
+                const [lessonsRes, formsRes, levelsRes, postRes, relationshipsRes] = await Promise.all([
                     apiFetch({ path: '/simple-lms/v1/lessons' }),
                     apiFetch({ path: '/simple-lms/v1/forms' }),
                     apiFetch({ path: '/simple-lms/v1/pmpro-levels' }),
                     apiFetch({ path: `/wp/v2/lms-courses/${postId}` }),
+                    apiFetch({ path: `/simple-lms/v1/relationships/course/${postId}/lessons` }),
+                    apiFetch({ path: `/simple-lms/v1/enrollments/course/${postId}/students` }),
                 ]);
 
                 setAllLessons(lessonsRes);
                 setForms(formsRes);
                 setAllPMProLevels(levelsRes);
+                setEnrolledStudents(studentsRes || []);
 
                 const meta = postRes.meta || {};
-                setLessonOrder(meta._simple_lms_order || []);
+                setLessonOrder(relationshipsRes.map(l => l.id) || []);
                 setCertificateForm(meta._lms_certificate_form || 0);
                 setAccessDays(meta._lms_access_days || 0);
                 setPmproLevels(meta._lms_pmpro_levels || []);
@@ -77,18 +83,26 @@ const CourseEditor = ({ postId }) => {
         setSaving(true);
         setNotice(null);
         try {
-            await apiFetch({
-                path: `/wp/v2/lms-courses/${postId}`,
-                method: 'POST',
-                data: {
-                    meta: {
-                        _simple_lms_order: lessonOrder,
-                        _lms_certificate_form: parseInt(certificateForm, 10) || 0,
-                        _lms_access_days: parseInt(accessDays, 10) || 0,
-                        _lms_pmpro_levels: pmproLevels,
+            await Promise.all([
+                apiFetch({
+                    path: `/wp/v2/lms-courses/${postId}`,
+                    method: 'POST',
+                    data: {
+                        meta: {
+                            _lms_certificate_form: parseInt(certificateForm, 10) || 0,
+                            _lms_access_days: parseInt(accessDays, 10) || 0,
+                            _lms_pmpro_levels: pmproLevels,
+                        },
                     },
-                },
-            });
+                }),
+                apiFetch({
+                    path: `/simple-lms/v1/relationships/course/${postId}/lessons`,
+                    method: 'POST',
+                    data: {
+                        lesson_ids: lessonOrder,
+                    },
+                }),
+            ]);
             setNotice({ status: 'success', message: __('Course settings saved.', 'simple-lms-bridge') });
         } catch (err) {
             setNotice({ status: 'error', message: err.message });
@@ -158,12 +172,12 @@ const CourseEditor = ({ postId }) => {
 
             { /* ── Lesson Sorter ─────────────────────────────────── */}
             <PanelBody
-                title={__('Lesson Order', 'simple-lms-bridge')}
+                title={__('Course Lessons', 'simple-lms-bridge')}
                 initialOpen={true}
             >
                 {lessonOrder.length === 0 && (
                     <p className="slms-empty">
-                        {__('No lessons added yet. Use the dropdown below to add lessons.', 'simple-lms-bridge')}
+                        {__('No lessons assigned yet.', 'simple-lms-bridge')}
                     </p>
                 )}
 
@@ -183,22 +197,35 @@ const CourseEditor = ({ postId }) => {
                     ))}
                 </Reorder.Group>
 
-                {availableLessons.length > 0 && (
-                    <PanelRow>
-                        <SelectControl
-                            label={__('Add Lesson', 'simple-lms-bridge')}
-                            value=""
-                            options={[
-                                { label: __('— Select —', 'simple-lms-bridge'), value: '' },
-                                ...availableLessons.map((l) => ({
-                                    label: l.title,
-                                    value: l.id,
-                                })),
-                            ]}
-                            onChange={addLesson}
-                        />
-                    </PanelRow>
-                )}
+                <div className="slms-relationship-picker">
+                    <SearchControl
+                        label={__('Search Lessons to Add', 'simple-lms-bridge')}
+                        value={lessonSearch}
+                        onChange={setLessonSearch}
+                    />
+                    {lessonSearch && (
+                        <div className="slms-search-results">
+                            {availableLessons
+                                .filter(l => l.title.toLowerCase().includes(lessonSearch.toLowerCase()))
+                                .slice(0, 10)
+                                .map(l => (
+                                    <div
+                                        key={l.id}
+                                        className="slms-search-result-item"
+                                        onClick={() => {
+                                            addLesson(l.id);
+                                            setLessonSearch('');
+                                        }}
+                                    >
+                                        {l.title}
+                                    </div>
+                                ))}
+                            {availableLessons.filter(l => l.title.toLowerCase().includes(lessonSearch.toLowerCase())).length === 0 && (
+                                <div className="slms-no-results">{__('No matches found.', 'simple-lms-bridge')}</div>
+                            )}
+                        </div>
+                    )}
+                </div>
             </PanelBody>
 
             { /* ── Certificate Form ──────────────────────────────── */}
@@ -257,6 +284,28 @@ const CourseEditor = ({ postId }) => {
                     selectedLevels={pmproLevels}
                     onChange={setPmproLevels}
                 />
+            </PanelBody>
+
+            { /* ── Enrolled Students ───────────────────────────────── */}
+            <PanelBody
+                title={__('Enrolled Students', 'simple-lms-bridge')}
+                initialOpen={false}
+            >
+                {enrolledStudents.length === 0 ? (
+                    <p className="slms-empty">
+                        {__('No students enrolled in this course.', 'simple-lms-bridge')}
+                    </p>
+                ) : (
+                    <ul className="slms-student-list">
+                        {enrolledStudents.map((student) => (
+                            <li key={student.id} className="slms-student-item">
+                                <strong>{student.display_name}</strong>
+                                <span>{student.email}</span>
+                                <span className="slms-badge slms-badge-secondary">{student.source}</span>
+                            </li>
+                        ))}
+                    </ul>
+                )}
             </PanelBody>
 
             { /* ── Save Button ────────────────────────────────────── */}
