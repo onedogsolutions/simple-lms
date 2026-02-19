@@ -144,9 +144,14 @@ $url         = remove_query_arg( 'dash_tab' );
 // Inline JS for smooth tab interaction (optional).
 ?>
 <script>
-jQuery(document).ready(function($) {
-	$('.slms-dash-tabs a').on('click', function(e) {
-		if ( $('body').hasClass('fl-builder-active') ) return;
+document.addEventListener('DOMContentLoaded', function() {
+	var tabs = document.querySelectorAll('.slms-dash-tabs a');
+	tabs.forEach(function(tab) {
+		tab.addEventListener('click', function(e) {
+			if ( document.body.classList.contains('fl-builder-active') ) {
+				e.preventDefault();
+			}
+		});
 	});
 });
 </script>
