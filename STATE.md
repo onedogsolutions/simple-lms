@@ -43,12 +43,54 @@ The project has recently undergone a major refactor and has been moved to a priv
 - [x] **Beaver Builder Integration:** Implement modules for course/lesson display.
 - [x] **Certificate Automation:** Ensure certificates are generated and access is revoked automatically.
 - [x] **Migration Utility:** Build tool to migrate data from WP Complete.
+- [ ] **Student Dashboard BB Module:** New 3-tab BB module (profile, purchase history, certificates) — see architecture below.
 - [ ] **QA & Testing:** Conduct thorough end-to-end testing of the enrollment and expiration flow.
+
+## Student Dashboard Module Architecture
+
+**Module:** `slms-student-dashboard` (BB module under `includes/bb-modules/`)
+
+### Directory Layout
+
+```text
+includes/bb-modules/slms-student-dashboard/
+├── slms-student-dashboard.php   # Module class + register_module()
+└── includes/
+    ├── frontend.php             # Tab shell + per-tab render (Profile, History, Certs)
+    └── frontend.css.php         # Dynamic CSS via FLBuilderCSS::rule()
+```
+
+### Core Features
+
+- **Tab 1 (Profile)**: Uses internal SLMS profile form via `AccountDashboard::render_profile()`.
+- **Tab 2 (History)**: Wraps PMPro `[pmpro_account]` shortcode with native fallbacks.
+- **Tab 3 (Certificates)**: Queries GF API for entries created by current user.
+- **Styling**: Fully stylable via BB settings (Colors, Typography, Card-style tabs).
+
+### Tab 1 — User Profile
+
+- Embeds a Gravity Form (admin-configurable Form ID) via `gravity_form()`.
+- GF dynamic population pre-fills fields from `wp_usermeta`.
+
+### Tab 2 — Purchase History
+
+- Wraps PMPro native shortcode: `[pmpro_account sections="membership,invoices"]`.
+- Graceful fallback if PMPro is not active.
+
+### Tab 3 — Certificates Earned
+
+- Queries `GFAPI::get_entries()` filtered by `created_by` = current user.
+- Table columns mapped to GF field IDs via BB settings (Name, Course, Date, PDF Link).
+
+### BB Settings
+
+- **General tab:** Form ID selectors, GF field ID mapping for certificate columns, custom tab labels.
+- **Style tab:** Color pickers (tabs, table, buttons, content area), typography (heading/body font size), content padding.
 
 ## Continuity Notes
 
 - **GitHub Username:** `onedogsolutions`
-- **Next Step:** Proceed with Beaver Builder module implementation or Migration tool.
+- **Next Step:** Implement the Student Dashboard BB module per the architecture above.
 
 ## 🤖 Local AI Context (Ollama Qwen3-30B)
 

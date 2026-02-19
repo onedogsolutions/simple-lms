@@ -104,7 +104,7 @@ class AccountDashboard {
 	 *
 	 * @param int $user_id User ID.
 	 */
-	private static function render_profile( $user_id ) {
+	public static function render_profile( $user_id ) {
 		// Handle form submission.
 		if ( isset( $_POST['slms_profile_nonce'] ) && wp_verify_nonce( $_POST['slms_profile_nonce'], 'slms_save_profile' ) ) {
 			$meta_class = new UserMeta();
@@ -178,7 +178,7 @@ class AccountDashboard {
 	 *
 	 * @param int $user_id User ID.
 	 */
-	private static function render_orders( $user_id ) {
+	public static function render_orders( $user_id ) {
 		echo '<h3>' . __( 'My Orders', 'simple-lms-bridge' ) . '</h3>';
 		// Placeholder for PMPro Orders integration.
 		echo '<p>' . __( 'Order history will appear here.', 'simple-lms-bridge' ) . '</p>';
@@ -189,7 +189,7 @@ class AccountDashboard {
 	 *
 	 * @param int $user_id User ID.
 	 */
-	private static function render_certificates( $user_id ) {
+	public static function render_certificates( $user_id ) {
 		echo '<h3>' . __( 'My Certificates', 'simple-lms-bridge' ) . '</h3>';
 		// Placeholder for Certificates integration.
 		echo '<p>' . __( 'Certificates will appear here.', 'simple-lms-bridge' ) . '</p>';
