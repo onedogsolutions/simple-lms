@@ -31,6 +31,7 @@ The project has recently undergone a major refactor and has been moved to a priv
   - Initially enqueued via CDN on custom admin pages (`tw-preflight`).
   - **Refactor:** Migrated off the CDN to a secure, locally compiled Build Pipeline (Tailwind v4 CLI via standard `npm run build` workflows).
   - **v4 Fix:** Updated `src/admin/tailwind.css` from deprecated v3 `@tailwind` directives to v4 `@import "tailwindcss"` syntax to resolve broken CSS compilation.
+  - **Build-Order Caveat:** When `npm run build` runs `build:css` and `build:js` sequentially, the Tailwind CLI may finish before `wp-scripts` creates the `build/admin/` directory, causing the CSS output file to silently vanish when `wp-scripts` recreates the folder. **Workaround:** Run `npm run build:css` again after `npm run build:js`, or run them in separate terminal sessions. A future fix would be to ensure the output directory exists before the CSS step runs.
 - **Student Manager Overhaul:**
     - Built a modern React-based "Details" view.
     - Added UI fields to view and manage **Pods Legacy User Meta** natively mapping exact database schema structures (`billing_address_1`, `license_number`, `pro_exam_status`, etc.).
