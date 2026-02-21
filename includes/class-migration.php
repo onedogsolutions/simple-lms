@@ -206,10 +206,12 @@ class Migration
         }
 
         $user_ids = $wpdb->get_col($sql);
+        error_log('[SimpleLMS] Phase 2: Found ' . count($user_ids) . ' users to process.');
         $count = 0;
 
         foreach ($user_ids as $user_id) {
             $user_id = (int)$user_id;
+            error_log('[SimpleLMS] Phase 2: Processing user ID: ' . $user_id);
 
             $wpc_metas = $wpdb->get_results($wpdb->prepare(
                 "SELECT meta_key, meta_value FROM {$wpdb->usermeta} WHERE user_id = %d AND (meta_key = 'wpcomplete' OR meta_key LIKE 'wpcomplete_%%')",
@@ -217,6 +219,7 @@ class Migration
             ));
 
             if (empty($wpc_metas)) {
+                error_log('[SimpleLMS] Phase 2: No wpc_metas found for user ID: ' . $user_id . '. Skipping.');
                 continue;
             }
 
@@ -288,10 +291,12 @@ class Migration
         ));
 
         if (!$new_lesson_query->have_posts()) {
+            error_log('[SimpleLMS] Phase 2: No slms_lesson found for legacy ID: ' . $legacy_lesson_id . ' (user ' . $user_id . ')');
             return;
         }
 
         $new_lesson_id = $new_lesson_query->posts[0];
+        error_log('[SimpleLMS] Phase 2: Mapped legacy lesson ' . $legacy_lesson_id . ' to new lesson ' . $new_lesson_id . ' for user ' . $user_id);
         $timestamp = time();
         if (is_array($data) && !empty($data['completed'])) {
             $timestamp = strtotime($data['completed']) ?: time();
