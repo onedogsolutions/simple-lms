@@ -4,4 +4,11 @@ build/
 *.log
 stubs.php
 debug-problems.log
+package-lock.json
+check_user.php
+fix_migration.php
+fix_replace.php
+update_migration.php
+verify_content_migration.php
+verify_migration.php
 
