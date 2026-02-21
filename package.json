@@ -7,7 +7,7 @@
     "scripts": {
         "build:css": "tailwindcss -i ./src/admin/tailwind.css -o ./build/admin/tailwind.css --minify",
         "build:js": "wp-scripts build src/admin/index.js --output-path=build/admin",
-        "build": "npm run build:css && npm run build:js",
+        "build": "npm run build:js && npm run build:css",
         "start:css": "tailwindcss -i ./src/admin/tailwind.css -o ./build/admin/tailwind.css --watch",
         "start:js": "wp-scripts start src/admin/index.js --output-path=build/admin",
         "start": "npm run start:css & npm run start:js",

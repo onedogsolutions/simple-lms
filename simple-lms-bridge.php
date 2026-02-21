@@ -108,6 +108,17 @@ function slms_admin_menu()
             echo '<div class="wrap slms-admin-wrap tw-preflight"><div id="slms-admin-root"></div></div>';
         }
     );
+
+    add_submenu_page(
+        'simple-lms',
+        __('Debug Log', 'simple-lms-bridge'),
+        __('Debug Log', 'simple-lms-bridge'),
+        'manage_options',
+        'slms-debug-log',
+        function () {
+            echo '<div class="wrap slms-admin-wrap tw-preflight"><div id="slms-admin-root"></div></div>';
+        }
+    );
 }
 
 /* ─── Activation ─────────────────────────────────────────────────────── */
@@ -156,7 +167,7 @@ function slms_enqueue_admin_assets($hook_suffix)
 
     // Load on our CPT edit screens and the Student Manager / Migration Tool pages.
     $is_lms_cpt = in_array($screen->post_type, array('slms_course', 'slms_lesson'), true);
-    $is_slms_page = (strpos($screen->id, 'slms-students') !== false || strpos($screen->id, 'slms-migration') !== false || strpos($screen->id, 'simple-lms') !== false);
+    $is_slms_page = (strpos($screen->id, 'slms-students') !== false || strpos($screen->id, 'slms-migration') !== false || strpos($screen->id, 'slms-debug-log') !== false || strpos($screen->id, 'simple-lms') !== false);
 
     if (!$is_lms_cpt && !$is_slms_page) {
         return;

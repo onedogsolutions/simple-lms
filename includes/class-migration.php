@@ -43,7 +43,7 @@ class Migration
     }
 
     /**
-     * Append a message to both the in-memory log and the WP debug log.
+     * Append a message to the in-memory log, WP debug log, and the plugin's persistent log file.
      *
      * @param string $message Log message.
      * @param string $level   One of 'info', 'warn', 'error', 'debug'.
@@ -51,6 +51,7 @@ class Migration
      */
     private static function log($message, $level = 'info')
     {
+        $timestamp = current_time('Y-m-d H:i:s');
         $entry = array(
             'time'  => current_time('H:i:s'),
             'level' => $level,
@@ -58,6 +59,68 @@ class Migration
         );
         self::$log[] = $entry;
         error_log('[SimpleLMS][' . strtoupper($level) . '] ' . $message);
+
+        // Write to persistent plugin log file.
+        $log_file = self::get_log_file_path();
+        $line = '[' . $timestamp . '] [' . strtoupper($level) . '] ' . $message . PHP_EOL;
+        @file_put_contents($log_file, $line, FILE_APPEND | LOCK_EX);
+    }
+
+    /**
+     * Get the path to the plugin's persistent log file.
+     *
+     * @return string
+     */
+    public static function get_log_file_path()
+    {
+        $upload_dir = wp_upload_dir();
+        $log_dir = $upload_dir['basedir'] . '/slms-logs';
+        if (!is_dir($log_dir)) {
+            wp_mkdir_p($log_dir);
+            // Protect log directory with .htaccess.
+            @file_put_contents($log_dir . '/.htaccess', 'deny from all');
+            @file_put_contents($log_dir . '/index.php', '<?php // Silence is golden.');
+        }
+        return $log_dir . '/migration.log';
+    }
+
+    /**
+     * Read the last N lines from the persistent log file.
+     *
+     * @param int $lines Number of lines to read.
+     * @return string
+     */
+    public static function read_log($lines = 200)
+    {
+        $log_file = self::get_log_file_path();
+        if (!file_exists($log_file)) {
+            return '';
+        }
+
+        $content = file_get_contents($log_file);
+        if (empty($content)) {
+            return '';
+        }
+
+        $all_lines = explode(PHP_EOL, trim($content));
+        $total = count($all_lines);
+
+        if ($total <= $lines) {
+            return implode(PHP_EOL, $all_lines);
+        }
+
+        return implode(PHP_EOL, array_slice($all_lines, $total - $lines));
+    }
+
+    /**
+     * Clear the persistent log file.
+     *
+     * @return bool
+     */
+    public static function clear_log()
+    {
+        $log_file = self::get_log_file_path();
+        return @file_put_contents($log_file, '') !== false;
     }
 
     /**
@@ -365,8 +428,12 @@ class Migration
 
     /**
      * Helper to process legacy lesson completions.
+     *
+     * Users with WPComplete data were clearly accessing courses historically,
+     * so we auto-enroll them during migration rather than skipping.
      */
     private static function process_legacy_lesson_progress($user_id, $legacy_lesson_id, $data, &$current_progress, &$stats = null, $user_label = '') {
+        // 1. Look up new lesson by _legacy_id meta.
         $new_lesson_query = new \WP_Query(array(
             'post_type'      => 'slms_lesson',
             'meta_key'       => '_legacy_id',
@@ -376,15 +443,48 @@ class Migration
             'no_found_rows'  => true,
         ));
 
+        // 2. Fallback: try matching by post ID directly (legacy ID IS the slms_lesson ID).
         if (!$new_lesson_query->have_posts()) {
-            self::log($user_label . ': legacy lesson ' . $legacy_lesson_id . ' has no matching slms_lesson (_legacy_id lookup failed).', 'warn');
-            if ($stats !== null) {
-                $stats['lessons_skipped_no_match']++;
+            $direct_post = get_post($legacy_lesson_id);
+            if ($direct_post && $direct_post->post_type === 'slms_lesson' && $direct_post->post_status === 'publish') {
+                $new_lesson_id = $direct_post->ID;
+                self::log($user_label . ': legacy lesson ' . $legacy_lesson_id . ' matched directly as slms_lesson ' . $new_lesson_id . '.', 'debug');
+            } else {
+                // 3. Fallback: try matching by title.
+                $legacy_post = get_post($legacy_lesson_id);
+                if ($legacy_post) {
+                    $title_query = new \WP_Query(array(
+                        'post_type'      => 'slms_lesson',
+                        'title'          => $legacy_post->post_title,
+                        'posts_per_page' => 1,
+                        'fields'         => 'ids',
+                        'no_found_rows'  => true,
+                        'post_status'    => 'publish',
+                    ));
+                    if ($title_query->have_posts()) {
+                        $new_lesson_id = $title_query->posts[0];
+                        update_post_meta($new_lesson_id, '_legacy_id', $legacy_lesson_id);
+                        self::log($user_label . ': legacy lesson ' . $legacy_lesson_id . ' (' . $legacy_post->post_title . ') matched by title to slms_lesson ' . $new_lesson_id . '.', 'debug');
+                    } else {
+                        self::log($user_label . ': legacy lesson ' . $legacy_lesson_id . ' (' . $legacy_post->post_title . ') has no matching slms_lesson — _legacy_id lookup failed, direct ID lookup failed (post_type=' . $legacy_post->post_type . '), title lookup failed.', 'warn');
+                        if ($stats !== null) {
+                            $stats['lessons_skipped_no_match']++;
+                        }
+                        return;
+                    }
+                } else {
+                    self::log($user_label . ': legacy lesson ' . $legacy_lesson_id . ' has no matching slms_lesson — _legacy_id lookup failed, post ID ' . $legacy_lesson_id . ' does not exist in wp_posts.', 'warn');
+                    if ($stats !== null) {
+                        $stats['lessons_skipped_no_match']++;
+                    }
+                    return;
+                }
             }
-            return;
+        } else {
+            $new_lesson_id = $new_lesson_query->posts[0];
         }
 
-        $new_lesson_id = $new_lesson_query->posts[0];
+        // Parse completion timestamp from WPComplete data.
         $timestamp = time();
         $ts_source = 'fallback(now)';
 
@@ -402,47 +502,57 @@ class Migration
             $ts_source = 'numeric=' . $data;
         }
 
+        // Find linked courses for this lesson.
         $linked_courses = Relationships::get_courses_for_lesson($new_lesson_id);
         if (empty($linked_courses)) {
-            self::log($user_label . ': new lesson ' . $new_lesson_id . ' (legacy ' . $legacy_lesson_id . ') is not linked to any course.', 'warn');
-            if ($stats !== null) {
-                $stats['lessons_skipped_no_course']++;
+            self::log($user_label . ': new lesson ' . $new_lesson_id . ' (legacy ' . $legacy_lesson_id . ') is not linked to any course in wp_slms_course_lesson table. Attempting course lookup via _simple_lms_order meta.', 'warn');
+
+            // Fallback: search all courses for this lesson in their _simple_lms_order.
+            global $wpdb;
+            $course_ids = $wpdb->get_col($wpdb->prepare(
+                "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_simple_lms_order' AND meta_value LIKE %s",
+                '%' . $wpdb->esc_like('"' . $new_lesson_id . '"') . '%'
+            ));
+
+            if (!empty($course_ids)) {
+                self::log($user_label . ': found lesson ' . $new_lesson_id . ' in _simple_lms_order of course(s): ' . implode(', ', $course_ids) . '.', 'debug');
+                $linked_courses = array();
+                foreach ($course_ids as $cid) {
+                    $cpost = get_post($cid);
+                    if ($cpost && $cpost->post_type === 'slms_course') {
+                        $obj = new \stdClass();
+                        $obj->id = (int) $cid;
+                        $obj->title = $cpost->post_title;
+                        $linked_courses[] = $obj;
+                    }
+                }
             }
-            return;
+
+            if (empty($linked_courses)) {
+                self::log($user_label . ': lesson ' . $new_lesson_id . ' (legacy ' . $legacy_lesson_id . ') still not linked to any course after fallback search. Skipping.', 'warn');
+                if ($stats !== null) {
+                    $stats['lessons_skipped_no_course']++;
+                }
+                return;
+            }
         }
 
+        // Auto-enroll and map progress for each linked course.
+        // Users with WPComplete data were accessing courses, so enroll them automatically.
         foreach ($linked_courses as $course_obj) {
-            $course_id = $course_obj->id;
-            $is_enrolled = false;
+            $course_id = (int) $course_obj->id;
 
-            if (class_exists('SimpleLMS\PMPro') && PMPro::has_course_access($user_id, $course_id)) {
-                $is_enrolled = true;
+            // Auto-enroll the user — they had WPComplete data so they were active.
+            Relationships::enroll_user($user_id, $course_id, 'migration');
+
+            if (!isset($current_progress[$course_id])) {
+                $current_progress[$course_id] = array();
             }
 
-            if (!$is_enrolled) {
-                $enrolled_meta = get_user_meta($user_id, '_lms_enrolled_at', true);
-                if (is_array($enrolled_meta) && isset($enrolled_meta[$course_id])) {
-                    $is_enrolled = true;
-                }
-            }
-
-            if ($is_enrolled) {
-                Relationships::enroll_user($user_id, $course_id, 'migration');
-
-                if (!isset($current_progress[$course_id])) {
-                    $current_progress[$course_id] = array();
-                }
-
-                $current_progress[$course_id][$new_lesson_id] = $timestamp;
-                self::log($user_label . ': mapped legacy ' . $legacy_lesson_id . ' -> lesson ' . $new_lesson_id . ' in course ' . $course_id . ' (ts: ' . $ts_source . ').', 'debug');
-                if ($stats !== null) {
-                    $stats['lessons_mapped']++;
-                }
-            } else {
-                self::log($user_label . ': not enrolled in course ' . $course_id . ' — skipping lesson ' . $new_lesson_id . ' (legacy ' . $legacy_lesson_id . ').', 'warn');
-                if ($stats !== null) {
-                    $stats['lessons_skipped_not_enrolled']++;
-                }
+            $current_progress[$course_id][$new_lesson_id] = $timestamp;
+            self::log($user_label . ': mapped legacy ' . $legacy_lesson_id . ' -> lesson ' . $new_lesson_id . ' in course ' . $course_id . ' (' . $course_obj->title . ') (ts: ' . $ts_source . ').', 'debug');
+            if ($stats !== null) {
+                $stats['lessons_mapped']++;
             }
         }
     }

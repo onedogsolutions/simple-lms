@@ -17,6 +17,7 @@ import CourseEditor from './components/CourseEditor';
 import LessonSettings from './components/LessonSettings';
 import StudentManager from './components/StudentManager';
 import MigrationTool from './components/MigrationTool';
+import DebugLog from './components/DebugLog';
 
 import './index.css';
 
@@ -40,6 +41,8 @@ const mount = () => {
 		App = <StudentManager />;
 	} else if ( page === 'slms-migration' ) {
 		App = <MigrationTool />;
+	} else if ( page === 'slms-debug-log' ) {
+		App = <DebugLog />;
 	} else if ( postType === 'slms_course' && postId ) {
 		App = <CourseEditor postId={ parseInt( postId, 10 ) } />;
 	} else if ( postType === 'slms_lesson' && postId ) {

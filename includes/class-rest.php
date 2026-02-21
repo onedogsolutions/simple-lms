@@ -90,7 +90,7 @@ class REST
             ),
         ));
 
-        /* ── Gravity Forms ──────────────────────────────────────────── */
+        /* ── Forms ─────────────────────────────────────────────────── */
 
         register_rest_route(self::NAMESPACE , '/forms', array(
             'methods' => 'GET',
@@ -253,6 +253,31 @@ class REST
             }
         ));
 
+
+        /* ── Debug Log ──────────────────────────────────────────────── */
+
+        register_rest_route(self::NAMESPACE, '/debug-log', array(
+            'methods'  => 'GET',
+            'callback' => function () {
+                return rest_ensure_response(array(
+                    'log' => Migration::read_log(500),
+                ));
+            },
+            'permission_callback' => function () {
+                return current_user_can('manage_options');
+            },
+        ));
+
+        register_rest_route(self::NAMESPACE, '/debug-log', array(
+            'methods'  => 'DELETE',
+            'callback' => function () {
+                Migration::clear_log();
+                return rest_ensure_response(array('success' => true));
+            },
+            'permission_callback' => function () {
+                return current_user_can('manage_options');
+            },
+        ));
 
         /* ── Relationships ──────────────────────────────────────────── */
 
@@ -873,9 +898,8 @@ class REST
             foreach ($records as $row) {
                 $history[] = array(
                     'id'          => (int) $row->id,
-                    'course_name' => $row->course_name,
+                    'course_name' => self::resolve_course_name($row->course_name),
                     'date'        => $row->date,
-                    'form_title'  => '',
                     'gf_entry_id' => (int) $row->gf_entry_id,
                 );
             }
@@ -950,12 +974,52 @@ class REST
 
             $history[] = array(
                 'id'          => $entry['id'],
-                'course_name' => $course_name,
+                'course_name' => self::resolve_course_name($course_name),
                 'date'        => $entry['date_created'] ?? '',
-                'form_title'  => $form ? ($form['title'] ?? '') : '',
             );
         }
 
         return rest_ensure_response($history);
+    }
+
+    /**
+     * Resolve a course name that may be a URL to its post title.
+     *
+     * @param string $name The course name (may be a URL or post title).
+     * @return string Resolved course title.
+     */
+    private static function resolve_course_name($name)
+    {
+        if (empty($name)) {
+            return __('Unknown Class', 'simple-lms-bridge');
+        }
+
+        // If the name looks like a URL, try to resolve it to a post title.
+        if (filter_var($name, FILTER_VALIDATE_URL) || strpos($name, 'http') === 0 || strpos($name, '/') === 0) {
+            $post_id = url_to_postid($name);
+            if ($post_id) {
+                $post = get_post($post_id);
+                if ($post) {
+                    return $post->post_title;
+                }
+            }
+
+            // Fallback: extract last path segment and clean it up.
+            $path = wp_parse_url($name, PHP_URL_PATH);
+            if ($path) {
+                $slug = basename(rtrim($path, '/'));
+                if ($slug) {
+                    // Try to find a post by slug.
+                    $by_slug = get_page_by_path($slug, OBJECT, array('slms_course', 'slms_lesson', 'course', 'page', 'post'));
+                    if ($by_slug) {
+                        return $by_slug->post_title;
+                    }
+                    // Clean up the slug as a readable name.
+                    return ucwords(str_replace(array('-', '_'), ' ', $slug));
+                }
+            }
+        }
+
+        return $name;
     }
 }

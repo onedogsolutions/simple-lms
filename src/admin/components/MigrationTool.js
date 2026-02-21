@@ -368,7 +368,7 @@ const MigrationTool = () => {
 							</h2>
 							<p className="text-gray-500 text-sm mt-2 ml-11">
 								{ __(
-									'Sync Gravity Forms certificate entries into the permanent compliance history table for 9-year retention. Requires Phase 2.',
+									'Sync historical certificate entries into the permanent compliance history table for 9-year retention. Requires Phase 2.',
 									'simple-lms-bridge'
 								) }
 							</p>
