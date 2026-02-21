@@ -64,7 +64,32 @@ The project has recently undergone a major refactor and has been moved to a priv
 - [x] **Student Dashboard BB Module:** New 3-tab BB module (profile, purchase history, certificates).
 - [x] **Admin Menu Hierarchy:** Fix disconnected menus and group under SimpleLMS hub.
 - [x] **Student Manager UI:** Modernize with Tailwind CSS and detailed progress views.
+- [x] **Migration Logging:** Added structured diagnostic logging across all migration phases.
 - [ ] **QA & Testing:** Conduct thorough end-to-end testing of the enrollment and expiration flow.
+
+## Migration Diagnostic Logging
+
+Added comprehensive logging to `class-migration.php` and `MigrationTool.js` to debug student progress import issues.
+
+### PHP Backend (`class-migration.php`)
+- **Dual-output logging**: Every log entry writes to both an in-memory buffer (returned via REST API) and `wp-content/debug.log` via `error_log()`.
+- **Phase 1 (CPT)**: Logs legacy course discovery, import/dedup results, lesson linking counts.
+- **Phase 2 (Student Progress)**: Logs per-user processing with email labels, WPComplete data format detection (serialized vs JSON), legacy-to-new lesson ID mapping results, course linkage failures, enrollment status checks, and a final summary with skip-reason stats (`lessons_mapped`, `lessons_skipped_no_match`, `lessons_skipped_no_course`, `lessons_skipped_not_enrolled`).
+- **Phase 3 (History)**: Logs GF entry counts per user, certificate form discovery, dedup stats.
+- All REST migration responses now include a `log` array and Phase 2 includes a `stats` object.
+
+### React Frontend (`MigrationTool.js`)
+- **Live Log Panel**: Collapsible panel below the migration phases, auto-opens on first log entry.
+- **Level Filters**: Filter buttons for All / Error / Warn / Info / Debug.
+- **Badge Counts**: Error and warning counts shown in panel header.
+- **Dark Terminal UI**: Monospace font on dark background for easy scanning.
+- **Auto-scroll**: Log automatically scrolls to newest entries.
+
+### Debugging Workflow
+1. Ensure `WP_DEBUG` and `WP_DEBUG_LOG` are `true` in `wp-config.php`.
+2. Run migration from the admin Migration Hub page.
+3. Watch the live log panel in the browser for immediate feedback.
+4. For deeper analysis, check `wp-content/debug.log` for the `[SimpleLMS]` prefixed entries.
 
 ## Student Dashboard Module Architecture
 

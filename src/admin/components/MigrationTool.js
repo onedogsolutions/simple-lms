@@ -8,10 +8,17 @@
  * @package
  */
 
-import { useState, useEffect } from '@wordpress/element';
+import { useState, useEffect, useRef } from '@wordpress/element';
 import { Button, Notice, Spinner, ProgressBar } from '@wordpress/components';
 import { __, sprintf } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
+
+const LOG_LEVEL_COLORS = {
+	error: 'text-red-600',
+	warn: 'text-yellow-600',
+	info: 'text-blue-600',
+	debug: 'text-gray-500',
+};
 
 const MigrationTool = () => {
 	const [ status, setStatus ] = useState( null );
@@ -23,6 +30,19 @@ const MigrationTool = () => {
 	const [ totals, setTotals ] = useState( { content: 0, progress: 0, history: 0 } );
 	const [ error, setError ] = useState( null );
 	const [ notice, setNotice ] = useState( null );
+
+	// Log state
+	const [ logEntries, setLogEntries ] = useState( [] );
+	const [ showLog, setShowLog ] = useState( false );
+	const [ logFilter, setLogFilter ] = useState( 'all' ); // all, error, warn, info, debug
+	const logEndRef = useRef( null );
+
+	// Auto-scroll log to bottom
+	useEffect( () => {
+		if ( logEndRef.current && showLog ) {
+			logEndRef.current.scrollIntoView( { behavior: 'smooth' } );
+		}
+	}, [ logEntries, showLog ] );
 
 	const loadStatus = async () => {
 		try {
@@ -55,11 +75,20 @@ const MigrationTool = () => {
 		loadStatus();
 	}, [] );
 
+	const appendLog = ( entries ) => {
+		if ( Array.isArray( entries ) && entries.length > 0 ) {
+			setLogEntries( ( prev ) => [ ...prev, ...entries ] );
+			if ( ! showLog ) {
+				setShowLog( true );
+			}
+		}
+	};
+
 	const runMigration = async ( type ) => {
 		setMigrating( true );
 		setError( null );
 		setNotice( null );
-		
+
 		let activePhase = 0;
 		if (type === 'content') activePhase = 1;
 		if (type === 'progress') activePhase = 2;
@@ -76,7 +105,7 @@ const MigrationTool = () => {
 			let pending =
 				type === 'content'
 					? status.content.pending
-					: type === 'progress' 
+					: type === 'progress'
 						? status.progress.pending
 						: status.history.pending;
 
@@ -94,6 +123,11 @@ const MigrationTool = () => {
 							'simple-lms-bridge'
 						)
 					);
+				}
+
+				// Append log entries from the response
+				if ( res.log ) {
+					appendLog( res.log );
 				}
 
 				pending = res.pending;
@@ -143,6 +177,13 @@ const MigrationTool = () => {
 
 	const isPhase1Complete = contentPending === 0 && totals.content >= 0; // if 0 total initially, consider done.
 	const isPhase2Complete = progressPending === 0 && totals.progress >= 0 && isPhase1Complete;
+
+	const filteredLog = logFilter === 'all'
+		? logEntries
+		: logEntries.filter( ( e ) => e.level === logFilter );
+
+	const warnCount = logEntries.filter( ( e ) => e.level === 'warn' ).length;
+	const errorCount = logEntries.filter( ( e ) => e.level === 'error' ).length;
 
 	return (
 		<div className="max-w-4xl mx-auto py-8">
@@ -372,6 +413,78 @@ const MigrationTool = () => {
 						</div>
 					) }
 				</div>
+
+				{ /* Migration Log Panel */ }
+				{ logEntries.length > 0 && (
+					<div className="bg-white border border-gray-200 shadow-sm rounded-lg transition-all duration-200">
+						<button
+							type="button"
+							className="w-full p-4 flex justify-between items-center cursor-pointer bg-transparent border-0 text-left"
+							onClick={ () => setShowLog( ! showLog ) }
+						>
+							<h2 className="text-lg font-bold text-gray-900 flex items-center gap-3">
+								{ __( 'Migration Log', 'simple-lms-bridge' ) }
+								<span className="text-sm font-normal text-gray-500">
+									({ logEntries.length } { __( 'entries', 'simple-lms-bridge' ) })
+								</span>
+								{ errorCount > 0 && (
+									<span className="bg-red-100 text-red-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+										{ errorCount } { __( 'error(s)', 'simple-lms-bridge' ) }
+									</span>
+								) }
+								{ warnCount > 0 && (
+									<span className="bg-yellow-100 text-yellow-700 text-xs font-semibold px-2 py-0.5 rounded-full">
+										{ warnCount } { __( 'warning(s)', 'simple-lms-bridge' ) }
+									</span>
+								) }
+							</h2>
+							<span className="text-gray-400 text-xl">
+								{ showLog ? '\u25B2' : '\u25BC' }
+							</span>
+						</button>
+
+						{ showLog && (
+							<div className="border-t border-gray-200">
+								<div className="flex gap-2 px-4 py-3 border-b border-gray-100 bg-gray-50">
+									{ [ 'all', 'error', 'warn', 'info', 'debug' ].map( ( level ) => (
+										<button
+											key={ level }
+											type="button"
+											onClick={ () => setLogFilter( level ) }
+											className={ `px-3 py-1 text-xs font-medium rounded-full border cursor-pointer transition-colors ${
+												logFilter === level
+													? 'bg-gray-800 text-white border-gray-800'
+													: 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
+											}` }
+										>
+											{ level.charAt( 0 ).toUpperCase() + level.slice( 1 ) }
+										</button>
+									) ) }
+									<div className="flex-grow" />
+									<button
+										type="button"
+										onClick={ () => { setLogEntries( [] ); setShowLog( false ); } }
+										className="px-3 py-1 text-xs font-medium rounded-full border border-gray-300 text-gray-500 hover:text-red-600 hover:border-red-300 bg-white cursor-pointer transition-colors"
+									>
+										{ __( 'Clear', 'simple-lms-bridge' ) }
+									</button>
+								</div>
+								<div className="max-h-96 overflow-y-auto bg-gray-900 p-4 rounded-b-lg font-mono text-xs leading-relaxed">
+									{ filteredLog.map( ( entry, i ) => (
+										<div key={ i } className="flex gap-3 py-0.5">
+											<span className="text-gray-500 flex-shrink-0">{ entry.time }</span>
+											<span className={ `flex-shrink-0 uppercase font-semibold w-12 ${ LOG_LEVEL_COLORS[ entry.level ] || 'text-gray-400' }` }>
+												{ entry.level }
+											</span>
+											<span className="text-gray-300 break-all">{ entry.msg }</span>
+										</div>
+									) ) }
+									<div ref={ logEndRef } />
+								</div>
+							</div>
+						) }
+					</div>
+				) }
 			</div>
 		</div>
 	);
