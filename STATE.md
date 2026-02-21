@@ -27,9 +27,10 @@ The project has recently undergone a major refactor and has been moved to a priv
   - **Phase 2 Fixes:** Corrected course-to-lesson lookup by leveraging the new `Relationships` class to accurately retrieve linked courses for imported WPComplete progress data. Strengthened timestamp handling and mitigated PHP 8.x notices (e.g. `strpos()` null checks).
   - **Phase 2 Complete Rewrite:** Bypassed arbitrary standard `get_users()` 121 limit. Now iterates over `wp_usermeta` using `$wpdb` to accurately dynamically stream and unpack `wpcomplete_*` structured legacy data for all 1300+ user records.
 - **Admin Menu Restructuring:** Unified all LMS-related screens (Courses, Lessons, Categories, Student Manager, Migration Tool) under a single "SimpleLMS" top-level menu.
-- **Tailwind CSS Integration:** 
+- **Tailwind CSS Integration:**
   - Initially enqueued via CDN on custom admin pages (`tw-preflight`).
-  - **Refactor:** Migrated off the CDN to a secure, locally compiled Build Pipeline (Tailwind v4 CLI and PostCSS via standard `npm run build` workflows).
+  - **Refactor:** Migrated off the CDN to a secure, locally compiled Build Pipeline (Tailwind v4 CLI via standard `npm run build` workflows).
+  - **v4 Fix:** Updated `src/admin/tailwind.css` from deprecated v3 `@tailwind` directives to v4 `@import "tailwindcss"` syntax to resolve broken CSS compilation.
 - **Student Manager Overhaul:**
     - Built a modern React-based "Details" view.
     - Added UI fields to view and manage **Pods Legacy User Meta** natively mapping exact database schema structures (`billing_address_1`, `license_number`, `pro_exam_status`, etc.).
@@ -50,7 +51,7 @@ The project has recently undergone a major refactor and has been moved to a priv
 
 - **WP REST API Base:** `simple-lms/v1`
 - **Tailwind CSS:** Fully integrated into local node build pipeline (`build:css`). Compiled `.css` loaded on specific plugin pages (`slms-students`, `slms-migration`).
-- **Join Tables:** `wp_slms_course_lesson` (M2M lessons), `wp_slms_user_course` (Enrollments).
+- **Join Tables:** `wp_slms_course_lesson` (M2M lessons), `wp_slms_user_course` (Enrollments), `wp_slms_course_history` (9-year compliance records).
 - **PMPro Sync:** Membership level changes automatically trigger enrollment via `pmpro_after_change_membership_level`.
 - **Plugin Meta Key for Access:** `_slms_course_access_days`
 - **Remote Repository:** `git@github.com:onedogsolutions/simple-lms.git`
@@ -65,7 +66,11 @@ The project has recently undergone a major refactor and has been moved to a priv
 - [x] **Admin Menu Hierarchy:** Fix disconnected menus and group under SimpleLMS hub.
 - [x] **Student Manager UI:** Modernize with Tailwind CSS and detailed progress views.
 - [x] **Migration Logging:** Added structured diagnostic logging across all migration phases.
-- [ ] **QA & Testing:** Conduct thorough end-to-end testing of the enrollment and expiration flow.
+- [x] **Compliance History Table:** Created `wp_slms_course_history` custom table via `dbDelta` for 9-year state compliance record retention.
+- [x] **Phase 3 Rewrite:** Rewrote GF certificate migration to insert into `wp_slms_course_history` table instead of volatile user meta.
+- [x] **Phase 2 Math Fix:** Fixed ProgressBar showing 1100% — WP `ProgressBar` treats `value` as 0–100 percentage, was receiving raw counts.
+- [x] **PHP 8.x Hardening:** Replaced `?:` with `??` in REST endpoints, added null-coalescing guards on GF field accesses.
+- [ ] **QA & Testing:** Conduct thorough end-to-end testing of the enrollment, expiration, and migration flows.
 
 ## Migration Diagnostic Logging
 
@@ -135,7 +140,7 @@ includes/bb-modules/slms-student-dashboard/
 ## Continuity Notes
 
 - **GitHub Username:** `onedogsolutions`
-- **Next Step:** Continue feature development toward 1.0 release. Use diagnostic logging to validate migration data as new features are built out.
+- **Next Step:** Continue feature development toward 1.0 release. Run `npm run build` after pulling to compile Tailwind v4 + React. Use diagnostic logging to validate migration data as new features are built out.
 
 ## Local AI Context (Ollama Qwen3-30B)
 

@@ -213,9 +213,12 @@ class Migration
         $duration = round(microtime(true) - $start_time, 2);
         self::log('Phase 1 complete: processed=' . $count . ', duration=' . $duration . 's.');
 
+        $pending = self::get_pending_content_count();
+
         return array(
             'processed' => $count,
-            'pending'   => self::get_pending_content_count(),
+            'pending'   => $pending,
+            'total'     => $count + $pending,
             'duration'  => $duration,
             'success'   => true,
             'log'       => self::flush_log(),
@@ -347,9 +350,12 @@ class Migration
             $stats['lessons_skipped_no_course'], $stats['lessons_skipped_not_enrolled'], $duration
         ));
 
+        $pending = self::get_pending_migration_count();
+
         return array(
             'processed' => $count,
-            'pending'   => self::get_pending_migration_count(),
+            'pending'   => $pending,
+            'total'     => $count + $pending,
             'duration'  => $duration,
             'success'   => true,
             'stats'     => $stats,
@@ -442,7 +448,10 @@ class Migration
     }
 
     /**
-     * Phase 3: Historical Certificate Migration (GF).
+     * Phase 3: Historical Certificate Migration (GF → wp_slms_course_history).
+     *
+     * Queries Gravity Forms certificate entries and inserts permanent compliance
+     * records into the custom history table for 9-year retention.
      *
      * @param int $limit Max users to migrate in this batch.
      * @return array Result summary.
@@ -454,18 +463,24 @@ class Migration
         $start_time = microtime(true);
         global $wpdb;
 
+        $history_table = $wpdb->prefix . 'slms_course_history';
+
         $users = get_users(array(
-            'meta_key' => '_lms_history_migrated',
+            'meta_key'     => '_lms_history_migrated',
             'meta_compare' => 'NOT EXISTS',
-            'number' => $limit,
-            'fields' => 'ID'
+            'number'       => $limit,
+            'fields'       => 'ID',
         ));
 
         self::log('Found ' . count($users) . ' users pending history migration.');
 
         $count = 0;
+        $inserted = 0;
+        $skipped_dup = 0;
+
         foreach ($users as $user_id) {
-            $user = get_userdata($user_id);
+            $user_id    = (int) $user_id;
+            $user       = get_userdata($user_id);
             $user_label = $user ? $user->user_email : 'UID:' . $user_id;
 
             if (!class_exists('GFAPI')) {
@@ -482,10 +497,12 @@ class Migration
                 continue;
             }
 
+            // Discover certificate forms.
             $forms = \GFAPI::get_forms();
             $cert_form_ids = array();
             foreach ($forms as $form) {
-                if (stripos($form['title'], 'Certificate') !== false) {
+                $form_title = $form['title'] ?? '';
+                if (stripos($form_title, 'Certificate') !== false) {
                     $cert_form_ids[] = $form['id'];
                 }
             }
@@ -493,8 +510,9 @@ class Migration
             $form_ids = !empty($cert_form_ids) ? $cert_form_ids : 0;
             self::log($user_label . ': searching ' . (is_array($form_ids) ? count($form_ids) : 'all') . ' certificate form(s).', 'debug');
 
+            // Search by user ID.
             $search_criteria = array(
-                'status' => 'active',
+                'status'        => 'active',
                 'field_filters' => array(
                     'mode' => 'any',
                     array('key' => 'created_by', 'value' => $user_id),
@@ -502,8 +520,9 @@ class Migration
             );
             $entries = \GFAPI::get_entries($form_ids, $search_criteria);
 
+            // Search by email (catches entries not linked by user ID).
             $search_criteria_email = array(
-                'status' => 'active',
+                'status'        => 'active',
                 'field_filters' => array(
                     'mode' => 'any',
                     array('value' => $user->user_email),
@@ -511,8 +530,8 @@ class Migration
             );
             $entries_by_email = \GFAPI::get_entries($form_ids, $search_criteria_email);
 
-            $all_entries = array_merge((array)$entries, (array)$entries_by_email);
-
+            // Merge and deduplicate by entry ID.
+            $all_entries    = array_merge((array) $entries, (array) $entries_by_email);
             $unique_entries = array();
             foreach ($all_entries as $entry) {
                 if (isset($entry['id']) && !isset($unique_entries[$entry['id']])) {
@@ -520,17 +539,32 @@ class Migration
                 }
             }
 
-            self::log($user_label . ': found ' . count($unique_entries) . ' unique GF entries (by_id=' . count((array)$entries) . ', by_email=' . count((array)$entries_by_email) . ').');
+            self::log($user_label . ': found ' . count($unique_entries) . ' unique GF entries (by_id=' . count((array) $entries) . ', by_email=' . count((array) $entries_by_email) . ').');
 
-            $history = array();
+            // Insert each entry into the compliance history table.
             foreach ($unique_entries as $entry) {
+                $gf_entry_id = absint($entry['id']);
+
+                // Skip if this GF entry is already in the table (dedup).
+                $exists = (int) $wpdb->get_var($wpdb->prepare(
+                    "SELECT COUNT(*) FROM {$history_table} WHERE gf_entry_id = %d",
+                    $gf_entry_id
+                ));
+
+                if ($exists) {
+                    $skipped_dup++;
+                    continue;
+                }
+
+                // Resolve course name from GF entry fields.
                 $course_name = __('Unknown Course', 'simple-lms-bridge');
-                $form = \GFAPI::get_form($entry['form_id']);
+                $form        = \GFAPI::get_form($entry['form_id']);
 
                 if ($form && isset($form['fields'])) {
                     foreach ($form['fields'] as $field) {
-                        if (stripos($field->label, 'Course') !== false) {
-                            $value = rgar($entry, (string)$field->id);
+                        $label = $field->label ?? '';
+                        if (stripos($label, 'Course') !== false) {
+                            $value = rgar($entry, (string) $field->id);
                             if (!empty($value)) {
                                 $course_name = $value;
                                 break;
@@ -539,24 +573,29 @@ class Migration
                     }
                 }
 
+                // Fallback: derive course name from form title.
                 if ($course_name === __('Unknown Course', 'simple-lms-bridge') && $form) {
-                     $course_name = str_ireplace('Certificate', '', $form['title']);
-                     $course_name = trim($course_name, ' -');
+                    $course_name = str_ireplace('Certificate', '', $form['title'] ?? '');
+                    $course_name = trim($course_name, ' -');
                 }
 
-                $history[] = array(
-                    'id' => $entry['id'],
-                    'course_name' => $course_name,
-                    'date' => $entry['date_created'],
-                    'form_title' => $form ? $form['title'] : '',
+                $wpdb->insert(
+                    $history_table,
+                    array(
+                        'user_id'        => $user_id,
+                        'course_name'    => sanitize_text_field($course_name),
+                        'completed_date' => sanitize_text_field($entry['date_created'] ?? current_time('mysql')),
+                        'gf_entry_id'    => $gf_entry_id,
+                    ),
+                    array('%d', '%s', '%s', '%d')
                 );
+                $inserted++;
             }
 
-            if (!empty($history)) {
-                update_user_meta($user_id, '_lms_historical_certificates', $history);
-                self::log($user_label . ': saved ' . count($history) . ' certificate record(s).');
+            if ($inserted > 0) {
+                self::log($user_label . ': inserted ' . $inserted . ' compliance record(s), skipped ' . $skipped_dup . ' duplicate(s).');
             } else {
-                self::log($user_label . ': no certificate entries found.');
+                self::log($user_label . ': no new certificate entries to insert.');
             }
 
             update_user_meta($user_id, '_lms_history_migrated', time());
@@ -564,11 +603,18 @@ class Migration
         }
 
         $duration = round(microtime(true) - $start_time, 2);
-        self::log('Phase 3 complete: processed=' . $count . ', duration=' . $duration . 's.');
+        self::log(sprintf(
+            'Phase 3 complete: users=%d, inserted=%d, duplicates_skipped=%d, duration=%ss.',
+            $count, $inserted, $skipped_dup, $duration
+        ));
+
+        $pending = self::get_pending_history_count();
 
         return array(
             'processed' => $count,
-            'pending'   => self::get_pending_history_count(),
+            'pending'   => $pending,
+            'total'     => $count + $pending,
+            'inserted'  => $inserted,
             'duration'  => $duration,
             'success'   => true,
             'log'       => self::flush_log(),

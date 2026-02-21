@@ -513,10 +513,10 @@ const StudentManager = () => {
 							</strong>
 						</p>
 						<ProgressBar
-							value={
-								migrationStatus.total - migrationStatus.pending
-							}
-							max={ migrationStatus.total }
+							value={ Math.min(
+								Math.round( ( ( migrationStatus.total - migrationStatus.pending ) / Math.max( migrationStatus.total, 1 ) ) * 100 ),
+								100
+							) }
 						/>
 					</div>
 				</Notice>

@@ -131,6 +131,15 @@ const MigrationTool = () => {
 				}
 
 				pending = res.pending;
+
+				// Use the total returned by the batch response for accurate tracking.
+				if ( res.total && res.total > 0 ) {
+					setTotals( ( prev ) => ( {
+						...prev,
+						[ type ]: Math.max( prev[ type ], res.total ),
+					} ) );
+				}
+
 				setStatus( ( prev ) => ( {
 					...prev,
 					[ type ]: { pending: res.pending },
@@ -359,7 +368,7 @@ const MigrationTool = () => {
 							</h2>
 							<p className="text-gray-500 text-sm mt-2 ml-11">
 								{ __(
-									'Query Gravity Forms entries to backfill read-only historical certificate records. Requires Phase 2.',
+									'Sync Gravity Forms certificate entries into the permanent compliance history table for 9-year retention. Requires Phase 2.',
 									'simple-lms-bridge'
 								) }
 							</p>

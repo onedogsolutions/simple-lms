@@ -82,9 +82,22 @@ class Relationships
 			KEY course_id (course_id)
 		) $charset_collate;";
 
+        // 3. Course History (9-year compliance records)
+        $sql_ch = "CREATE TABLE " . $wpdb->prefix . "slms_course_history (
+			id bigint(20) NOT NULL AUTO_INCREMENT,
+			user_id bigint(20) NOT NULL,
+			course_name varchar(255) NOT NULL,
+			completed_date datetime NOT NULL,
+			gf_entry_id bigint(20) NOT NULL DEFAULT 0,
+			PRIMARY KEY (id),
+			KEY user_id (user_id),
+			KEY gf_entry_id (gf_entry_id)
+		) $charset_collate;";
+
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
         dbDelta($sql_cl);
         dbDelta($sql_uc);
+        dbDelta($sql_ch);
     }
 
     /* ─── Course-Lesson Relationships ──────────────────────────────────── */

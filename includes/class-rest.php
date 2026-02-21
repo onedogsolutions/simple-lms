@@ -203,7 +203,7 @@ class REST
         register_rest_route(self::NAMESPACE , '/migration/cpts', array(
             'methods' => 'POST',
             'callback' => function ($request) {
-                $limit = $request->get_param('limit') ? : 5;
+                $limit = $request->get_param('limit') ?? 5;
                 return rest_ensure_response(Migration::migrate_cpt_batch($limit));
             },
             'args' => array(
@@ -221,7 +221,7 @@ class REST
         register_rest_route(self::NAMESPACE , '/migration/progress', array(
             'methods' => 'POST',
             'callback' => function ($request) {
-                $limit = $request->get_param('limit') ? : 10;
+                $limit = $request->get_param('limit') ?? 10;
                 return rest_ensure_response(Migration::migrate_progress_batch($limit));
             },
             'args' => array(
@@ -239,7 +239,7 @@ class REST
         register_rest_route(self::NAMESPACE , '/migration/history', array(
             'methods' => 'POST',
             'callback' => function ($request) {
-                $limit = $request->get_param('limit') ? : 10;
+                $limit = $request->get_param('limit') ?? 10;
                 return rest_ensure_response(Migration::migrate_history_batch($limit));
             },
             'args' => array(
@@ -815,7 +815,7 @@ class REST
     {
         $user_id   = $request->get_param('id');
         $course_id = $request->get_param('course_id');
-        $source    = $request->get_param('source') ? : 'manual';
+        $source    = $request->get_param('source') ?? 'manual';
 
         $success = Relationships::enroll_user($user_id, $course_id, $source);
 
@@ -846,55 +846,77 @@ class REST
 
     /**
      * GET /student/{id}/history
+     *
+     * Returns compliance history from the custom table first.
+     * Falls back to a live GFAPI query for users not yet migrated.
      */
     public static function get_student_history($request)
     {
+        global $wpdb;
+
         $user_id = $request->get_param('id');
-        $user = get_userdata($user_id);
+        $user    = get_userdata($user_id);
 
         if (!$user) {
             return new \WP_Error('invalid_user', __('User not found.', 'simple-lms-bridge'), array('status' => 404));
         }
 
+        // 1. Query the permanent compliance table first.
+        $history_table = $wpdb->prefix . 'slms_course_history';
+        $records = $wpdb->get_results($wpdb->prepare(
+            "SELECT id, course_name, completed_date AS date, gf_entry_id FROM {$history_table} WHERE user_id = %d ORDER BY completed_date DESC",
+            $user_id
+        ));
+
+        if (!empty($records)) {
+            $history = array();
+            foreach ($records as $row) {
+                $history[] = array(
+                    'id'          => (int) $row->id,
+                    'course_name' => $row->course_name,
+                    'date'        => $row->date,
+                    'form_title'  => '',
+                    'gf_entry_id' => (int) $row->gf_entry_id,
+                );
+            }
+            return rest_ensure_response($history);
+        }
+
+        // 2. Fallback: live GFAPI query for users who haven't been migrated yet.
         if (!class_exists('GFAPI')) {
             return rest_ensure_response(array());
         }
 
-        // Find certificate forms (assuming "Certificate" in title or using all forms and filtering later)
         $forms = \GFAPI::get_forms();
         $cert_form_ids = array();
         foreach ($forms as $form) {
-            if (stripos($form['title'], 'Certificate') !== false) {
+            $form_title = $form['title'] ?? '';
+            if (stripos($form_title, 'Certificate') !== false) {
                 $cert_form_ids[] = $form['id'];
             }
         }
 
-        // If we can't identify a specific certificate form, search all forms or fallback to 0.
         $form_ids = !empty($cert_form_ids) ? $cert_form_ids : 0;
 
         $search_criteria = array(
-            'status' => 'active',
+            'status'        => 'active',
             'field_filters' => array(
                 'mode' => 'any',
                 array('key' => 'created_by', 'value' => $user_id),
             ),
         );
-
         $entries = \GFAPI::get_entries($form_ids, $search_criteria);
-        
-        // Also try searching by email if user ID missed some entries
+
         $search_criteria_email = array(
-            'status' => 'active',
+            'status'        => 'active',
             'field_filters' => array(
                 'mode' => 'any',
                 array('value' => $user->user_email),
             ),
         );
         $entries_by_email = \GFAPI::get_entries($form_ids, $search_criteria_email);
-        
-        $all_entries = array_merge((array)$entries, (array)$entries_by_email);
-        
-        // Deduplicate entries by ID
+
+        $all_entries    = array_merge((array) $entries, (array) $entries_by_email);
         $unique_entries = array();
         foreach ($all_entries as $entry) {
             if (isset($entry['id']) && !isset($unique_entries[$entry['id']])) {
@@ -905,15 +927,14 @@ class REST
         $history = array();
 
         foreach ($unique_entries as $entry) {
-            // Find course name field (often a hidden field or dropdown). Let's search all fields for a value that looks like a course, or just try to extract the most likely fields.
             $course_name = __('Unknown Course', 'simple-lms-bridge');
-            $form = \GFAPI::get_form($entry['form_id']);
-            
-            // Try to find a field labeled "Course" or "Course Name"
+            $form        = \GFAPI::get_form($entry['form_id']);
+
             if ($form && isset($form['fields'])) {
                 foreach ($form['fields'] as $field) {
-                    if (stripos($field->label, 'Course') !== false) {
-                        $value = rgar($entry, (string)$field->id);
+                    $label = $field->label ?? '';
+                    if (stripos($label, 'Course') !== false) {
+                        $value = rgar($entry, (string) $field->id);
                         if (!empty($value)) {
                             $course_name = $value;
                             break;
@@ -921,18 +942,17 @@ class REST
                     }
                 }
             }
-            
-            // Fallback: use form title if no course name field found
+
             if ($course_name === __('Unknown Course', 'simple-lms-bridge') && $form) {
-                 $course_name = str_ireplace('Certificate', '', $form['title']);
-                 $course_name = trim($course_name, ' -');
+                $course_name = str_ireplace('Certificate', '', $form['title'] ?? '');
+                $course_name = trim($course_name, ' -');
             }
 
             $history[] = array(
-                'id' => $entry['id'],
+                'id'          => $entry['id'],
                 'course_name' => $course_name,
-                'date' => $entry['date_created'],
-                'form_title' => $form ? $form['title'] : '',
+                'date'        => $entry['date_created'] ?? '',
+                'form_title'  => $form ? ($form['title'] ?? '') : '',
             );
         }
 
