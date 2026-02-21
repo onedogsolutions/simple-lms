@@ -83,8 +83,8 @@ class Relationships
 		) $charset_collate;";
 
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
-        \dbDelta($sql_cl);
-        \dbDelta($sql_uc);
+        dbDelta($sql_cl);
+        dbDelta($sql_uc);
     }
 
     /* ─── Course-Lesson Relationships ──────────────────────────────────── */
@@ -200,7 +200,7 @@ class Relationships
             array(
                 'user_id'     => $user_id,
                 'course_id'   => $course_id,
-                'enrolled_at' => \current_time('mysql'),
+                'enrolled_at' => current_time('mysql'),
                 'source'      => sanitize_text_field($source),
             ),
             array('%d', '%d', '%s', '%s')

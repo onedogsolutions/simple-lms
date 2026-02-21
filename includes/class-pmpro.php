@@ -46,8 +46,8 @@ class PMPro
         add_filter('simple_lms_check_access', array(__CLASS__, 'filter_access_check'), 10, 3);
 
         // Admin Columns.
-        add_filter('manage_lms_course_posts_columns', array(__CLASS__, 'add_admin_columns'));
-        add_action('manage_lms_course_posts_custom_column', array(__CLASS__, 'render_admin_columns'), 10, 2);
+        add_filter('manage_slms_course_posts_columns', array(__CLASS__, 'add_admin_columns'));
+        add_action('manage_slms_course_posts_custom_column', array(__CLASS__, 'render_admin_columns'), 10, 2);
     }
 
     /* ───────────────────────────────────────────────────────────────────
@@ -149,8 +149,7 @@ class PMPro
             return array();
         }
 
-        // Try the documented static method.
-        if (method_exists('PMPro_Group_Account', 'get_groups_by_owner')) {
+        if (method_exists('\PMPro_Group_Account', 'get_groups_by_owner')) {
             return \PMPro_Group_Account::get_groups_by_owner($user_id);
         }
 
@@ -234,10 +233,11 @@ class PMPro
             $level_names = array();
             foreach ($levels as $level_id) {
                 if (function_exists('pmpro_getLevel')) {
-                    $level = \pmpro_getLevel($level_id);
-                    $level_names[] = $level ? \esc_html($level->name) : '#' . \esc_html($level_id);
-                } else {
-                    $level_names[] = '#' . \esc_html($level_id);
+                    $level = pmpro_getLevel($level_id);
+                    $level_names[] = $level ? esc_html($level->name) : '#' . esc_html($level_id);
+                }
+                else {
+                    $level_names[] = '#' . esc_html($level_id);
                 }
             }
             echo implode(', ', $level_names);
@@ -279,7 +279,7 @@ class PMPro
             return false;
         }
 
-        return \pmpro_hasMembershipLevel($required_levels, $user_id);
+        return pmpro_hasMembershipLevel($required_levels, $user_id);
     }
 
     /**
@@ -291,7 +291,7 @@ class PMPro
     public static function get_courses_for_level($level_id)
     {
         $query = new \WP_Query(array(
-            'post_type' => 'lms_course',
+            'post_type' => 'slms_course',
             'posts_per_page' => 100,
             'post_status' => 'publish',
             'no_found_rows' => true,

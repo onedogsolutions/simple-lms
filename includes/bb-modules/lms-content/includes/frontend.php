@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
 
 $post = get_post();
 
-if (!$post || 'lms_lesson' !== $post->post_type) {
+if (!$post || 'slms_lesson' !== $post->post_type) {
     if (\FLBuilderModel::is_builder_active()) {
         echo '<div class="slms-content-placeholder">' . esc_html__('LMS Lesson Content will appear here.', 'simple-lms-bridge') . '</div>';
     }
@@ -36,7 +36,7 @@ if (!$post || 'lms_lesson' !== $post->post_type) {
     </header>
 
     <?php
-    $lesson_type = get_post_meta($post->ID, '_lms_lesson_type', true);
+    $lesson_type = get_post_meta($post->ID, '_slms_lesson_type', true);
     $video_id = get_post_meta($post->ID, '_lms_presto_video', true);
 
     if ('video' === $lesson_type && $video_id) :

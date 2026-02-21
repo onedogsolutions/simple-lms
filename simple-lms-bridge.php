@@ -63,8 +63,52 @@ function slms_init()
 
     UserMeta::init();
     AccountDashboard::init();
+
+    // Admin Menus
+    add_action('admin_menu', __NAMESPACE__ . '\\slms_admin_menu');
 }
 add_action('init', __NAMESPACE__ . '\\slms_init');
+
+/**
+ * Register the top-level SimpleLMS menu and its submenus.
+ *
+ * @return void
+ */
+function slms_admin_menu()
+{
+    add_menu_page(
+        __('SimpleLMS', 'simple-lms-bridge'),
+        __('SimpleLMS', 'simple-lms-bridge'),
+        'manage_options',
+        'simple-lms',
+        function () {
+            // Dashboard or overview could go here. For now, redirect to courses.
+            echo '<div class="wrap"><h1>' . esc_html__('SimpleLMS Overview', 'simple-lms-bridge') . '</h1><p>' . esc_html__('Welcome to SimpleLMS. Use the side menu to manage your courses, lessons, and students.', 'simple-lms-bridge') . '</p></div>';
+        },
+        'dashicons-welcome-learn-more',
+        6
+    );
+
+    add_submenu_page(
+        'simple-lms',
+        __('Student Manager', 'simple-lms-bridge'),
+        __('Student Manager', 'simple-lms-bridge'),
+        'manage_options',
+        'slms-students',
+        array(__NAMESPACE__ . '\\MetaBoxes', 'render_students_page')
+    );
+
+    add_submenu_page(
+        'simple-lms',
+        __('Migration Tool', 'simple-lms-bridge'),
+        __('Migration Tool', 'simple-lms-bridge'),
+        'manage_options',
+        'slms-migration',
+        function () {
+            echo '<div class="wrap slms-admin-wrap tw-preflight"><div id="slms-admin-root"></div></div>';
+        }
+    );
+}
 
 /* ─── Activation ─────────────────────────────────────────────────────── */
 
@@ -110,11 +154,11 @@ function slms_enqueue_admin_assets($hook_suffix)
         return;
     }
 
-    // Load on our CPT edit screens and the Student Manager page.
-    $is_lms_cpt = in_array($screen->post_type, array('lms_course', 'lms_lesson'), true);
-    $is_students_page = ('toplevel_page_slms-students' === $screen->id);
+    // Load on our CPT edit screens and the Student Manager / Migration Tool pages.
+    $is_lms_cpt = in_array($screen->post_type, array('slms_course', 'slms_lesson'), true);
+    $is_slms_page = (strpos($screen->id, 'slms-students') !== false || strpos($screen->id, 'slms-migration') !== false || strpos($screen->id, 'simple-lms') !== false);
 
-    if (!$is_lms_cpt && !$is_students_page) {
+    if (!$is_lms_cpt && !$is_slms_page) {
         return;
     }
 
@@ -125,6 +169,15 @@ function slms_enqueue_admin_assets($hook_suffix)
     }
 
     $asset = require $asset_file;
+
+    if ($is_slms_page) {
+        wp_enqueue_style(
+            'slms-tailwind',
+            SLMS_PLUGIN_URL . 'build/admin/tailwind.css',
+            array(),
+            $asset['version']
+        );
+    }
 
     wp_enqueue_script(
         'slms-admin',

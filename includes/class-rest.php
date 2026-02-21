@@ -28,7 +28,7 @@ class REST
      */
     public static function init()
     {
-        \add_action('rest_api_init', array(__CLASS__, 'register_routes'));
+        add_action('rest_api_init', array(__CLASS__, 'register_routes'));
     }
 
     /* ───────────────────────────────────────────────────────────────────
@@ -46,17 +46,17 @@ class REST
         /* ── Student Progress ───────────────────────────────────────── */
 
         // GET /progress/{user_id}
-        \register_rest_route(self::NAMESPACE , '/progress/(?P<user_id>\d+)', array(
+        register_rest_route(self::NAMESPACE , '/progress/(?P<user_id>\d+)', array(
             'methods' => 'GET',
             'callback' => array(__CLASS__, 'get_progress'),
             'permission_callback' => function () {
-            return \current_user_can('edit_users');
+            return current_user_can('edit_users');
         },
             'args' => array(
                 'user_id' => array(
                     'required' => true,
                     'validate_callback' => function ($param) {
-                return \is_numeric($param);
+                return is_numeric($param);
             },
                     'sanitize_callback' => 'absint',
                 ),
@@ -64,11 +64,11 @@ class REST
         ));
 
         // POST /progress
-        \register_rest_route(self::NAMESPACE , '/progress', array(
+        register_rest_route(self::NAMESPACE , '/progress', array(
             'methods' => 'POST',
             'callback' => array(__CLASS__, 'update_progress'),
             'permission_callback' => function () {
-            return \current_user_can('edit_users');
+            return current_user_can('edit_users');
         },
             'args' => array(
                 'user_id' => array(
@@ -92,31 +92,31 @@ class REST
 
         /* ── Gravity Forms ──────────────────────────────────────────── */
 
-        \register_rest_route(self::NAMESPACE , '/forms', array(
+        register_rest_route(self::NAMESPACE , '/forms', array(
             'methods' => 'GET',
             'callback' => array(__CLASS__, 'get_forms'),
             'permission_callback' => function () {
-            return \current_user_can('edit_posts');
+            return current_user_can('edit_posts');
         },
         ));
 
         /* ── Presto Player Videos ───────────────────────────────────── */
 
-        \register_rest_route(self::NAMESPACE , '/videos', array(
+        register_rest_route(self::NAMESPACE , '/videos', array(
             'methods' => 'GET',
             'callback' => array(__CLASS__, 'get_videos'),
             'permission_callback' => function () {
-            return \current_user_can('edit_posts');
+            return current_user_can('edit_posts');
         },
         ));
 
         /* ── Students List ──────────────────────────────────────────── */
 
-        \register_rest_route(self::NAMESPACE , '/students', array(
+        register_rest_route(self::NAMESPACE , '/students', array(
             'methods' => 'GET',
             'callback' => array(__CLASS__, 'get_students'),
             'permission_callback' => function () {
-            return \current_user_can('edit_users');
+            return current_user_can('edit_users');
         },
             'args' => array(
                 'search' => array(
@@ -136,79 +136,75 @@ class REST
             ),
         ));
 
+        // POST /students/{id}/meta
+        register_rest_route(self::NAMESPACE , '/students/(?P<id>\d+)/meta', array(
+            'methods' => 'POST',
+            'callback' => array(__CLASS__, 'update_student_meta'),
+            'permission_callback' => function () {
+                return current_user_can('edit_users');
+            },
+            'args' => array(
+                'id' => array(
+                    'required' => true,
+                    'sanitize_callback' => 'absint',
+                ),
+                'billing_address_1' => array('sanitize_callback' => 'sanitize_text_field'),
+                'billing_address_2' => array('sanitize_callback' => 'sanitize_text_field'),
+                'billing_city'      => array('sanitize_callback' => 'sanitize_text_field'),
+                'billing_state'     => array('sanitize_callback' => 'sanitize_text_field'),
+                'billing_postcode'  => array('sanitize_callback' => 'sanitize_text_field'),
+                'billing_phone'     => array('sanitize_callback' => 'sanitize_text_field'),
+                'aalp_member'       => array('sanitize_callback' => 'sanitize_text_field'),
+                'registration_date' => array('sanitize_callback' => 'sanitize_text_field'),
+                'license_number'    => array('sanitize_callback' => 'sanitize_text_field'),
+                'pro_exam_date'     => array('sanitize_callback' => 'sanitize_text_field'),
+                'pro_exam_status'   => array('sanitize_callback' => 'sanitize_text_field'),
+            ),
+        ));
+
         /* ── Lessons List (lightweight) ─────────────────────────────── */
 
-        \register_rest_route(self::NAMESPACE , '/lessons', array(
+        register_rest_route(self::NAMESPACE , '/lessons', array(
             'methods' => 'GET',
             'callback' => array(__CLASS__, 'get_lessons_list'),
             'permission_callback' => function () {
-            return \current_user_can('edit_posts');
+            return current_user_can('edit_posts');
         },
         ));
 
         /* ── PMPro Membership Levels ─────────────────────────────────── */
 
-        \register_rest_route(self::NAMESPACE , '/pmpro-levels', array(
+        register_rest_route(self::NAMESPACE , '/pmpro-levels', array(
             'methods' => 'GET',
             'callback' => array(__CLASS__, 'get_pmpro_levels'),
             'permission_callback' => function () {
-            return \current_user_can('edit_posts');
+            return current_user_can('edit_posts');
         },
         ));
 
         /* ── Migration ──────────────────────────────────────────────── */
 
-        \register_rest_route(self::NAMESPACE , '/migration/status', array(
+        // Status endpoint
+        register_rest_route(self::NAMESPACE , '/migration/status', array(
             'methods' => 'GET',
             'callback' => function () {
-                return \rest_ensure_response(array(
-                    'pending' => Migration::get_pending_migration_count(),
+                return rest_ensure_response(array(
+                    'progress' => array('pending' => Migration::get_pending_migration_count()),
+                    'content' => array('pending' => Migration::get_pending_content_count()),
+                    'history' => array('pending' => Migration::get_pending_history_count()),
                 ));
             },
             'permission_callback' => function () {
-                return \current_user_can('manage_options');
-            },
+                return current_user_can('manage_options');
+            }
         ));
 
-        \register_rest_route(self::NAMESPACE , '/migration/migrate', array(
-            'methods' => 'POST',
-            'callback' => function ($request) {
-                $limit = $request->get_param('limit') ? : 10;
-                return \rest_ensure_response(Migration::migrate_batch($limit));
-            },
-            'permission_callback' => function () {
-                return \current_user_can('manage_options');
-            },
-            'args' => array(
-                'limit' => array(
-                    'sanitize_callback' => 'absint',
-                    'default' => 10,
-                ),
-            ),
-        ));
-
-        /* ── Content Migration ───────────────────────────────────────── */
-
-        \register_rest_route(self::NAMESPACE , '/migration/content/status', array(
-            'methods' => 'GET',
-            'callback' => function () {
-                return \rest_ensure_response(array(
-                    'pending' => Migration::get_pending_content_count(),
-                ));
-            },
-            'permission_callback' => function () {
-                return \current_user_can('manage_options');
-            },
-        ));
-
-        \register_rest_route(self::NAMESPACE , '/migration/content/migrate', array(
+        // CPT Migration endpoint
+        register_rest_route(self::NAMESPACE , '/migration/cpts', array(
             'methods' => 'POST',
             'callback' => function ($request) {
                 $limit = $request->get_param('limit') ? : 5;
-                return \rest_ensure_response(Migration::migrate_content_batch($limit));
-            },
-            'permission_callback' => function () {
-                return \current_user_can('manage_options');
+                return rest_ensure_response(Migration::migrate_cpt_batch($limit));
             },
             'args' => array(
                 'limit' => array(
@@ -216,25 +212,65 @@ class REST
                     'default' => 5,
                 ),
             ),
+            'permission_callback' => function () {
+                return current_user_can('manage_options');
+            }
         ));
+
+        // Progress Migration endpoint
+        register_rest_route(self::NAMESPACE , '/migration/progress', array(
+            'methods' => 'POST',
+            'callback' => function ($request) {
+                $limit = $request->get_param('limit') ? : 10;
+                return rest_ensure_response(Migration::migrate_progress_batch($limit));
+            },
+            'args' => array(
+                'limit' => array(
+                    'sanitize_callback' => 'absint',
+                    'default' => 10,
+                ),
+            ),
+            'permission_callback' => function () {
+                return current_user_can('manage_options');
+            }
+        ));
+
+        // History Migration endpoint
+        register_rest_route(self::NAMESPACE , '/migration/history', array(
+            'methods' => 'POST',
+            'callback' => function ($request) {
+                $limit = $request->get_param('limit') ? : 10;
+                return rest_ensure_response(Migration::migrate_history_batch($limit));
+            },
+            'args' => array(
+                'limit' => array(
+                    'sanitize_callback' => 'absint',
+                    'default' => 10,
+                ),
+            ),
+            'permission_callback' => function () {
+                return current_user_can('manage_options');
+            }
+        ));
+
 
         /* ── Relationships ──────────────────────────────────────────── */
 
         // GET /relationships/course/{id}/lessons
-        \register_rest_route(self::NAMESPACE, '/relationships/course/(?P<id>\d+)/lessons', array(
+        register_rest_route(self::NAMESPACE, '/relationships/course/(?P<id>\d+)/lessons', array(
             'methods'  => 'GET',
             'callback' => array(__CLASS__, 'get_course_lessons'),
             'permission_callback' => function () {
-                return \current_user_can('edit_posts');
+                return current_user_can('edit_posts');
             },
         ));
 
         // POST /relationships/course/{id}/lessons
-        \register_rest_route(self::NAMESPACE, '/relationships/course/(?P<id>\d+)/lessons', array(
+        register_rest_route(self::NAMESPACE, '/relationships/course/(?P<id>\d+)/lessons', array(
             'methods'  => 'POST',
             'callback' => array(__CLASS__, 'update_course_lessons'),
             'permission_callback' => function () {
-                return \current_user_can('edit_posts');
+                return current_user_can('edit_posts');
             },
             'args' => array(
                 'lesson_ids' => array(
@@ -246,40 +282,40 @@ class REST
         ));
 
         // GET /relationships/lesson/{id}/courses
-        \register_rest_route(self::NAMESPACE, '/relationships/lesson/(?P<id>\d+)/courses', array(
+        register_rest_route(self::NAMESPACE, '/relationships/lesson/(?P<id>\d+)/courses', array(
             'methods'  => 'GET',
             'callback' => array(__CLASS__, 'get_lesson_courses'),
             'permission_callback' => function () {
-                return \current_user_can('edit_posts');
+                return current_user_can('edit_posts');
             },
         ));
 
         // GET /relationships/courses
-        \register_rest_route(self::NAMESPACE, '/relationships/courses', array(
+        register_rest_route(self::NAMESPACE, '/relationships/courses', array(
             'methods'  => 'GET',
             'callback' => array(__CLASS__, 'get_courses_list'),
             'permission_callback' => function () {
-                return \current_user_can('edit_posts');
+                return current_user_can('edit_posts');
             },
         ));
 
         /* ── Enrollments ────────────────────────────────────────────── */
 
         // GET /enrollments/user/{id}/courses
-        \register_rest_route(self::NAMESPACE, '/enrollments/user/(?P<id>\d+)/courses', array(
+        register_rest_route(self::NAMESPACE, '/enrollments/user/(?P<id>\d+)/courses', array(
             'methods'  => 'GET',
             'callback' => array(__CLASS__, 'get_user_courses'),
             'permission_callback' => function () {
-                return \current_user_can('edit_users');
+                return current_user_can('edit_users');
             },
         ));
 
         // POST /enrollments/user/{id}/courses
-        \register_rest_route(self::NAMESPACE, '/enrollments/user/(?P<id>\d+)/courses', array(
+        register_rest_route(self::NAMESPACE, '/enrollments/user/(?P<id>\d+)/courses', array(
             'methods'  => 'POST',
             'callback' => array(__CLASS__, 'enroll_user'),
             'permission_callback' => function () {
-                return \current_user_can('edit_users');
+                return current_user_can('edit_users');
             },
             'args' => array(
                 'course_id' => array(
@@ -295,21 +331,36 @@ class REST
         ));
 
         // DELETE /enrollments/user/{id}/courses/{course_id}
-        \register_rest_route(self::NAMESPACE, '/enrollments/user/(?P<id>\d+)/courses/(?P<course_id>\d+)', array(
+        register_rest_route(self::NAMESPACE, '/enrollments/user/(?P<id>\d+)/courses/(?P<course_id>\d+)', array(
             'methods'  => 'DELETE',
             'callback' => array(__CLASS__, 'unenroll_user'),
             'permission_callback' => function () {
-                return \current_user_can('edit_users');
+                return current_user_can('edit_users');
             },
         ));
 
         // GET /enrollments/course/{id}/students
-        \register_rest_route(self::NAMESPACE, '/enrollments/course/(?P<id>\d+)/students', array(
+        register_rest_route(self::NAMESPACE, '/enrollments/course/(?P<id>\d+)/students', array(
             'methods'  => 'GET',
             'callback' => array(__CLASS__, 'get_course_students'),
             'permission_callback' => function () {
-                return \current_user_can('edit_users');
+                return current_user_can('edit_users');
             },
+        ));
+
+        // GET /student/{id}/history
+        register_rest_route(self::NAMESPACE, '/student/(?P<id>\d+)/history', array(
+            'methods'  => 'GET',
+            'callback' => array(__CLASS__, 'get_student_history'),
+            'permission_callback' => function () {
+                return current_user_can('edit_users');
+            },
+            'args' => array(
+                'id' => array(
+                    'required' => true,
+                    'sanitize_callback' => 'absint',
+                ),
+            ),
         ));
     }
 
@@ -328,13 +379,13 @@ class REST
     public static function get_progress($request)
     {
         $user_id = $request->get_param('user_id');
-        $progress = \get_user_meta($user_id, '_lms_progress', true);
+        $progress = get_user_meta($user_id, '_lms_progress', true);
 
-        if (!\is_array($progress)) {
+        if (!is_array($progress)) {
             $progress = array();
         }
 
-        return \rest_ensure_response($progress);
+        return rest_ensure_response($progress);
     }
 
     /**
@@ -353,13 +404,13 @@ class REST
         $completed = $request->get_param('completed');
 
         // Validate the user exists.
-        if (!\get_userdata($user_id)) {
-            return new \WP_Error('invalid_user', \__('User not found.', 'simple-lms-bridge'), array('status' => 404));
+        if (!get_userdata($user_id)) {
+            return new \WP_Error('invalid_user', __('User not found.', 'simple-lms-bridge'), array('status' => 404));
         }
 
-        $progress = \get_user_meta($user_id, '_lms_progress', true);
+        $progress = get_user_meta($user_id, '_lms_progress', true);
 
-        if (!\is_array($progress)) {
+        if (!is_array($progress)) {
             $progress = array();
         }
 
@@ -367,7 +418,7 @@ class REST
             if (!isset($progress[$course_id])) {
                 $progress[$course_id] = array();
             }
-            $progress[$course_id][$lesson_id] = \time();
+            $progress[$course_id][$lesson_id] = time();
         }
         else {
             unset($progress[$course_id][$lesson_id]);
@@ -378,13 +429,13 @@ class REST
             }
         }
 
-        \update_user_meta($user_id, '_lms_progress', $progress);
+        update_user_meta($user_id, '_lms_progress', $progress);
 
         // Check for course completion.
         Certificates::check_course_completion($user_id, $course_id);
 
 
-        return \rest_ensure_response(array(
+        return rest_ensure_response(array(
             'success' => true,
             'progress' => $progress,
         ));
@@ -399,8 +450,8 @@ class REST
      */
     public static function get_forms()
     {
-        if (!\class_exists('GFAPI')) {
-            return \rest_ensure_response(array());
+        if (!class_exists('GFAPI')) {
+            return rest_ensure_response(array());
         }
 
         $forms = \GFAPI::get_forms();
@@ -409,11 +460,11 @@ class REST
         foreach ($forms as $form) {
             $result[] = array(
                 'id' => (int)$form['id'],
-                'title' => \sanitize_text_field($form['title']),
+                'title' => sanitize_text_field($form['title']),
             );
         }
 
-        return \rest_ensure_response($result);
+        return rest_ensure_response($result);
     }
 
     /**
@@ -482,44 +533,127 @@ class REST
         $result = array();
 
         foreach ($users as $user) {
-            $progress = \get_user_meta($user->ID, '_lms_progress', true);
-            if (!\is_array($progress)) {
+            $progress = get_user_meta($user->ID, '_lms_progress', true);
+            if (!is_array($progress)) {
                 $progress = array();
+            }
+            
+            $course_completion = get_user_meta($user->ID, '_lms_completed_at', true);
+            if (!is_array($course_completion)) {
+                $course_completion = array();
             }
 
             $courses = array();
             foreach ($progress as $course_id => $lessons) {
-                $course_post = \get_post($course_id);
+                $course_post = get_post($course_id);
                 if (!$course_post) {
                     continue;
                 }
 
-                $total_lessons = \get_post_meta($course_id, '_simple_lms_order', true);
-                $total_count = \is_array($total_lessons) ? \count($total_lessons) : 0;
-                $done_count = \is_array($lessons) ? \count($lessons) : 0;
+                $total_lessons = get_post_meta($course_id, '_simple_lms_order', true);
+                if (!is_array($total_lessons)) {
+                    $total_lessons = array();
+                }
+                $total_count = count($total_lessons);
+                $done_count = is_array($lessons) ? count($lessons) : 0;
+
+                $enriched_lessons = array();
+                foreach ($total_lessons as $lesson_id) {
+                    $lesson_post = get_post($lesson_id);
+                    $is_completed = isset($lessons[$lesson_id]);
+                    $completed_at = $is_completed ? $lessons[$lesson_id] : null;
+                    $enriched_lessons[$lesson_id] = array(
+                        'title' => $lesson_post ? $lesson_post->post_title : 'Lesson #' . $lesson_id,
+                        'completed' => $is_completed,
+                        'completed_at' => $completed_at,
+                    );
+                }
+
+                // Also include any lessons that are marked completed but might not be in the current _simple_lms_order array.
+                if (is_array($lessons)) {
+                    foreach ($lessons as $lesson_id => $lesson_data) {
+                        if (!isset($enriched_lessons[$lesson_id])) {
+                            $lesson_post = get_post($lesson_id);
+                            $enriched_lessons[$lesson_id] = array(
+                                'title' => $lesson_post ? $lesson_post->post_title : 'Lesson #' . $lesson_id,
+                                'completed' => true,
+                                'completed_at' => $lesson_data,
+                            );
+                        }
+                    }
+                }
 
                 $courses[] = array(
                     'course_id' => (int)$course_id,
                     'course_title' => $course_post->post_title,
                     'total' => $total_count,
                     'completed' => $done_count,
-                    'lessons' => $lessons,
+                    'completed_at' => isset($course_completion[$course_id]) ? $course_completion[$course_id] : null,
+                    'lessons' => $enriched_lessons,
                 );
             }
+
+            // Get user meta for profile tab
+            $user_meta = array(
+                'billing_address_1' => get_user_meta($user->ID, 'billing_address_1', true),
+                'billing_address_2' => get_user_meta($user->ID, 'billing_address_2', true),
+                'billing_city'      => get_user_meta($user->ID, 'billing_city', true),
+                'billing_state'     => get_user_meta($user->ID, 'billing_state', true),
+                'billing_postcode'  => get_user_meta($user->ID, 'billing_postcode', true),
+                'billing_phone'     => get_user_meta($user->ID, 'billing_phone', true),
+                'aalp_member'       => get_user_meta($user->ID, 'aalp_member', true),
+                'registration_date' => get_user_meta($user->ID, 'registration_date', true),
+                'license_number'    => get_user_meta($user->ID, 'license_number', true),
+                'pro_exam_date'     => get_user_meta($user->ID, 'pro_exam_date', true),
+                'pro_exam_status'   => get_user_meta($user->ID, 'pro_exam_status', true),
+            );
 
             $result[] = array(
                 'id' => $user->ID,
                 'display_name' => $user->display_name,
                 'email' => $user->user_email,
+                'meta' => $user_meta,
                 'courses' => $courses,
             );
         }
 
-        return \rest_ensure_response(array(
+        return rest_ensure_response(array(
             'students' => $result,
             'total' => (int)$query->get_total(),
-            'pages' => (int)\ceil($query->get_total() / $per_page),
+            'pages' => (int)ceil($query->get_total() / $per_page),
         ));
+    }
+
+    /**
+     * POST /students/{id}/meta
+     *
+     * Update standard user meta.
+     *
+     * @param \WP_REST_Request $request Request object.
+     * @return \WP_REST_Response|\WP_Error
+     */
+    public static function update_student_meta($request)
+    {
+        $id = $request->get_param('id');
+        
+        // Validate the user exists.
+        if (!get_userdata($id)) {
+            return new \WP_Error('invalid_user', __('User not found.', 'simple-lms-bridge'), array('status' => 404));
+        }
+
+        $meta_fields = array(
+            'billing_address_1', 'billing_address_2', 'billing_city', 'billing_state', 
+            'billing_postcode', 'billing_phone', 'aalp_member', 'registration_date', 
+            'license_number', 'pro_exam_date', 'pro_exam_status'
+        );
+
+        foreach ($meta_fields as $field) {
+            if ($request->has_param($field)) {
+                update_user_meta($id, $field, sanitize_text_field($request->get_param($field)));
+            }
+        }
+
+        return rest_ensure_response(array('success' => true));
     }
 
     /**
@@ -532,7 +666,7 @@ class REST
     public static function get_lessons_list()
     {
         $query = new \WP_Query(array(
-            'post_type' => 'lms_lesson',
+            'post_type' => 'slms_lesson',
             'posts_per_page' => 500,
             'post_status' => 'publish',
             'orderby' => 'title',
@@ -563,8 +697,8 @@ class REST
      */
     public static function get_pmpro_levels()
     {
-        if (!\function_exists('pmpro_getAllLevels')) {
-            return \rest_ensure_response(array());
+        if (!function_exists('pmpro_getAllLevels')) {
+            return rest_ensure_response(array());
         }
 
         $levels = pmpro_getAllLevels(false, true);
@@ -594,12 +728,12 @@ class REST
 
             $result[] = array(
                 'id' => (int)$level->id,
-                'name' => \sanitize_text_field($level->name),
+                'name' => sanitize_text_field($level->name),
                 'expiration_days' => $expiration_days,
             );
         }
 
-        return \rest_ensure_response($result);
+        return rest_ensure_response($result);
     }
 
     /* ───────────────────────────────────────────────────────────────────
@@ -612,7 +746,7 @@ class REST
     public static function get_course_lessons($request)
     {
         $id = $request->get_param('id');
-        return \rest_ensure_response(Relationships::get_lessons_for_course($id));
+        return rest_ensure_response(Relationships::get_lessons_for_course($id));
     }
 
     /**
@@ -625,7 +759,7 @@ class REST
 
         Relationships::set_lessons_for_course($id, $lesson_ids);
 
-        return \rest_ensure_response(array('success' => true));
+        return rest_ensure_response(array('success' => true));
     }
 
     /**
@@ -634,7 +768,7 @@ class REST
     public static function get_lesson_courses($request)
     {
         $id = $request->get_param('id');
-        return \rest_ensure_response(Relationships::get_courses_for_lesson($id));
+        return rest_ensure_response(Relationships::get_courses_for_lesson($id));
     }
 
     /**
@@ -643,7 +777,7 @@ class REST
     public static function get_courses_list()
     {
         $query = new \WP_Query(array(
-            'post_type' => 'lms_course',
+            'post_type' => 'slms_course',
             'posts_per_page' => 500,
             'post_status' => 'publish',
             'orderby' => 'title',
@@ -658,9 +792,9 @@ class REST
                 'title' => $post->post_title,
             );
         }
-        \wp_reset_postdata();
+        wp_reset_postdata();
 
-        return \rest_ensure_response($result);
+        return rest_ensure_response($result);
     }
 
     /* ─── Enrollment Callbacks ─────────────────────────────────────────── */
@@ -671,7 +805,7 @@ class REST
     public static function get_user_courses($request)
     {
         $id = $request->get_param('id');
-        return \rest_ensure_response(Relationships::get_courses_for_user($id));
+        return rest_ensure_response(Relationships::get_courses_for_user($id));
     }
 
     /**
@@ -685,7 +819,7 @@ class REST
 
         $success = Relationships::enroll_user($user_id, $course_id, $source);
 
-        return \rest_ensure_response(array('success' => $success));
+        return rest_ensure_response(array('success' => $success));
     }
 
     /**
@@ -698,7 +832,7 @@ class REST
 
         $success = Relationships::unenroll_user($user_id, $course_id);
 
-        return \rest_ensure_response(array('success' => $success));
+        return rest_ensure_response(array('success' => $success));
     }
 
     /**
@@ -707,6 +841,101 @@ class REST
     public static function get_course_students($request)
     {
         $id = $request->get_param('id');
-        return \rest_ensure_response(Relationships::get_users_for_course($id));
+        return rest_ensure_response(Relationships::get_users_for_course($id));
+    }
+
+    /**
+     * GET /student/{id}/history
+     */
+    public static function get_student_history($request)
+    {
+        $user_id = $request->get_param('id');
+        $user = get_userdata($user_id);
+
+        if (!$user) {
+            return new \WP_Error('invalid_user', __('User not found.', 'simple-lms-bridge'), array('status' => 404));
+        }
+
+        if (!class_exists('GFAPI')) {
+            return rest_ensure_response(array());
+        }
+
+        // Find certificate forms (assuming "Certificate" in title or using all forms and filtering later)
+        $forms = \GFAPI::get_forms();
+        $cert_form_ids = array();
+        foreach ($forms as $form) {
+            if (stripos($form['title'], 'Certificate') !== false) {
+                $cert_form_ids[] = $form['id'];
+            }
+        }
+
+        // If we can't identify a specific certificate form, search all forms or fallback to 0.
+        $form_ids = !empty($cert_form_ids) ? $cert_form_ids : 0;
+
+        $search_criteria = array(
+            'status' => 'active',
+            'field_filters' => array(
+                'mode' => 'any',
+                array('key' => 'created_by', 'value' => $user_id),
+            ),
+        );
+
+        $entries = \GFAPI::get_entries($form_ids, $search_criteria);
+        
+        // Also try searching by email if user ID missed some entries
+        $search_criteria_email = array(
+            'status' => 'active',
+            'field_filters' => array(
+                'mode' => 'any',
+                array('value' => $user->user_email),
+            ),
+        );
+        $entries_by_email = \GFAPI::get_entries($form_ids, $search_criteria_email);
+        
+        $all_entries = array_merge((array)$entries, (array)$entries_by_email);
+        
+        // Deduplicate entries by ID
+        $unique_entries = array();
+        foreach ($all_entries as $entry) {
+            if (isset($entry['id']) && !isset($unique_entries[$entry['id']])) {
+                $unique_entries[$entry['id']] = $entry;
+            }
+        }
+
+        $history = array();
+
+        foreach ($unique_entries as $entry) {
+            // Find course name field (often a hidden field or dropdown). Let's search all fields for a value that looks like a course, or just try to extract the most likely fields.
+            $course_name = __('Unknown Course', 'simple-lms-bridge');
+            $form = \GFAPI::get_form($entry['form_id']);
+            
+            // Try to find a field labeled "Course" or "Course Name"
+            if ($form && isset($form['fields'])) {
+                foreach ($form['fields'] as $field) {
+                    if (stripos($field->label, 'Course') !== false) {
+                        $value = rgar($entry, (string)$field->id);
+                        if (!empty($value)) {
+                            $course_name = $value;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            // Fallback: use form title if no course name field found
+            if ($course_name === __('Unknown Course', 'simple-lms-bridge') && $form) {
+                 $course_name = str_ireplace('Certificate', '', $form['title']);
+                 $course_name = trim($course_name, ' -');
+            }
+
+            $history[] = array(
+                'id' => $entry['id'],
+                'course_name' => $course_name,
+                'date' => $entry['date_created'],
+                'form_title' => $form ? $form['title'] : '',
+            );
+        }
+
+        return rest_ensure_response($history);
     }
 }

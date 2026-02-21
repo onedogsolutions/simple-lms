@@ -15,7 +15,8 @@ if (!file_exists($wp_load)) {
 
 if (file_exists($wp_load)) {
     require_once($wp_load);
-} else {
+}
+else {
     echo "Error: wp-load.php not found. Please run this script from a WordPress environment.\n";
     exit(1);
 }
@@ -41,24 +42,24 @@ if ($pending_count === 0) {
 
 // 2. Run a batch migration.
 echo "Running migration batch (limit 5)...\n";
-$result = Migration::migrate_content_batch(5);
+$result = Migration::migrate_cpt_batch(5);
 
 echo "Migration result:\n";
 print_r($result);
 
 // 3. Verify Imported Courses.
 $new_courses = get_posts(array(
-    'post_type' => 'lms_course',
+    'post_type' => 'slms_course',
     'post_status' => 'publish',
     'numberposts' => -1,
 ));
 
 echo "\n--- Imported Courses (" . count($new_courses) . ") ---\n";
 foreach ($new_courses as $course) {
-    $lesson_order = \get_post_meta($course->ID, '_simple_lms_order', true);
-    $price = \get_post_meta($course->ID, '_lms_course_price', true);
-    $terms = \wp_get_post_terms($course->ID, 'lms_course_cat');
-    $term_names = \wp_list_pluck($terms, 'name');
+    $lesson_order = get_post_meta($course->ID, '_simple_lms_order', true);
+    $price = get_post_meta($course->ID, '_slms_course_price', true);
+    $terms = wp_get_post_terms($course->ID, 'slms_course_cat');
+    $term_names = wp_list_pluck($terms, 'name');
 
     echo "Course: {$course->post_title} (ID: {$course->ID})\n";
     echo "  - Lessons: " . (is_array($lesson_order) ? count($lesson_order) : 0) . " found.\n";
@@ -68,7 +69,7 @@ foreach ($new_courses as $course) {
 
 // 4. Verify Imported Lessons.
 $new_lessons = get_posts(array(
-    'post_type' => 'lms_lesson',
+    'post_type' => 'slms_lesson',
     'post_status' => 'publish',
     'numberposts' => -1,
 ));

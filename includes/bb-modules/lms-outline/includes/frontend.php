@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
 
 $post = get_post();
 
-if (!$post || !in_array($post->post_type, array('lms_course', 'lms_lesson'), true)) {
+if (!$post || !in_array($post->post_type, array('slms_course', 'slms_lesson'), true)) {
     if (\FLBuilderModel::is_builder_active()) {
         echo '<div class="slms-outline-placeholder">' . esc_html__('LMS Outline will appear here.', 'simple-lms-bridge') . '</div>';
     }
@@ -28,7 +28,7 @@ if (!$post || !in_array($post->post_type, array('lms_course', 'lms_lesson'), tru
 
 // Find the course ID.
 $course_id = $post->ID;
-if ('lms_lesson' === $post->post_type) {
+if ('slms_lesson' === $post->post_type) {
     // We need to find the parent course.
     global $wpdb;
     $course_id = (int)$wpdb->get_var($wpdb->prepare(

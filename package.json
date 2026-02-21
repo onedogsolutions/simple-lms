@@ -5,13 +5,19 @@
     "author": "One Dog Solutions",
     "license": "GPL-2.0-or-later",
     "scripts": {
-        "build": "wp-scripts build src/admin/index.js --output-path=build/admin",
-        "start": "wp-scripts start src/admin/index.js --output-path=build/admin",
+        "build:css": "tailwindcss -i ./src/admin/tailwind.css -o ./build/admin/tailwind.css --minify",
+        "build:js": "wp-scripts build src/admin/index.js --output-path=build/admin",
+        "build": "npm run build:css && npm run build:js",
+        "start:css": "tailwindcss -i ./src/admin/tailwind.css -o ./build/admin/tailwind.css --watch",
+        "start:js": "wp-scripts start src/admin/index.js --output-path=build/admin",
+        "start": "npm run start:css & npm run start:js",
         "lint:js": "wp-scripts lint-js src/",
         "lint:css": "wp-scripts lint-style src/"
     },
     "devDependencies": {
-        "@wordpress/scripts": "^30.0.0"
+        "@tailwindcss/cli": "^4.2.0",
+        "@wordpress/scripts": "^30.0.0",
+        "tailwindcss": "^4.2.0"
     },
     "dependencies": {
         "@wordpress/api-fetch": "^7.0.0",

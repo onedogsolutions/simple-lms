@@ -122,7 +122,7 @@ class UserMeta {
 	private function get_courses() {
 		$courses = get_posts(
 			array(
-				'post_type'      => 'lms_course',
+				'post_type'      => 'slms_course',
 				'posts_per_page' => -1,
 				'post_status'    => 'publish',
 				'orderby'        => 'title',

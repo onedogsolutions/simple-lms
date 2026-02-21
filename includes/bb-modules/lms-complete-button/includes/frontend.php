@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
 
 $post = get_post();
 
-if (!$post || 'lms_lesson' !== $post->post_type) {
+if (!$post || 'slms_lesson' !== $post->post_type) {
     if (\FLBuilderModel::is_builder_active()) {
         echo '<div class="slms-complete-placeholder">' . esc_html__('LMS Complete Button will appear here.', 'simple-lms-bridge') . '</div>';
     }

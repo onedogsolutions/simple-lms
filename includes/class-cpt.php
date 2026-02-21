@@ -14,7 +14,7 @@ if (!defined('ABSPATH')) {
 /**
  * Class CPT
  *
- * Registers the lms_course and lms_lesson post types and their meta fields.
+ * Registers the slms_course and slms_lesson post types and their meta fields.
  */
 class CPT
 {
@@ -26,9 +26,9 @@ class CPT
      */
     public static function init()
     {
-        add_action('init', array(__CLASS__, 'register_post_types'), 5);
-        add_action('init', array(__CLASS__, 'register_taxonomies'), 5);
-        add_action('init', array(__CLASS__, 'register_meta'), 6);
+        self::register_post_types();
+        self::register_taxonomies();
+        self::register_meta();
     }
 
     /* ───────────────────────────────────────────────────────────────────
@@ -36,7 +36,7 @@ class CPT
      * ─────────────────────────────────────────────────────────────────── */
 
     /**
-     * Register lms_course and lms_lesson CPTs.
+     * Register slms_course and slms_lesson CPTs.
      *
      * @return void
      */
@@ -44,7 +44,7 @@ class CPT
     {
 
         /* ── Course ──────────────────────────────────────────────────── */
-        register_post_type('lms_course', array(
+        register_post_type('slms_course', array(
             'labels' => self::labels('Course', 'Courses'),
             'public' => true,
             'has_archive' => true,
@@ -53,11 +53,11 @@ class CPT
             'rest_base' => 'lms-courses',
             'supports' => array('title', 'editor', 'thumbnail', 'excerpt', 'custom-fields'),
             'menu_icon' => 'dashicons-welcome-learn-more',
-            'menu_position' => 25,
+            'show_in_menu' => 'simple-lms',
         ));
 
         /* ── Lesson ─────────────────────────────────────────────────── */
-        register_post_type('lms_lesson', array(
+        register_post_type('slms_lesson', array(
             'labels' => self::labels('Lesson', 'Lessons'),
             'public' => true,
             'has_archive' => false,
@@ -66,7 +66,7 @@ class CPT
             'rest_base' => 'lms-lessons',
             'supports' => array('title', 'editor', 'thumbnail', 'custom-fields'),
             'menu_icon' => 'dashicons-media-text',
-            'menu_position' => 26,
+            'show_in_menu' => 'simple-lms',
         ));
     }
 
@@ -77,12 +77,13 @@ class CPT
      */
     public static function register_taxonomies()
     {
-        \register_taxonomy('lms_course_cat', 'lms_course', array(
+        register_taxonomy('slms_course_cat', array('slms_course', 'slms_lesson'), array(
             'labels' => self::labels('Course Category', 'Course Categories'),
             'hierarchical' => true,
             'show_ui' => true,
             'show_admin_column' => true,
             'show_in_rest' => true,
+            'show_in_menu' => 'simple-lms',
             'rest_base' => 'lms-course-categories',
             'rewrite' => array('slug' => 'course-category'),
         ));
@@ -103,7 +104,7 @@ class CPT
         /* ── Course Meta ────────────────────────────────────────────── */
 
         // Ordered array of lesson IDs.
-        register_post_meta('lms_course', '_simple_lms_order', array(
+        register_post_meta('slms_course', '_simple_lms_order', array(
             'type' => 'array',
             'description' => 'Ordered list of lesson post IDs.',
             'single' => true,
@@ -120,7 +121,7 @@ class CPT
         ));
 
         // Access expiration in days (0 = unlimited).
-        register_post_meta('lms_course', '_lms_access_days', array(
+        register_post_meta('slms_course', '_lms_access_days', array(
             'type' => 'integer',
             'description' => 'Number of days a student retains access (0 = unlimited).',
             'single' => true,
@@ -133,7 +134,7 @@ class CPT
         ));
 
         // Certificate Gravity Form ID.
-        register_post_meta('lms_course', '_lms_certificate_form', array(
+        register_post_meta('slms_course', '_lms_certificate_form', array(
             'type' => 'integer',
             'description' => 'Gravity Form ID used for certificate generation.',
             'single' => true,
@@ -146,20 +147,22 @@ class CPT
         ));
 
         // Course Price.
-        register_post_meta('lms_course', '_lms_course_price', array(
+        register_post_meta('slms_course', '_slms_course_price', array(
             'type' => 'number',
             'description' => 'The price of the course.',
             'single' => true,
             'show_in_rest' => true,
             'default' => 0,
-            'sanitize_callback' => 'floatval',
+            'sanitize_callback' => function ($value) {
+                return floatval($value);
+            },
             'auth_callback' => function () {
             return current_user_can('edit_posts');
         },
         ));
 
         // PMPro membership level IDs that grant access.
-        register_post_meta('lms_course', '_lms_pmpro_levels', array(
+        register_post_meta('slms_course', '_lms_pmpro_levels', array(
             'type' => 'array',
             'description' => 'PMPro membership level IDs granting course access.',
             'single' => true,
@@ -178,7 +181,7 @@ class CPT
         /* ── Lesson Meta ────────────────────────────────────────────── */
 
         // Lesson type: video | quiz.
-        register_post_meta('lms_lesson', '_lms_lesson_type', array(
+        register_post_meta('slms_lesson', '_slms_lesson_type', array(
             'type' => 'string',
             'description' => 'Lesson content type: video or quiz.',
             'single' => true,
@@ -193,7 +196,7 @@ class CPT
         ));
 
         // Presto Player video ID.
-        register_post_meta('lms_lesson', '_lms_presto_video', array(
+        register_post_meta('slms_lesson', '_lms_presto_video', array(
             'type' => 'integer',
             'description' => 'Presto Player video post ID.',
             'single' => true,
@@ -206,7 +209,7 @@ class CPT
         ));
 
         // Gravity Form ID (for quiz lessons).
-        register_post_meta('lms_lesson', '_lms_gravity_form', array(
+        register_post_meta('slms_lesson', '_lms_gravity_form', array(
             'type' => 'integer',
             'description' => 'Gravity Form ID used for quiz content.',
             'single' => true,
@@ -219,7 +222,7 @@ class CPT
         ));
 
         // Quiz timer in minutes (0 = no timer).
-        register_post_meta('lms_lesson', '_lms_quiz_timer', array(
+        register_post_meta('slms_lesson', '_lms_quiz_timer', array(
             'type' => 'integer',
             'description' => 'Quiz time limit in minutes (0 = unlimited).',
             'single' => true,

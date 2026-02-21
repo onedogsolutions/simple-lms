@@ -6,7 +6,7 @@
  * - Lesson edit screen  → LessonSettings
  * - Student Manager page → StudentManager
  *
- * @package SimpleLMS
+ * @package
  */
 
 import { createRoot, render } from '@wordpress/element';
@@ -16,46 +16,49 @@ import apiFetch from '@wordpress/api-fetch';
 import CourseEditor from './components/CourseEditor';
 import LessonSettings from './components/LessonSettings';
 import StudentManager from './components/StudentManager';
+import MigrationTool from './components/MigrationTool';
 
 import './index.css';
 
 // Configure apiFetch to use the nonce provided by PHP.
-apiFetch.use(apiFetch.createNonceMiddleware(window.slmsAdmin?.nonce));
+apiFetch.use( apiFetch.createNonceMiddleware( window.slmsAdmin?.nonce ) );
 
 /**
  * Determine which component to render and mount it.
  */
 const mount = () => {
-    const root = document.getElementById('slms-admin-root');
-    if (!root) {
-        return;
-    }
+	const root = document.getElementById( 'slms-admin-root' );
+	if ( ! root ) {
+		return;
+	}
 
-    const { postType, postId, page } = window.slmsAdmin || {};
+	const { postType, postId, page } = window.slmsAdmin || {};
 
-    let App;
+	let App;
 
-    if (page === 'slms-students') {
-        App = <StudentManager />;
-    } else if (postType === 'lms_course' && postId) {
-        App = <CourseEditor postId={parseInt(postId, 10)} />;
-    } else if (postType === 'lms_lesson' && postId) {
-        App = <LessonSettings postId={parseInt(postId, 10)} />;
-    } else {
-        return;
-    }
+	if ( page === 'slms-students' ) {
+		App = <StudentManager />;
+	} else if ( page === 'slms-migration' ) {
+		App = <MigrationTool />;
+	} else if ( postType === 'slms_course' && postId ) {
+		App = <CourseEditor postId={ parseInt( postId, 10 ) } />;
+	} else if ( postType === 'slms_lesson' && postId ) {
+		App = <LessonSettings postId={ parseInt( postId, 10 ) } />;
+	} else {
+		return;
+	}
 
-    // Use createRoot (React 18+) if available, otherwise fall back to render.
-    if (typeof createRoot === 'function') {
-        createRoot(root).render(App);
-    } else {
-        render(App, root);
-    }
+	// Use createRoot (React 18+) if available, otherwise fall back to render.
+	if ( typeof createRoot === 'function' ) {
+		createRoot( root ).render( App );
+	} else {
+		render( App, root );
+	}
 };
 
 // Wait for DOM before mounting.
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', mount);
+if ( document.readyState === 'loading' ) {
+	document.addEventListener( 'DOMContentLoaded', mount );
 } else {
-    mount();
+	mount();
 }

@@ -51,7 +51,7 @@ class Certificates
 
         // Find courses that use this form for certificates.
         $query = new \WP_Query(array(
-            'post_type' => 'lms_course',
+            'post_type' => 'slms_course',
             'posts_per_page' => -1,
             'meta_query' => array(
                     array(

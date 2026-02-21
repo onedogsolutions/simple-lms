@@ -27,7 +27,6 @@ class MetaBoxes
     public static function init()
     {
         add_action('add_meta_boxes', array(__CLASS__, 'register_meta_boxes'));
-        add_action('admin_menu', array(__CLASS__, 'register_admin_pages'));
     }
 
     /* ───────────────────────────────────────────────────────────────────
@@ -47,7 +46,7 @@ class MetaBoxes
             'slms_course_editor',
             __('Course Settings', 'simple-lms-bridge'),
             array(__CLASS__, 'render_react_root'),
-            'lms_course',
+            'slms_course',
             'normal',
             'high'
         );
@@ -57,7 +56,7 @@ class MetaBoxes
             'slms_lesson_settings',
             __('Lesson Settings', 'simple-lms-bridge'),
             array(__CLASS__, 'render_react_root'),
-            'lms_lesson',
+            'slms_lesson',
             'normal',
             'high'
         );
@@ -88,14 +87,13 @@ class MetaBoxes
      */
     public static function register_admin_pages()
     {
-        add_menu_page(
+        add_submenu_page(
+            'simple-lms',
             __('Student Manager', 'simple-lms-bridge'),
             __('Students', 'simple-lms-bridge'),
             'edit_users',
             'slms-students',
-            array(__CLASS__, 'render_students_page'),
-            'dashicons-groups',
-            27
+            array(__CLASS__, 'render_students_page')
         );
     }
 
@@ -106,7 +104,7 @@ class MetaBoxes
      */
     public static function render_students_page()
     {
-        echo '<div class="wrap">';
+        echo '<div class="wrap slms-admin-wrap tw-preflight">';
         echo '<h1>' . esc_html__('Student Manager', 'simple-lms-bridge') . '</h1>';
         echo '<div id="slms-admin-root"></div>';
         echo '</div>';

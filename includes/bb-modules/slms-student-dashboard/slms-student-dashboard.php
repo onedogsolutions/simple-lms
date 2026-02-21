@@ -20,6 +20,16 @@ class SLMSStudentDashboardModule extends \FLBuilderModule
     /**
      * Constructor.
      */
+    public function __construct()
+    {
+        parent::__construct(array(
+            'name'        => __('Student Dashboard', 'simple-lms-bridge'),
+            'description' => __('A custom student dashboard.', 'simple-lms-bridge'),
+            'category'    => __('LMS Modules', 'simple-lms-bridge'),
+            'dir'         => SLMS_PLUGIN_DIR . 'includes/bb-modules/slms-student-dashboard/',
+            'url'         => SLMS_PLUGIN_URL . 'includes/bb-modules/slms-student-dashboard/',
+        ));
+    }
     /**
      * Get a list of Gravity Forms for selection.
      *
