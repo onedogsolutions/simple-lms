@@ -171,12 +171,8 @@ function slms_enqueue_admin_assets($hook_suffix)
     $asset = require $asset_file;
 
     if ($is_slms_page) {
-        wp_enqueue_style(
-            'slms-tailwind',
-            SLMS_PLUGIN_URL . 'build/admin/tailwind.css',
-            array(),
-            $asset['version']
-        );
+        // Temporary fallback to Tailwind CDN
+        echo '<script src="https://unpkg.com/@tailwindcss/browser@4"></script>';
     }
 
     wp_enqueue_script(
