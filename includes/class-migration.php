@@ -90,18 +90,18 @@ class Migration
         $start_time = microtime(true);
 
         $legacy_courses = get_posts(array(
-            'post_type'      => 'course',
-            'post_status'    => 'publish',
-            'post_parent'    => 0, // Only parents are "Courses"
-            'numberposts'    => $limit,
-            'meta_query'     => array(
-                array(
-                    'key'     => '_slms_migrated',
+            'post_type' => 'course',
+            'post_status' => 'publish',
+            'post_parent' => 0, // Only parents are "Courses"
+            'numberposts' => $limit,
+            'meta_query' => array(
+                    array(
+                    'key' => '_slms_migrated',
                     'compare' => 'NOT EXISTS',
                 ),
             ),
-            'orderby'        => 'ID',
-            'order'          => 'ASC',
+            'orderby' => 'ID',
+            'order' => 'ASC',
         ));
 
         $count = 0;
@@ -120,12 +120,12 @@ class Migration
 
                 // 2. Identify child posts (lessons)
                 $legacy_lessons = get_posts(array(
-                    'post_type'      => 'course',
-                    'post_status'    => 'publish',
-                    'post_parent'    => $legacy_course->ID,
-                    'orderby'        => 'menu_order',
-                    'order'          => 'ASC',
-                    'numberposts'    => -1,
+                    'post_type' => 'course',
+                    'post_status' => 'publish',
+                    'post_parent' => $legacy_course->ID,
+                    'orderby' => 'menu_order',
+                    'order' => 'ASC',
+                    'numberposts' => -1,
                 ));
 
                 $new_lesson_ids = array();
@@ -142,7 +142,8 @@ class Migration
                             wp_set_post_terms($new_lesson_id, $terms, 'slms_course_cat', true);
                         }
                     }
-                } else {
+                }
+                else {
                     foreach ($legacy_lessons as $legacy_lesson) {
                         // 3. Import/Deduplicate lessons
                         $new_lesson_id = self::import_lesson($legacy_lesson);
@@ -172,9 +173,9 @@ class Migration
         $duration = round(microtime(true) - $start_time, 2);
         return array(
             'processed' => $count,
-            'pending'   => self::get_pending_content_count(),
-            'duration'  => $duration,
-            'success'   => true,
+            'pending' => self::get_pending_content_count(),
+            'duration' => $duration,
+            'success' => true,
         );
     }
 
@@ -187,107 +188,193 @@ class Migration
     }
 
     /**
+     * Get total count of users with WPComplete data (for denominator).
+     *
+     * @return int Count of users.
+     */
+    public static function get_total_migration_count()
+    {
+        global $wpdb;
+        $count = $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM {$wpdb->usermeta} WHERE meta_key = 'wpcomplete' OR meta_key LIKE 'wpcomplete_%'");
+        return (int)$count;
+    }
+
+    /**
      * Phase 2: Student Progress (WPComplete) Migration.
      *
-     * @param int $limit Max users to migrate in this batch.
+     * @param int $batch_size Max users to migrate in this batch.
+     * @param int $offset Offset for the query.
      * @return array Result summary.
      */
-    public static function migrate_progress_batch($limit = -1)
+    public static function migrate_progress_batch($batch_size = 50, $offset = 0)
     {
-        $limit = (int) $limit;
-        error_log('[SimpleLMS] Phase 2: Starting student progress migration.');
+        $batch_size = (int)$batch_size;
+        $offset = (int)$offset;
+        error_log('[SimpleLMS] Phase 2: Starting student progress migration. Batch size: ' . $batch_size . ', Offset: ' . $offset);
         $start_time = microtime(true);
 
-        global $wpdb;
+        $user_query = new \WP_User_Query(array(
+            'meta_query' => array(
+                'relation' => 'OR',
+                    array(
+                    'key' => 'wpcomplete',
+                    'compare' => 'EXISTS'
+                ),
+                    array(
+                    'key' => 'wpcomplete_%',
+                    'compare' => 'LIKE'
+                )
+            ),
+            'number' => $batch_size,
+            'offset' => $offset,
+            'fields' => 'ids',
+            'orderby' => 'ID',
+            'order' => 'ASC',
+        ));
 
-        $sql = "SELECT DISTINCT user_id FROM {$wpdb->usermeta} WHERE meta_key = 'wpcomplete' OR meta_key LIKE 'wpcomplete_%'";
-        if ($limit > 0) {
-            $sql .= $wpdb->prepare(" LIMIT %d", $limit);
-        }
+        $user_ids = $user_query->get_results();
+        error_log('[SimpleLMS] Phase 2: Found ' . count($user_ids) . ' users to process in this batch.');
 
-        $user_ids = $wpdb->get_col($sql);
-        error_log('[SimpleLMS] Phase 2: Found ' . count($user_ids) . ' users to process.');
         $count = 0;
 
         foreach ($user_ids as $user_id) {
             $user_id = (int)$user_id;
-            error_log('[SimpleLMS] Phase 2: Processing user ID: ' . $user_id);
 
-            $wpc_metas = $wpdb->get_results($wpdb->prepare(
-                "SELECT meta_key, meta_value FROM {$wpdb->usermeta} WHERE user_id = %d AND (meta_key = 'wpcomplete' OR meta_key LIKE 'wpcomplete_%%')",
-                $user_id
-            ));
-
-            if (empty($wpc_metas)) {
-                error_log('[SimpleLMS] Phase 2: No wpc_metas found for user ID: ' . $user_id . '. Skipping.');
+            // Check if already migrated
+            if (get_user_meta($user_id, '_slms_progress_migrated', true)) {
+                $count++;
                 continue;
             }
 
-            $current_progress = get_user_meta($user_id, '_lms_progress', true);
-            if (!is_array($current_progress)) {
-                $current_progress = array();
+            error_log('[SimpleLMS] Phase 2: Processing user ID: ' . $user_id);
+
+            // Fetch wpcomplete array
+            $wpc_data_raw = get_user_meta($user_id, 'wpcomplete', true);
+            $wpc_data = maybe_unserialize($wpc_data_raw);
+
+            // Handle potentially stringified JSON
+            if (is_string($wpc_data) && strpos(trim($wpc_data ?? ''), '{') === 0) {
+                $wpc_data = json_decode($wpc_data, true);
             }
+
+            $wpc_data = $wpc_data ?? [];
+
+            if (is_array($wpc_data) && !empty($wpc_data)) {
+                foreach ($wpc_data as $post_key => $post_data) {
+                    if ($post_key === '0-site' || strpos($post_key, '0-site') !== false)
+                        continue;
+
+                    $legacy_lesson_id = self::extract_post_id($post_key);
+                    if (!$legacy_lesson_id)
+                        continue;
+
+                    // Query the new simple lms post
+                    $new_lesson_query = new \WP_Query(array(
+                        'post_type' => array('slms_lesson', 'slms_course'),
+                        'meta_key' => '_legacy_id',
+                        'meta_value' => $legacy_lesson_id,
+                        'posts_per_page' => 1,
+                        'fields' => 'ids',
+                        'no_found_rows' => true,
+                    ));
+
+                    if ($new_lesson_query->have_posts()) {
+                        $new_post_id = $new_lesson_query->posts[0];
+
+                        $timestamp = time();
+                        if (is_array($post_data) && !empty($post_data['completed'])) {
+                            $timestamp = strtotime($post_data['completed']) ?: time();
+                        }
+                        else if (is_string($post_data) && strtotime($post_data)) {
+                            $timestamp = strtotime($post_data);
+                        }
+                        else if (is_numeric($post_data)) {
+                            $timestamp = (int)$post_data;
+                        }
+
+                        // Save using the new schema
+                        update_user_meta($user_id, '_slms_lesson_completed_' . $new_post_id, $timestamp);
+                    }
+                }
+            }
+
+            // Handle non-array wpcomplete_% keys if needed...
+            global $wpdb;
+            $wpc_metas = $wpdb->get_results($wpdb->prepare(
+                "SELECT meta_key, meta_value FROM {$wpdb->usermeta} WHERE user_id = %d AND meta_key LIKE 'wpcomplete_%%'",
+                $user_id
+            ));
 
             foreach ($wpc_metas as $meta) {
                 $key = $meta->meta_key;
-                $value = $meta->meta_value;
-
-                $data = maybe_unserialize($value);
-                if (is_string($data) && strpos(trim($data), '{') === 0) {
-                    $data = json_decode($data, true);
+                if (strpos($key, 'wpcomplete_0-site') !== false) {
+                    continue;
                 }
 
-                if ($key === 'wpcomplete' && is_array($data)) {
-                    foreach ($data as $post_key => $post_data) {
-                        if ($post_key === '0-site' || strpos($post_key, '0-site') !== false) continue;
+                $legacy_lesson_id = (int)preg_replace('/[^0-9]/', '', str_replace('wpcomplete_', '', $key));
+                if (!$legacy_lesson_id)
+                    continue;
 
-                        $legacy_lesson_id = self::extract_post_id($post_key);
-                        if (!$legacy_lesson_id) continue;
-
-                        self::process_legacy_lesson_progress($user_id, $legacy_lesson_id, $post_data, $current_progress);
-                    }
-                } else {
-                    if (strpos($key, 'wpcomplete_0-site') !== false) {
-                        delete_user_meta($user_id, $key);
-                        continue;
-                    }
-
-                    $legacy_lesson_id = (int) preg_replace('/[^0-9]/', '', str_replace('wpcomplete_', '', $key));
-                    if (!$legacy_lesson_id) {
-                        delete_user_meta($user_id, $key);
-                        continue;
-                    }
-
-                    self::process_legacy_lesson_progress($user_id, $legacy_lesson_id, $data, $current_progress);
+                $value = maybe_unserialize($meta->meta_value);
+                if (is_string($value) && strpos(trim($value ?? ''), '{') === 0) {
+                    $value = json_decode($value, true);
                 }
 
-                delete_user_meta($user_id, $key);
+                $new_lesson_query = new \WP_Query(array(
+                    'post_type' => array('slms_lesson', 'slms_course'),
+                    'meta_key' => '_legacy_id',
+                    'meta_value' => $legacy_lesson_id,
+                    'posts_per_page' => 1,
+                    'fields' => 'ids',
+                    'no_found_rows' => true,
+                ));
+
+                if ($new_lesson_query->have_posts()) {
+                    $new_post_id = $new_lesson_query->posts[0];
+
+                    $timestamp = time();
+                    if (is_array($value) && !empty($value['completed'])) {
+                        $timestamp = strtotime($value['completed']) ?: time();
+                    }
+                    else if (is_string($value) && strtotime($value)) {
+                        $timestamp = strtotime($value);
+                    }
+                    else if (is_numeric($value)) {
+                        $timestamp = (int)$value;
+                    }
+
+                    update_user_meta($user_id, '_slms_lesson_completed_' . $new_post_id, $timestamp);
+                }
             }
 
-            update_user_meta($user_id, '_lms_progress', $current_progress);
+            // Mark user as completely migrated for progress
+            update_user_meta($user_id, '_slms_progress_migrated', time());
             $count++;
         }
 
         $duration = round(microtime(true) - $start_time, 2);
+        $total_count = self::get_total_migration_count();
+
         return array(
-            'processed' => $count,
-            'pending'   => self::get_pending_migration_count(),
-            'duration'  => $duration,
-            'success'   => true,
+            'processed_count' => $count,
+            'total_count' => $total_count,
+            'duration' => $duration,
+            'success' => true,
         );
     }
 
     /**
      * Helper to process legacy lesson completions.
      */
-    private static function process_legacy_lesson_progress($user_id, $legacy_lesson_id, $data, &$current_progress) {
+    private static function process_legacy_lesson_progress($user_id, $legacy_lesson_id, $data, &$current_progress)
+    {
         $new_lesson_query = new \WP_Query(array(
-            'post_type'      => 'slms_lesson',
-            'meta_key'       => '_legacy_id',
-            'meta_value'     => $legacy_lesson_id,
+            'post_type' => 'slms_lesson',
+            'meta_key' => '_legacy_id',
+            'meta_value' => $legacy_lesson_id,
             'posts_per_page' => 1,
-            'fields'         => 'ids',
-            'no_found_rows'  => true,
+            'fields' => 'ids',
+            'no_found_rows' => true,
         ));
 
         if (!$new_lesson_query->have_posts()) {
@@ -300,9 +387,11 @@ class Migration
         $timestamp = time();
         if (is_array($data) && !empty($data['completed'])) {
             $timestamp = strtotime($data['completed']) ?: time();
-        } else if (is_string($data) && strtotime($data)) {
+        }
+        else if (is_string($data) && strtotime($data)) {
             $timestamp = strtotime($data);
-        } else if (is_numeric($data)) {
+        }
+        else if (is_numeric($data)) {
             $timestamp = (int)$data;
         }
 
@@ -332,7 +421,7 @@ class Migration
                 if (!isset($current_progress[$course_id])) {
                     $current_progress[$course_id] = array();
                 }
-                
+
                 $current_progress[$course_id][$new_lesson_id] = $timestamp;
             }
         }
@@ -369,29 +458,29 @@ class Migration
                             $cert_form_ids[] = $form['id'];
                         }
                     }
-                    
+
                     $form_ids = !empty($cert_form_ids) ? $cert_form_ids : 0;
-                    
+
                     $search_criteria = array(
                         'status' => 'active',
                         'field_filters' => array(
                             'mode' => 'any',
-                            array('key' => 'created_by', 'value' => $user_id),
+                                array('key' => 'created_by', 'value' => $user_id),
                         ),
                     );
                     $entries = \GFAPI::get_entries($form_ids, $search_criteria);
-                    
+
                     $search_criteria_email = array(
                         'status' => 'active',
                         'field_filters' => array(
                             'mode' => 'any',
-                            array('value' => $user->user_email),
+                                array('value' => $user->user_email),
                         ),
                     );
                     $entries_by_email = \GFAPI::get_entries($form_ids, $search_criteria_email);
-                    
+
                     $all_entries = array_merge((array)$entries, (array)$entries_by_email);
-                    
+
                     $unique_entries = array();
                     foreach ($all_entries as $entry) {
                         if (isset($entry['id']) && !isset($unique_entries[$entry['id']])) {
@@ -403,10 +492,10 @@ class Migration
                     foreach ($unique_entries as $entry) {
                         $course_name = __('Unknown Course', 'simple-lms-bridge');
                         $form = \GFAPI::get_form($entry['form_id']);
-                        
+
                         if ($form && isset($form['fields'])) {
                             foreach ($form['fields'] as $field) {
-                                if (stripos($field->label, 'Course') !== false) {
+                                if (stripos($field->label ?? '', 'Course') !== false) {
                                     $value = rgar($entry, (string)$field->id);
                                     if (!empty($value)) {
                                         $course_name = $value;
@@ -415,10 +504,10 @@ class Migration
                                 }
                             }
                         }
-                        
+
                         if ($course_name === __('Unknown Course', 'simple-lms-bridge') && $form) {
-                             $course_name = str_ireplace('Certificate', '', $form['title']);
-                             $course_name = trim($course_name, ' -');
+                            $course_name = str_ireplace('Certificate', '', $form['title'] ?? '');
+                            $course_name = trim($course_name, ' -');
                         }
 
                         $history[] = array(
@@ -431,6 +520,40 @@ class Migration
 
                     if (!empty($history)) {
                         update_user_meta($user_id, '_lms_historical_certificates', $history);
+
+                        // Also record in the compliance history table for 9-year retention
+                        foreach ($unique_entries as $entry) {
+                            $course_name = __('Unknown Course', 'simple-lms-bridge');
+                            $form = \GFAPI::get_form($entry['form_id']);
+
+                            if ($form && isset($form['fields'])) {
+                                foreach ($form['fields'] as $field) {
+                                    if (stripos($field->label ?? '', 'Course') !== false) {
+                                        $value = rgar($entry, (string)$field->id);
+                                        if (!empty($value)) {
+                                            $course_name = $value;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+
+                            if ($course_name === __('Unknown Course', 'simple-lms-bridge') && $form) {
+                                $course_name = str_ireplace('Certificate', '', $form['title'] ?? '');
+                                $course_name = trim($course_name, ' -');
+                            }
+
+                            CourseHistory::insert(
+                                $user_id,
+                                $course_name,
+                                $entry['date_created'],
+                                $entry['id'],
+                                array(
+                                'form_id' => $entry['form_id'],
+                                'source' => 'gravity_forms_migration'
+                            )
+                            );
+                        }
                     }
                 }
             }
@@ -442,9 +565,9 @@ class Migration
         $duration = round(microtime(true) - $start_time, 2);
         return array(
             'processed' => $count,
-            'pending'   => self::get_pending_history_count(),
-            'duration'  => $duration,
-            'success'   => true,
+            'pending' => self::get_pending_history_count(),
+            'duration' => $duration,
+            'success' => true,
         );
     }
 
@@ -465,10 +588,10 @@ class Migration
     public static function cleanup_legacy_data()
     {
         $legacy_posts = get_posts(array(
-            'post_type'   => 'course',
+            'post_type' => 'course',
             'post_status' => 'any',
             'numberposts' => -1,
-            'fields'      => 'ids',
+            'fields' => 'ids',
         ));
 
         $count = 0;
@@ -489,12 +612,12 @@ class Migration
     {
         // Deduplicate by _legacy_id first (most accurate)
         $existing = new \WP_Query(array(
-            'post_type'      => 'slms_lesson',
-            'meta_key'       => '_legacy_id',
-            'meta_value'     => $legacy_lesson->ID,
+            'post_type' => 'slms_lesson',
+            'meta_key' => '_legacy_id',
+            'meta_value' => $legacy_lesson->ID,
             'posts_per_page' => 1,
-            'fields'         => 'ids',
-            'no_found_rows'  => true,
+            'fields' => 'ids',
+            'no_found_rows' => true,
         ));
 
         if ($existing->have_posts()) {
@@ -503,12 +626,12 @@ class Migration
 
         // Fallback: Deduplicate by title/slug
         $existing_title = new \WP_Query(array(
-            'post_type'      => 'slms_lesson',
-            'title'          => $legacy_lesson->post_title,
+            'post_type' => 'slms_lesson',
+            'title' => $legacy_lesson->post_title,
             'posts_per_page' => 1,
-            'fields'         => 'ids',
-            'no_found_rows'  => true,
-            'post_status'    => 'publish',
+            'fields' => 'ids',
+            'no_found_rows' => true,
+            'post_status' => 'publish',
         ));
 
         if ($existing_title->have_posts()) {
@@ -518,23 +641,23 @@ class Migration
         }
 
         $new_lesson_id = wp_insert_post(array(
-            'post_title'   => $legacy_lesson->post_title,
+            'post_title' => $legacy_lesson->post_title,
             'post_content' => $legacy_lesson->post_content,
-            'post_name'    => $legacy_lesson->post_name,
-            'post_status'  => 'publish',
-            'post_type'    => 'slms_lesson',
+            'post_name' => $legacy_lesson->post_name,
+            'post_status' => 'publish',
+            'post_type' => 'slms_lesson',
         ));
 
         if (!is_wp_error($new_lesson_id)) {
             update_post_meta($new_lesson_id, '_legacy_id', $legacy_lesson->ID);
-            
+
             // Map Video Meta if exists (Legacy Pods)
             $video = get_post_meta($legacy_lesson->ID, 'lesson_video', true);
             if ($video) {
                 update_post_meta($new_lesson_id, '_slms_lesson_type', 'video');
                 update_post_meta($new_lesson_id, '_slms_presto_video', $video);
             }
-            
+
             return $new_lesson_id;
         }
 
@@ -547,12 +670,12 @@ class Migration
     private static function import_course($legacy_course)
     {
         $existing = new \WP_Query(array(
-            'post_type'      => 'slms_course',
-            'meta_key'       => '_legacy_id',
-            'meta_value'     => $legacy_course->ID,
+            'post_type' => 'slms_course',
+            'meta_key' => '_legacy_id',
+            'meta_value' => $legacy_course->ID,
             'posts_per_page' => 1,
-            'fields'         => 'ids',
-            'no_found_rows'  => true,
+            'fields' => 'ids',
+            'no_found_rows' => true,
         ));
 
         if ($existing->have_posts()) {
@@ -560,16 +683,16 @@ class Migration
         }
 
         $new_course_id = wp_insert_post(array(
-            'post_title'   => $legacy_course->post_title,
+            'post_title' => $legacy_course->post_title,
             'post_content' => $legacy_course->post_content,
-            'post_name'    => $legacy_course->post_name,
-            'post_status'  => 'publish',
-            'post_type'    => 'slms_course',
+            'post_name' => $legacy_course->post_name,
+            'post_status' => 'publish',
+            'post_type' => 'slms_course',
         ));
 
         if (!is_wp_error($new_course_id)) {
             update_post_meta($new_course_id, '_legacy_id', $legacy_course->ID);
-            
+
             // Map Price
             $price = get_post_meta($legacy_course->ID, 'course_price', true);
             if ($price) {
@@ -587,7 +710,7 @@ class Migration
      */
     private static function extract_post_id($key)
     {
-        if (strpos($key, '-') !== false) {
+        if (strpos($key ?? '', '-') !== false) {
             $parts = explode('-', $key);
             return (int)$parts[0];
         }
@@ -600,8 +723,15 @@ class Migration
     public static function get_pending_migration_count()
     {
         global $wpdb;
-        $count = $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM {$wpdb->usermeta} WHERE meta_key = 'wpcomplete' OR meta_key LIKE 'wpcomplete_%'");
-        return (int) $count;
+        // Count users who have wpcomplete data but haven't been marked as migrated
+        $count = $wpdb->get_var("
+            SELECT COUNT(DISTINCT um1.user_id) 
+            FROM {$wpdb->usermeta} um1 
+            LEFT JOIN {$wpdb->usermeta} um2 ON um1.user_id = um2.user_id AND um2.meta_key = '_slms_progress_migrated'
+            WHERE (um1.meta_key = 'wpcomplete' OR um1.meta_key LIKE 'wpcomplete_%')
+            AND um2.umeta_id IS NULL
+        ");
+        return (int)$count;
     }
 
     /**
@@ -622,15 +752,15 @@ class Migration
     public static function get_pending_content_count()
     {
         $query = new \WP_Query(array(
-            'post_type'   => 'course',
+            'post_type' => 'course',
             'post_parent' => 0,
-            'meta_query'  => array(
-                array(
-                    'key'     => '_slms_migrated',
+            'meta_query' => array(
+                    array(
+                    'key' => '_slms_migrated',
                     'compare' => 'NOT EXISTS',
                 ),
             ),
-            'fields'      => 'ids',
+            'fields' => 'ids',
         ));
         return $query->found_posts;
     }

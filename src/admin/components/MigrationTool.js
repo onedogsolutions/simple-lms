@@ -35,10 +35,7 @@ const MigrationTool = () => {
 					prev.content > res.content.pending
 						? prev.content
 						: res.content.pending,
-				progress:
-					prev.progress > res.progress.pending
-						? prev.progress
-						: res.progress.pending,
+				progress: res.progress.total || (prev.progress > res.progress.pending ? prev.progress : res.progress.pending),
 				history:
 					prev.history > (res.history?.pending || 0)
 						? prev.history
@@ -80,11 +77,18 @@ const MigrationTool = () => {
 						? status.progress.pending
 						: status.history.pending;
 
+			let offset = 0;
+
 			while ( pending > 0 ) {
+				let payload = { limit: type === 'content' ? 5 : 10 };
+				if (type === 'progress') {
+					payload = { batch_size: 50, offset: offset };
+				}
+
 				const res = await apiFetch( {
 					path: endpoint,
 					method: 'POST',
-					data: { limit: type === 'content' ? 5 : 10 },
+					data: payload,
 				} );
 
 				if ( ! res.success ) {
@@ -96,11 +100,28 @@ const MigrationTool = () => {
 					);
 				}
 
-				pending = res.pending;
-				setStatus( ( prev ) => ( {
-					...prev,
-					[ type ]: { pending: res.pending },
-				} ) );
+				if (type === 'progress') {
+					offset += 50;
+					const total = res.total_count || totals.progress || 1;
+					// Use processed_count / total logic directly or update pending safely
+					// If total is known, pending is just total minus offset.
+					pending = Math.max(0, total - offset);
+					
+					setStatus( ( prev ) => ( {
+						...prev,
+						[ type ]: { pending: pending },
+					} ) );
+
+					if (offset >= total || res.processed_count === 0 && pending === 0) {
+						break;
+					}
+				} else {
+					pending = res.pending;
+					setStatus( ( prev ) => ( {
+						...prev,
+						[ type ]: { pending: res.pending },
+					} ) );
+				}
 			}
 
 			let noticeMessage = '';
@@ -118,6 +139,25 @@ const MigrationTool = () => {
 		}
 	};
 
+	const clearCache = () => {
+		try {
+			window.localStorage.clear();
+			window.sessionStorage.clear();
+		} catch (e) {
+			// Ignore if access is blocked
+		}
+		
+		// Reset state entirely and force a hard reload of data
+		setStatus(null);
+		setLoading(true);
+		setPhase(0);
+		setMigrating(false);
+		setTotals({ content: 0, progress: 0, history: 0 });
+		setError(null);
+		setNotice(__('Local cache cleared. Reloading status from server...', 'simple-lms-bridge'));
+		loadStatus();
+	};
+
 	if ( loading ) {
 		return (
 			<div className="flex justify-center p-12">
@@ -130,32 +170,51 @@ const MigrationTool = () => {
 	const progressPending = status?.progress?.pending || 0;
 	const historyPending = status?.history?.pending || 0;
 
+	// Determine explicit states based on exact conditions
+	// 'locked', 'pending', 'running', 'completed'
+	const contentState = migrating && phase === 1 ? 'running' 
+						: contentPending === 0 ? 'completed' 
+						: 'pending';
+
+	const progressState = contentState !== 'completed' ? 'locked'
+						: migrating && phase === 2 ? 'running'
+						: progressPending === 0 ? 'completed'
+						: 'pending';
+
+	const historyState = progressState !== 'completed' ? 'locked'
+						: migrating && phase === 3 ? 'running'
+						: historyPending === 0 ? 'completed'
+						: 'pending';
+
 	// Safe Progress Calculation to prevent over 100% bugs
-	const calculateProgress = (total, pending) => {
+	const calculateProgress = (total, pending, state) => {
+		if (state === 'completed') return 100;
 		if (total <= 0) return pending === 0 ? 100 : 0;
 		const progress = ((total - pending) / total) * 100;
 		return Math.max(0, Math.min(progress, 100)); // Clamp between 0 and 100
 	};
 
-	const contentProgress = calculateProgress(totals.content, contentPending);
-	const progressProgress = calculateProgress(totals.progress, progressPending);
-	const historyProgress = calculateProgress(totals.history, historyPending);
-
-	const isPhase1Complete = contentPending === 0 && totals.content >= 0; // if 0 total initially, consider done.
-	const isPhase2Complete = progressPending === 0 && totals.progress >= 0 && isPhase1Complete;
+	const contentProgress = calculateProgress(totals.content, contentPending, contentState);
+	const progressProgress = calculateProgress(totals.progress, progressPending, progressState);
+	const historyProgress = calculateProgress(totals.history, historyPending, historyState);
 
 	return (
 		<div className="max-w-4xl mx-auto py-8">
-			<div className="bg-white rounded-lg shadow-sm p-8 mb-8 border border-gray-200">
-				<h1 className="text-3xl font-bold text-gray-900 mb-3">
-					{ __( 'SimpleLMS Migration Hub', 'simple-lms-bridge' ) }
-				</h1>
-				<p className="text-gray-600">
-					{ __(
-						'Execute the structural and historical data migration for your LMS platform sequentially.',
-						'simple-lms-bridge'
-					) }
-				</p>
+			<div className="bg-white rounded-lg shadow-sm p-8 mb-8 border border-gray-200 flex justify-between items-start">
+				<div>
+					<h1 className="text-3xl font-bold text-gray-900 mb-3">
+						{ __( 'SimpleLMS Migration Hub', 'simple-lms-bridge' ) }
+					</h1>
+					<p className="text-gray-600">
+						{ __(
+							'Execute the structural and historical data migration for your LMS platform sequentially.',
+							'simple-lms-bridge'
+						) }
+					</p>
+				</div>
+				<Button variant="secondary" onClick={clearCache} className="text-xs">
+					{ __( 'Reset UI State', 'simple-lms-bridge' ) }
+				</Button>
 			</div>
 
 			{ error && (
@@ -191,13 +250,15 @@ const MigrationTool = () => {
 						</div>
 						<span
 							className={ `px-3 py-1 rounded-full text-xs font-semibold ${
-								isPhase1Complete
+								contentState === 'completed'
 									? 'bg-green-100 text-green-800'
 									: 'bg-yellow-100 text-yellow-800'
 							}` }
 						>
-							{ isPhase1Complete
+							{ contentState === 'completed'
 								? __( 'Completed', 'simple-lms-bridge' )
+								: contentState === 'running'
+								? __( 'Running', 'simple-lms-bridge' )
 								: __( 'Pending', 'simple-lms-bridge' ) }
 						</span>
 					</div>
@@ -205,25 +266,25 @@ const MigrationTool = () => {
 					<div className="mb-5 ml-11">
 						<div className="flex justify-between text-sm font-medium text-gray-600 mb-2">
 							<span>
-								{ contentPending > 0
-									? sprintf( __( '%d items remaining', 'simple-lms-bridge' ), contentPending )
-									: __( 'All content mapped', 'simple-lms-bridge' ) }
+								{ contentState === 'completed'
+									? __( 'All content mapped', 'simple-lms-bridge' )
+									: sprintf( __( '%d items remaining', 'simple-lms-bridge' ), contentPending ) }
 							</span>
-							<span className={isPhase1Complete ? 'text-green-600' : 'text-blue-600'}>{ Math.round( contentProgress ) }%</span>
+							<span className={contentState === 'completed' ? 'text-green-600' : 'text-blue-600'}>{ Math.round( contentProgress ) }%</span>
 						</div>
 						<ProgressBar value={ contentProgress } className="h-2.5 rounded-full" />
 					</div>
 
-					{ ! isPhase1Complete && (
+					{ contentState !== 'completed' && (
 						<div className="mt-4 ml-11">
 							<Button
 								variant="primary"
-								isBusy={ migrating && phase === 1 }
-								disabled={ migrating }
+								isBusy={ contentState === 'running' }
+								disabled={ contentState === 'running' }
 								onClick={ () => runMigration( 'content' ) }
 								className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2 shadow-sm rounded-md transition-colors"
 							>
-								{ migrating && phase === 1
+								{ contentState === 'running'
 									? __( 'Processing…', 'simple-lms-bridge' )
 									: __( 'Start Content Migration', 'simple-lms-bridge' ) }
 							</Button>
@@ -234,7 +295,7 @@ const MigrationTool = () => {
 				{ /* Phase 2 */ }
 				<div
 					className={ `bg-white border ${
-						isPhase1Complete
+						contentState === 'completed'
 							? 'border-gray-200'
 							: 'border-gray-200 opacity-60'
 					} shadow-sm rounded-lg p-6 transition-all duration-200` }
@@ -242,7 +303,7 @@ const MigrationTool = () => {
 					<div className="flex flex-col sm:flex-row justify-between items-start mb-5">
 						<div className="mb-4 sm:mb-0">
 							<h2 className="text-xl font-bold text-gray-900 flex items-center gap-3">
-								<span className={`${isPhase1Complete ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-500'} rounded-full h-8 w-8 flex items-center justify-center text-sm`}>2</span>
+								<span className={`${contentState === 'completed' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-500'} rounded-full h-8 w-8 flex items-center justify-center text-sm`}>2</span>
 								{ __( 'WPComplete Progress Migration', 'simple-lms-bridge' ) }
 							</h2>
 							<p className="text-gray-500 text-sm mt-2 ml-11">
@@ -254,13 +315,19 @@ const MigrationTool = () => {
 						</div>
 						<span
 							className={ `px-3 py-1 rounded-full text-xs font-semibold ${
-								isPhase2Complete
+								progressState === 'completed'
 									? 'bg-green-100 text-green-800'
-									: 'bg-gray-100 text-gray-700'
+									: progressState === 'locked'
+									? 'bg-gray-100 text-gray-700'
+									: 'bg-yellow-100 text-yellow-800'
 							}` }
 						>
-							{ isPhase2Complete
+							{ progressState === 'completed'
 								? __( 'Completed', 'simple-lms-bridge' )
+								: progressState === 'locked'
+								? __( 'Locked', 'simple-lms-bridge' )
+								: progressState === 'running'
+								? __( 'Running', 'simple-lms-bridge' )
 								: __( 'Pending', 'simple-lms-bridge' ) }
 						</span>
 					</div>
@@ -268,33 +335,33 @@ const MigrationTool = () => {
 					<div className="mb-5 ml-11">
 						<div className="flex justify-between text-sm font-medium text-gray-600 mb-2">
 							<span>
-								{ progressPending > 0
-									? sprintf( __( '%d users remaining', 'simple-lms-bridge' ), progressPending )
-									: isPhase1Complete
+								{ progressState === 'completed'
 									? __( 'All progress synced', 'simple-lms-bridge' )
-									: __( 'Waiting for Phase 1', 'simple-lms-bridge' ) }
+									: progressState === 'locked'
+									? __( 'Waiting for Phase 1', 'simple-lms-bridge' )
+									: sprintf( __( '%d users remaining', 'simple-lms-bridge' ), progressPending ) }
 							</span>
-							<span className={isPhase2Complete ? 'text-green-600' : 'text-blue-600'}>{ Math.round( progressProgress ) }%</span>
+							<span className={progressState === 'completed' ? 'text-green-600' : 'text-blue-600'}>{ Math.round( progressProgress ) }%</span>
 						</div>
 						<ProgressBar value={ progressProgress } className="h-2.5 rounded-full" />
 					</div>
 
-					{ progressPending > 0 && (
+					{ progressState !== 'completed' && (
 						<div className="mt-4 ml-11">
 							<Button
 								variant="primary"
-								isBusy={ migrating && phase === 2 }
-								disabled={ migrating || ! isPhase1Complete }
+								isBusy={ progressState === 'running' }
+								disabled={ progressState === 'locked' || progressState === 'running' }
 								onClick={ () => runMigration( 'progress' ) }
 								className={ `${
-									! isPhase1Complete
+									progressState === 'locked'
 										? 'bg-gray-300 text-gray-500 cursor-not-allowed'
 										: 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
 								} font-medium px-6 py-2 rounded-md transition-colors` }
 							>
-								{ ! isPhase1Complete
-									? __( 'Locked', 'simple-lms-bridge' )
-									: migrating && phase === 2
+								{ progressState === 'locked'
+									? __( 'Waiting for Phase 1…', 'simple-lms-bridge' )
+									: progressState === 'running'
 									? __( 'Syncing Data…', 'simple-lms-bridge' )
 									: __( 'Start Progress Migration', 'simple-lms-bridge' ) }
 							</Button>
@@ -305,7 +372,7 @@ const MigrationTool = () => {
 				{ /* Phase 3 */ }
 				<div
 					className={ `bg-white border ${
-						isPhase2Complete
+						progressState === 'completed'
 							? 'border-gray-200'
 							: 'border-gray-200 opacity-60'
 					} shadow-sm rounded-lg p-6 transition-all duration-200` }
@@ -313,7 +380,7 @@ const MigrationTool = () => {
 					<div className="flex flex-col sm:flex-row justify-between items-start mb-5">
 						<div className="mb-4 sm:mb-0">
 							<h2 className="text-xl font-bold text-gray-900 flex items-center gap-3">
-								<span className={`${isPhase2Complete ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-500'} rounded-full h-8 w-8 flex items-center justify-center text-sm`}>3</span>
+								<span className={`${progressState === 'completed' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-500'} rounded-full h-8 w-8 flex items-center justify-center text-sm`}>3</span>
 								{ __( 'Historical Certificate Sync', 'simple-lms-bridge' ) }
 							</h2>
 							<p className="text-gray-500 text-sm mt-2 ml-11">
@@ -325,13 +392,19 @@ const MigrationTool = () => {
 						</div>
 						<span
 							className={ `px-3 py-1 rounded-full text-xs font-semibold ${
-								historyPending === 0 && isPhase2Complete
+								historyState === 'completed'
 									? 'bg-green-100 text-green-800'
-									: 'bg-gray-100 text-gray-700'
+									: historyState === 'locked'
+									? 'bg-gray-100 text-gray-700'
+									: 'bg-yellow-100 text-yellow-800'
 							}` }
 						>
-							{ historyPending === 0 && isPhase2Complete
+							{ historyState === 'completed'
 								? __( 'Completed', 'simple-lms-bridge' )
+								: historyState === 'locked'
+								? __( 'Locked', 'simple-lms-bridge' )
+								: historyState === 'running'
+								? __( 'Running', 'simple-lms-bridge' )
 								: __( 'Pending', 'simple-lms-bridge' ) }
 						</span>
 					</div>
@@ -339,33 +412,33 @@ const MigrationTool = () => {
 					<div className="mb-5 ml-11">
 						<div className="flex justify-between text-sm font-medium text-gray-600 mb-2">
 							<span>
-								{ historyPending > 0
-									? sprintf( __( '%d users remaining', 'simple-lms-bridge' ), historyPending )
-									: isPhase2Complete
+								{ historyState === 'completed'
 									? __( 'All histories synced', 'simple-lms-bridge' )
-									: __( 'Waiting for Phase 2', 'simple-lms-bridge' ) }
+									: historyState === 'locked'
+									? __( 'Waiting for Phase 2', 'simple-lms-bridge' )
+									: sprintf( __( '%d users remaining', 'simple-lms-bridge' ), historyPending ) }
 							</span>
-							<span className={historyPending === 0 && isPhase2Complete ? 'text-green-600' : 'text-blue-600'}>{ Math.round( historyProgress ) }%</span>
+							<span className={historyState === 'completed' ? 'text-green-600' : 'text-blue-600'}>{ Math.round( historyProgress ) }%</span>
 						</div>
 						<ProgressBar value={ historyProgress } className="h-2.5 rounded-full" />
 					</div>
 
-					{ historyPending > 0 && (
+					{ historyState !== 'completed' && (
 						<div className="mt-4 ml-11">
 							<Button
 								variant="primary"
-								isBusy={ migrating && phase === 3 }
-								disabled={ migrating || ! isPhase2Complete }
+								isBusy={ historyState === 'running' }
+								disabled={ historyState === 'locked' || historyState === 'running' }
 								onClick={ () => runMigration( 'history' ) }
 								className={ `${
-									! isPhase2Complete
+									historyState === 'locked'
 										? 'bg-gray-300 text-gray-500 cursor-not-allowed'
 										: 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
 								} font-medium px-6 py-2 rounded-md transition-colors` }
 							>
-								{ ! isPhase2Complete
-									? __( 'Locked', 'simple-lms-bridge' )
-									: migrating && phase === 3
+								{ historyState === 'locked'
+									? __( 'Waiting for Phase 2…', 'simple-lms-bridge' )
+									: historyState === 'running'
 									? __( 'Querying API…', 'simple-lms-bridge' )
 									: __( 'Start Certificate Sync', 'simple-lms-bridge' ) }
 							</Button>
@@ -378,3 +451,4 @@ const MigrationTool = () => {
 };
 
 export default MigrationTool;
+

@@ -36,6 +36,7 @@ require_once SLMS_PLUGIN_DIR . 'includes/class-certificates.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-migration.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-user-meta.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-relationships.php';
+require_once SLMS_PLUGIN_DIR . 'includes/class-course-history.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-account-dashboard.php';
 
 
@@ -82,9 +83,9 @@ function slms_admin_menu()
         'manage_options',
         'simple-lms',
         function () {
-            // Dashboard or overview could go here. For now, redirect to courses.
-            echo '<div class="wrap"><h1>' . esc_html__('SimpleLMS Overview', 'simple-lms-bridge') . '</h1><p>' . esc_html__('Welcome to SimpleLMS. Use the side menu to manage your courses, lessons, and students.', 'simple-lms-bridge') . '</p></div>';
-        },
+        // Dashboard or overview could go here. For now, redirect to courses.
+        echo '<div class="wrap"><h1>' . esc_html__('SimpleLMS Overview', 'simple-lms-bridge') . '</h1><p>' . esc_html__('Welcome to SimpleLMS. Use the side menu to manage your courses, lessons, and students.', 'simple-lms-bridge') . '</p></div>';
+    },
         'dashicons-welcome-learn-more',
         6
     );
@@ -105,8 +106,8 @@ function slms_admin_menu()
         'manage_options',
         'slms-migration',
         function () {
-            echo '<div class="wrap slms-admin-wrap tw-preflight"><div id="slms-admin-root"></div></div>';
-        }
+        echo '<div class="wrap slms-admin-wrap tw-preflight"><div id="slms-admin-root"></div></div>';
+    }
     );
 }
 
@@ -121,6 +122,7 @@ function slms_activate()
 {
     CPT::register_post_types();
     Relationships::create_table();
+    CourseHistory::create_table();
     flush_rewrite_rules();
 }
 register_activation_hook(__FILE__, __NAMESPACE__ . '\\slms_activate');
@@ -171,8 +173,14 @@ function slms_enqueue_admin_assets($hook_suffix)
     $asset = require $asset_file;
 
     if ($is_slms_page) {
-        // Temporary fallback to Tailwind CDN
-        echo '<script src="https://unpkg.com/@tailwindcss/browser@4"></script>';
+        // Emergency Tailwind CDN — local build is failing
+        wp_enqueue_script(
+            'tailwind-cdn',
+            'https://cdn.tailwindcss.com',
+            array(),
+            null,
+            false
+        );
     }
 
     wp_enqueue_script(
