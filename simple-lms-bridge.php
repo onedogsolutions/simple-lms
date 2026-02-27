@@ -36,7 +36,6 @@ require_once SLMS_PLUGIN_DIR . 'includes/class-certificates.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-migration.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-user-meta.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-relationships.php';
-require_once SLMS_PLUGIN_DIR . 'includes/class-course-history.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-account-dashboard.php';
 
 
@@ -83,9 +82,9 @@ function slms_admin_menu()
         'manage_options',
         'simple-lms',
         function () {
-        // Dashboard or overview could go here. For now, redirect to courses.
-        echo '<div class="wrap"><h1>' . esc_html__('SimpleLMS Overview', 'simple-lms-bridge') . '</h1><p>' . esc_html__('Welcome to SimpleLMS. Use the side menu to manage your courses, lessons, and students.', 'simple-lms-bridge') . '</p></div>';
-    },
+            // Dashboard or overview could go here. For now, redirect to courses.
+            echo '<div class="wrap"><h1>' . esc_html__('SimpleLMS Overview', 'simple-lms-bridge') . '</h1><p>' . esc_html__('Welcome to SimpleLMS. Use the side menu to manage your courses, lessons, and students.', 'simple-lms-bridge') . '</p></div>';
+        },
         'dashicons-welcome-learn-more',
         6
     );
@@ -106,8 +105,19 @@ function slms_admin_menu()
         'manage_options',
         'slms-migration',
         function () {
-        echo '<div class="wrap slms-admin-wrap"><div id="slms-admin-root" class="bg-white rounded-xl shadow-md p-8 border border-gray-200"></div></div>';
-    }
+            echo '<div class="wrap slms-admin-wrap tw-preflight"><div id="slms-admin-root"></div></div>';
+        }
+    );
+
+    add_submenu_page(
+        'simple-lms',
+        __('Debug Log', 'simple-lms-bridge'),
+        __('Debug Log', 'simple-lms-bridge'),
+        'manage_options',
+        'slms-debug-log',
+        function () {
+            echo '<div class="wrap slms-admin-wrap tw-preflight"><div id="slms-admin-root"></div></div>';
+        }
     );
 }
 
@@ -122,7 +132,6 @@ function slms_activate()
 {
     CPT::register_post_types();
     Relationships::create_table();
-    CourseHistory::create_table();
     flush_rewrite_rules();
 }
 register_activation_hook(__FILE__, __NAMESPACE__ . '\\slms_activate');
@@ -158,7 +167,7 @@ function slms_enqueue_admin_assets($hook_suffix)
 
     // Load on our CPT edit screens and the Student Manager / Migration Tool pages.
     $is_lms_cpt = in_array($screen->post_type, array('slms_course', 'slms_lesson'), true);
-    $is_slms_page = (strpos($screen->id, 'slms-students') !== false || strpos($screen->id, 'slms-migration') !== false || strpos($screen->id, 'simple-lms') !== false);
+    $is_slms_page = (strpos($screen->id, 'slms-students') !== false || strpos($screen->id, 'slms-migration') !== false || strpos($screen->id, 'slms-debug-log') !== false || strpos($screen->id, 'simple-lms') !== false);
 
     if (!$is_lms_cpt && !$is_slms_page) {
         return;
@@ -173,13 +182,20 @@ function slms_enqueue_admin_assets($hook_suffix)
     $asset = require $asset_file;
 
     if ($is_slms_page) {
-        // Emergency Tailwind CDN — local build is failing
+        // Tailwind CDN fallback — ensures admin UI renders even if local build is stale.
         wp_enqueue_script(
-            'tailwind-cdn',
+            'slms-tailwind-cdn',
             'https://cdn.tailwindcss.com',
             array(),
             null,
             false
+        );
+
+        wp_enqueue_style(
+            'slms-tailwind',
+            SLMS_PLUGIN_URL . 'build/admin/tailwind.css',
+            array(),
+            $asset['version']
         );
     }
 

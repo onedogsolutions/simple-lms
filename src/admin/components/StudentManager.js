@@ -6,7 +6,7 @@
  * @package
  */
 
-import { useState, useEffect, useCallback, Fragment } from '@wordpress/element';
+import { useState, useEffect, useCallback, useRef, Fragment } from '@wordpress/element';
 import {
 	SearchControl,
 	Button,
@@ -50,7 +50,7 @@ const HistoryTab = ( { userId } ) => {
 	if ( history.length === 0 ) {
 		return (
 			<p className="text-gray-500 italic mt-4 p-6 bg-gray-50 rounded-xl border border-gray-200">
-				{ __( 'No historical certificate records found.', 'simple-lms-bridge' ) }
+				{ __( 'No completion history records found.', 'simple-lms-bridge' ) }
 			</p>
 		);
 	}
@@ -58,7 +58,7 @@ const HistoryTab = ( { userId } ) => {
 	return (
 		<div className="space-y-4 mt-4 bg-gray-50 p-6 rounded-xl border border-gray-200 shadow-sm">
 			<h4 className="font-semibold text-lg text-gray-800 border-b border-gray-200 pb-2 mb-4">
-				{ __( 'Historical Certificates (Gravity Forms)', 'simple-lms-bridge' ) }
+				{ __( 'Completion History', 'simple-lms-bridge' ) }
 			</h4>
 			<div className="overflow-x-auto">
 				<table className="min-w-full divide-y divide-gray-200 bg-white rounded-lg shadow-sm border border-gray-200">
@@ -68,10 +68,7 @@ const HistoryTab = ( { userId } ) => {
 								{ __( 'Date', 'simple-lms-bridge' ) }
 							</th>
 							<th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-								{ __( 'Course Name', 'simple-lms-bridge' ) }
-							</th>
-							<th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-								{ __( 'Form', 'simple-lms-bridge' ) }
+								{ __( 'Class', 'simple-lms-bridge' ) }
 							</th>
 						</tr>
 					</thead>
@@ -83,9 +80,6 @@ const HistoryTab = ( { userId } ) => {
 								</td>
 								<td className="px-4 py-3 text-sm text-gray-900 font-medium">
 									{ entry.course_name }
-								</td>
-								<td className="px-4 py-3 text-sm text-gray-500">
-									{ entry.form_title }
 								</td>
 							</tr>
 						) ) }
@@ -262,17 +256,25 @@ const StudentManager = () => {
 		}
 	};
 
+	// Track when search triggers a fetch so page-change effect can skip redundant call.
+	const searchTriggeredFetch = useRef( false );
+
 	// Search with debounce.
 	useEffect( () => {
 		const timeout = setTimeout( () => {
+			searchTriggeredFetch.current = true;
 			setPage( 1 );
 			fetchStudents( search, 1 );
 		}, 400 );
 		return () => clearTimeout( timeout );
 	}, [ search, fetchStudents ] );
 
-	// Page change.
+	// Page change — skip if search already triggered the fetch.
 	useEffect( () => {
+		if ( searchTriggeredFetch.current ) {
+			searchTriggeredFetch.current = false;
+			return;
+		}
 		fetchStudents( search, page );
 	}, [ page, search, fetchStudents ] );
 
@@ -513,10 +515,10 @@ const StudentManager = () => {
 							</strong>
 						</p>
 						<ProgressBar
-							value={
-								migrationStatus.total - migrationStatus.pending
-							}
-							max={ migrationStatus.total }
+							value={ Math.min(
+								Math.round( ( ( migrationStatus.total - migrationStatus.pending ) / Math.max( migrationStatus.total, 1 ) ) * 100 ),
+								100
+							) }
 						/>
 					</div>
 				</Notice>
@@ -793,7 +795,7 @@ const StudentManager = () => {
 															{
 																name: 'history',
 																title: __(
-																	'Historical Data',
+																	'Completion History',
 																	'simple-lms-bridge'
 																),
 																className:
