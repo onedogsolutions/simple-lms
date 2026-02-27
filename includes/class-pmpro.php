@@ -343,7 +343,7 @@ class PMPro
     }
 
     /**
-     * De-enroll a user from a course (remove progress).
+     * De-enroll a user from a course (remove progress and PMPro level).
      *
      * @param int $user_id   User ID.
      * @param int $course_id Course post ID.
@@ -366,6 +366,19 @@ class PMPro
         if (is_array($enrolled) && isset($enrolled[$course_id])) {
             unset($enrolled[$course_id]);
             update_user_meta($user_id, '_lms_enrolled_at', $enrolled);
+        }
+
+        // 4. Remove PMPro membership level(s) mapped to this course.
+        if (function_exists('pmpro_changeMembershipLevel') && function_exists('pmpro_getMembershipLevelForUser')) {
+            $required_levels = get_post_meta($course_id, '_lms_pmpro_levels', true);
+            if (is_array($required_levels)) {
+                $current_level = pmpro_getMembershipLevelForUser($user_id);
+                $current_level_id = $current_level ? (int) $current_level->id : 0;
+
+                if ($current_level_id && in_array($current_level_id, array_map('intval', $required_levels), true)) {
+                    pmpro_changeMembershipLevel(0, $user_id);
+                }
+            }
         }
     }
 }

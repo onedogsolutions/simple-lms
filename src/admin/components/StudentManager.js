@@ -6,7 +6,7 @@
  * @package
  */
 
-import { useState, useEffect, useCallback, Fragment } from '@wordpress/element';
+import { useState, useEffect, useCallback, useRef, Fragment } from '@wordpress/element';
 import {
 	SearchControl,
 	Button,
@@ -256,17 +256,25 @@ const StudentManager = () => {
 		}
 	};
 
+	// Track when search triggers a fetch so page-change effect can skip redundant call.
+	const searchTriggeredFetch = useRef( false );
+
 	// Search with debounce.
 	useEffect( () => {
 		const timeout = setTimeout( () => {
+			searchTriggeredFetch.current = true;
 			setPage( 1 );
 			fetchStudents( search, 1 );
 		}, 400 );
 		return () => clearTimeout( timeout );
 	}, [ search, fetchStudents ] );
 
-	// Page change.
+	// Page change — skip if search already triggered the fetch.
 	useEffect( () => {
+		if ( searchTriggeredFetch.current ) {
+			searchTriggeredFetch.current = false;
+			return;
+		}
 		fetchStudents( search, page );
 	}, [ page, search, fetchStudents ] );
 
@@ -787,7 +795,7 @@ const StudentManager = () => {
 															{
 																name: 'history',
 																title: __(
-																	'Historical Data',
+																	'Completion History',
 																	'simple-lms-bridge'
 																),
 																className:

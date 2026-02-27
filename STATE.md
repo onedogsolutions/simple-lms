@@ -4,9 +4,9 @@
 
 This document maintains continuity for the Simple LMS Bridge project (rebranded to One Dog Solutions). It tracks current progress, architecture decisions, and remaining tasks.
 
-## Current Status: [ACTIVE DEVELOPMENT]
+## Current Status: [ACTIVE DEVELOPMENT — POST-QA FIXES]
 
-The project has recently undergone a major refactor and has been moved to a private GitHub repository. Core features are in place with additional features still planned before a 1.0 release. Recent work focused on fixing student progress migration, adding a debug log viewer, resolving Tailwind CSS loading issues, and cleaning up the UI.
+The project has been moved to a private GitHub repository. Core features are in place. A full QA pass (Feb 2026) fixed six static bugs. A subsequent migration QA (Feb 2026) identified and fixed two runtime bugs: progress was being duplicated across all M2M-linked courses, and the Student Manager only displayed users with existing progress data. Phase 4 (PMPro Membership Migration) has been implemented.
 
 ## Accomplishments (Recent)
 
@@ -17,7 +17,7 @@ The project has recently undergone a major refactor and has been moved to a priv
   - Implemented proper Namespacing.
   - Fixed PHP linting/syntax errors.
 - **Feature Implementation:**
-  - Added Course Access time limits (`_slms_course_access_days`).
+  - Added Course Access time limits (`_lms_access_days`).
   - Implemented automatic access removal upon certificate generation.
   - Integrated Paid Memberships Pro (PMPro) for course enrollment.
   - **M2M Overhaul:** Replaced direct meta linking with Many-to-Many join tables (`slms_course_lesson`, `slms_user_course`) for courses, lessons, and student enrollments.
@@ -63,6 +63,27 @@ The project has recently undergone a major refactor and has been moved to a priv
   - Initialized Git repository.
   - Created private GitHub repository: `git@github.com:onedogsolutions/simple-lms.git`.
   - Configured SSH authentication.
+- **QA Pass (Feb 2026):**
+  - Fixed missing `<table class="form-table">` opening tag in `class-user-meta.php` that produced broken HTML on the WP user profile page.
+  - Fixed incorrect `GFAPI::get_entries()` call in `class-certificates.php` — was passing only `field_filters` sub-array instead of the full `$search_criteria` object, causing the dedup check to always return empty and create duplicate GF entries.
+  - Fixed undefined `$settings->tab_border_color` in `slms-student-dashboard/includes/frontend.css.php` — registered the missing field in the BB module settings, eliminating a PHP notice and invalid CSS output.
+  - Fixed Student Manager "Historical Data" tab label — renamed to "Completion History" to match the documented UI and the `HistoryTab` heading already in place.
+  - Fixed double API fetch in `StudentManager.js` — added a `useRef` flag so the page-change effect skips a redundant second fetch when a search also resets the page.
+  - Removed dead `MetaBoxes::register_admin_pages()` method — was never called; the submenu is correctly registered in `simple-lms-bridge.php`.
+- **Migration & Student Manager Fixes (Feb 2026):**
+  - Fixed `class-migration.php` Phase 2 `process_legacy_lesson_progress()` — was assigning progress to ALL M2M-linked courses sharing a lesson. Now resolves the original course via the legacy lesson's `post_parent` → `_legacy_id` lookup, only assigning to the single correct course. Falls back to first linked course if legacy parent is unavailable.
+  - Fixed `class-rest.php` `GET /students` endpoint — was filtering by `_lms_progress` meta EXISTS, hiding users without progress data. Removed the meta filter so all WordPress users appear in the Student Manager. Course data now sourced from enrollment table (`Relationships::get_courses_for_user()`) with progress data overlaid from `_lms_progress` meta.
+- **Phase 4: PMPro Membership Migration (Feb 2026):**
+  - New `migrate_pmpro_batch()` in `class-migration.php` migrates GF Form ID 2 registration entries into PMPro membership levels.
+  - Maps product fields (IDs: 21, 22, 44, 23, 30, 24, 25, 26, 27, 34, 43) to PMPro levels — auto-creates missing levels via direct DB insert into `pmpro_membership_levels`.
+  - Enrolls users via `pmpro_changeMembershipLevel()` with 90-day `enddate` calculated from the original GF entry date.
+  - Tracks migration via GF entry meta `_slms_pmpro_migrated` for batch deduplication.
+  - New REST endpoint `POST /migration/pmpro` and updated status endpoint to include `pmpro.pending` count.
+  - Full Phase 4 UI panel in `MigrationTool.js` with progress tracking, log integration, and sequential gating (requires Phase 3).
+- **Certificate De-access Hook (Feb 2026):**
+  - `PMPro::de_enroll_user()` now also removes the user's PMPro membership level via `pmpro_changeMembershipLevel(0, $user_id)` when the course's mapped `_lms_pmpro_levels` includes the user's current level. Triggered automatically when a certificate is generated.
+- **Tailwind CDN Fallback (Feb 2026):**
+  - Added `wp_enqueue_script('slms-tailwind-cdn', 'https://cdn.tailwindcss.com')` to admin enqueue function as a fallback to ensure Tailwind utility classes render even when the local build is stale or broken.
 
 ## Technical Details
 
@@ -70,7 +91,7 @@ The project has recently undergone a major refactor and has been moved to a priv
 - **Tailwind CSS:** Fully integrated into local node build pipeline (`build:css`). Compiled `.css` loaded on specific plugin pages (`slms-students`, `slms-migration`, `slms-debug-log`).
 - **Join Tables:** `wp_slms_course_lesson` (M2M lessons), `wp_slms_user_course` (Enrollments), `wp_slms_course_history` (9-year compliance records).
 - **PMPro Sync:** Membership level changes automatically trigger enrollment via `pmpro_after_change_membership_level`.
-- **Plugin Meta Key for Access:** `_slms_course_access_days`
+- **Plugin Meta Key for Access:** `_lms_access_days`
 - **Remote Repository:** `git@github.com:onedogsolutions/simple-lms.git`
 - **Main Branch:** `main`
 - **Debug Log Path:** `wp-content/uploads/slms-logs/migration.log`
@@ -95,7 +116,11 @@ The project has recently undergone a major refactor and has been moved to a priv
 - [x] **Debug Log Admin Page:** Full React log viewer with filters, stats, clear, and refresh.
 - [x] **Build Order Fix:** Reversed build:js/build:css order to prevent wp-scripts from wiping tailwind.css.
 - [x] **UI Cleanup:** Removed Gravity Forms references from student-facing views, renamed columns.
-- [ ] **QA & Testing:** Conduct thorough end-to-end testing of the enrollment, expiration, and migration flows.
+- [x] **QA & Testing:** Conducted full static QA pass (Feb 2026). Six bugs identified and fixed across PHP classes, Beaver Builder module, and React admin components.
+- [x] **M2M Progress Scoping:** Migration Phase 2 now resolves legacy parent course to assign progress to the correct single course, preventing duplication across shared lessons.
+- [x] **Student Manager All-Users:** Removed `_lms_progress` meta filter from `/students` REST endpoint; all WordPress users now appear. Course data sourced from enrollment table.
+- [x] **Phase 4 PMPro Migration:** Full Gravity Forms → PMPro membership migration with auto-level creation, 90-day access, and certificate de-access hook.
+- [ ] **Re-run Migration:** After deploying these fixes, run Phase 2 migration again with fresh `_lms_progress` data (clear existing progress first) to get properly scoped results.
 
 ## Migration Diagnostic Logging
 
@@ -106,6 +131,7 @@ Comprehensive logging in `class-migration.php` and `MigrationTool.js` to debug s
 - **Phase 1 (CPT)**: Logs legacy course discovery, import/dedup results, lesson linking counts.
 - **Phase 2 (Student Progress)**: Logs per-user processing with email labels, WPComplete data format detection (serialized vs JSON), multi-step lesson lookup (by `_legacy_id`, direct ID, title), course linkage with fallback search via `_simple_lms_order`, auto-enrollment actions, and a final summary with skip-reason stats.
 - **Phase 3 (History)**: Logs entry counts per user, certificate form discovery, dedup stats.
+- **Phase 4 (PMPro)**: Logs GF entry processing, product field extraction, level creation/matching, PMPro enrollment results with enddate.
 - All REST migration responses include a `log` array and Phase 2 includes a `stats` object.
 
 ### React Frontend

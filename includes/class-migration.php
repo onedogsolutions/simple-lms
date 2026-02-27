@@ -740,7 +740,261 @@ class Migration
     }
 
     /**
-     * Phase 4: Legacy Cleanup.
+     * Phase 4: PMPro Membership Migration.
+     *
+     * Migrates historical access data from Gravity Forms Registration (Form ID 2)
+     * into PMPro membership levels. Creates missing levels, enrolls users with
+     * 90-day access windows from the original GF entry date.
+     *
+     * GF Form ID 2 product field IDs: 21, 22, 44, 23, 30, 24, 25, 26, 27, 34, 43
+     *
+     * @param int $limit Max entries to migrate in this batch.
+     * @return array Result summary.
+     */
+    public static function migrate_pmpro_batch($limit = 10)
+    {
+        $limit = absint($limit);
+        self::log('Phase 4: Starting PMPro membership migration (limit=' . $limit . ').');
+        $start_time = microtime(true);
+
+        if (!class_exists('GFAPI')) {
+            self::log('GFAPI class not available — cannot run Phase 4.', 'error');
+            return array(
+                'processed' => 0,
+                'pending'   => 0,
+                'total'     => 0,
+                'duration'  => 0,
+                'success'   => false,
+                'log'       => self::flush_log(),
+            );
+        }
+
+        if (!function_exists('pmpro_changeMembershipLevel')) {
+            self::log('PMPro not active — cannot run Phase 4.', 'error');
+            return array(
+                'processed' => 0,
+                'pending'   => 0,
+                'total'     => 0,
+                'duration'  => 0,
+                'success'   => false,
+                'log'       => self::flush_log(),
+            );
+        }
+
+        $gf_form_id = 2;
+        $product_field_ids = array(21, 22, 44, 23, 30, 24, 25, 26, 27, 34, 43);
+
+        // Get entries from Form ID 2 that haven't been migrated yet.
+        // We track migration via a GF entry meta key '_slms_pmpro_migrated'.
+        $search_criteria = array(
+            'status' => 'active',
+        );
+        $sorting = array('key' => 'id', 'direction' => 'ASC');
+        $paging = array('offset' => 0, 'page_size' => $limit);
+
+        $entries = \GFAPI::get_entries($gf_form_id, $search_criteria, $sorting, $paging);
+
+        if (!is_array($entries)) {
+            self::log('No entries found in GF Form ID ' . $gf_form_id . '.', 'warn');
+            return array(
+                'processed' => 0,
+                'pending'   => 0,
+                'total'     => 0,
+                'duration'  => 0,
+                'success'   => true,
+                'log'       => self::flush_log(),
+            );
+        }
+
+        // Filter to only unmigrated entries.
+        $unmigrated = array();
+        foreach ($entries as $entry) {
+            $migrated = gform_get_meta($entry['id'], '_slms_pmpro_migrated');
+            if (!$migrated) {
+                $unmigrated[] = $entry;
+            }
+        }
+
+        self::log('Found ' . count($unmigrated) . ' unmigrated entries (of ' . count($entries) . ' fetched).');
+
+        // Build a level name cache from existing PMPro levels.
+        $level_cache = array();
+        if (function_exists('pmpro_getAllLevels')) {
+            $all_levels = pmpro_getAllLevels(false, true);
+            foreach ($all_levels as $level) {
+                $level_cache[strtolower(trim($level->name))] = (int) $level->id;
+            }
+        }
+
+        $count = 0;
+        $enrolled = 0;
+        $levels_created = 0;
+
+        foreach ($unmigrated as $entry) {
+            $entry_id = absint($entry['id']);
+            $user_id = !empty($entry['created_by']) ? (int) $entry['created_by'] : 0;
+            $entry_date = $entry['date_created'] ?? '';
+
+            // Resolve user by email if created_by is missing.
+            if (!$user_id) {
+                // Search common email fields in the entry.
+                foreach ($entry as $fkey => $fval) {
+                    if (is_string($fval) && is_email($fval)) {
+                        $wp_user = get_user_by('email', $fval);
+                        if ($wp_user) {
+                            $user_id = $wp_user->ID;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (!$user_id) {
+                self::log('Entry #' . $entry_id . ': no user found, skipping.', 'warn');
+                gform_update_meta($entry_id, '_slms_pmpro_migrated', time());
+                $count++;
+                continue;
+            }
+
+            $user = get_userdata($user_id);
+            $user_label = $user ? $user->user_email : 'UID:' . $user_id;
+
+            // Extract product names from the product field IDs.
+            $products = array();
+            foreach ($product_field_ids as $field_id) {
+                $value = rgar($entry, (string) $field_id);
+                if (!empty($value)) {
+                    // GF product fields may contain "Product Name|Price" format.
+                    $product_name = $value;
+                    if (strpos($value, '|') !== false) {
+                        $parts = explode('|', $value);
+                        $product_name = trim($parts[0]);
+                    }
+                    if (!empty($product_name)) {
+                        $products[] = $product_name;
+                    }
+                }
+            }
+
+            if (empty($products)) {
+                self::log('Entry #' . $entry_id . ' (' . $user_label . '): no product fields found, skipping.', 'debug');
+                gform_update_meta($entry_id, '_slms_pmpro_migrated', time());
+                $count++;
+                continue;
+            }
+
+            self::log('Entry #' . $entry_id . ' (' . $user_label . '): found ' . count($products) . ' product(s): ' . implode(', ', $products) . '.');
+
+            // For each product, find or create a PMPro level and enroll the user.
+            foreach ($products as $product_name) {
+                $level_key = strtolower(trim($product_name));
+                $level_id = isset($level_cache[$level_key]) ? $level_cache[$level_key] : 0;
+
+                // Create the level if it doesn't exist.
+                if (!$level_id && function_exists('pmpro_insert_or_replace')) {
+                    $new_level = array(
+                        'name'              => sanitize_text_field($product_name),
+                        'description'       => 'Auto-created from GF Form #' . $gf_form_id . ' migration.',
+                        'allow_signups'     => 0,
+                        'expiration_number'  => 90,
+                        'expiration_period'  => 'Day',
+                    );
+
+                    global $wpdb;
+                    $pmpro_table = $wpdb->prefix . 'pmpro_membership_levels';
+
+                    // Check table exists before inserting.
+                    if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $pmpro_table)) === $pmpro_table) {
+                        $wpdb->insert(
+                            $pmpro_table,
+                            array(
+                                'name'               => sanitize_text_field($product_name),
+                                'description'        => 'Auto-created from GF migration.',
+                                'allow_signups'      => 0,
+                                'expiration_number'  => 90,
+                                'expiration_period'  => 'Day',
+                            ),
+                            array('%s', '%s', '%d', '%d', '%s')
+                        );
+                        $level_id = (int) $wpdb->insert_id;
+
+                        if ($level_id) {
+                            $level_cache[$level_key] = $level_id;
+                            $levels_created++;
+                            self::log('Created PMPro level "' . $product_name . '" (ID: ' . $level_id . ').');
+                        } else {
+                            self::log('Failed to create PMPro level "' . $product_name . '".', 'error');
+                            continue;
+                        }
+                    } else {
+                        self::log('PMPro membership_levels table not found, cannot create level.', 'error');
+                        continue;
+                    }
+                } elseif (!$level_id) {
+                    self::log('Cannot create PMPro level "' . $product_name . '" — pmpro_insert_or_replace not available.', 'warn');
+                    continue;
+                }
+
+                // Calculate 90-day enddate from the GF entry date.
+                $enddate = '';
+                if (!empty($entry_date)) {
+                    $entry_timestamp = strtotime($entry_date);
+                    if ($entry_timestamp) {
+                        $enddate = gmdate('Y-m-d H:i:s', $entry_timestamp + (90 * DAY_IN_SECONDS));
+                    }
+                }
+
+                // Enroll the user via pmpro_changeMembershipLevel.
+                $level_params = array(
+                    'user_id'  => $user_id,
+                    'membership_id' => $level_id,
+                    'enddate'  => $enddate,
+                );
+
+                $result = pmpro_changeMembershipLevel($level_params, $user_id);
+
+                if ($result) {
+                    self::log($user_label . ': enrolled in PMPro level ' . $level_id . ' ("' . $product_name . '") enddate=' . $enddate . '.', 'debug');
+                    $enrolled++;
+
+                    // Also enroll in SimpleLMS courses mapped to this level.
+                    if (class_exists(__NAMESPACE__ . '\\PMPro')) {
+                        $course_ids = PMPro::get_courses_for_level($level_id);
+                        foreach ($course_ids as $course_id) {
+                            Relationships::enroll_user($user_id, $course_id, 'pmpro_migration');
+                        }
+                    }
+                } else {
+                    self::log($user_label . ': pmpro_changeMembershipLevel failed for level ' . $level_id . '.', 'error');
+                }
+            }
+
+            gform_update_meta($entry_id, '_slms_pmpro_migrated', time());
+            $count++;
+        }
+
+        $duration = round(microtime(true) - $start_time, 2);
+        self::log(sprintf(
+            'Phase 4 complete: entries=%d, enrolled=%d, levels_created=%d, duration=%ss.',
+            $count, $enrolled, $levels_created, $duration
+        ));
+
+        $pending = self::get_pending_pmpro_count();
+
+        return array(
+            'processed'      => $count,
+            'pending'        => $pending,
+            'total'          => $count + $pending,
+            'enrolled'       => $enrolled,
+            'levels_created' => $levels_created,
+            'duration'       => $duration,
+            'success'        => true,
+            'log'            => self::flush_log(),
+        );
+    }
+
+    /**
+     * Phase 5: Legacy Cleanup.
      * Safely removes legacy posts after verification.
      *
      * @return int Number of deleted posts.
@@ -897,6 +1151,42 @@ class Migration
             'meta_compare' => 'NOT EXISTS',
             'fields' => 'ID'
         )));
+    }
+
+    /**
+     * Get count of GF Form ID 2 entries pending PMPro migration.
+     */
+    public static function get_pending_pmpro_count()
+    {
+        if (!class_exists('GFAPI')) {
+            return 0;
+        }
+
+        $gf_form_id = 2;
+        $search_criteria = array('status' => 'active');
+        $total = \GFAPI::count_entries($gf_form_id, $search_criteria);
+
+        if (!$total) {
+            return 0;
+        }
+
+        // Count how many have already been migrated via GF entry meta.
+        global $wpdb;
+        $gf_meta_table = $wpdb->prefix . 'gf_entry_meta';
+
+        if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $gf_meta_table)) !== $gf_meta_table) {
+            return (int) $total;
+        }
+
+        $migrated = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$gf_meta_table} em
+             INNER JOIN {$wpdb->prefix}gf_entry e ON em.entry_id = e.id
+             WHERE em.meta_key = '_slms_pmpro_migrated'
+             AND e.form_id = %d AND e.status = 'active'",
+            $gf_form_id
+        ));
+
+        return max(0, (int) $total - $migrated);
     }
 
     /**

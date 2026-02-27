@@ -192,6 +192,7 @@ class REST
                     'progress' => array('pending' => Migration::get_pending_migration_count()),
                     'content' => array('pending' => Migration::get_pending_content_count()),
                     'history' => array('pending' => Migration::get_pending_history_count()),
+                    'pmpro' => array('pending' => Migration::get_pending_pmpro_count()),
                 ));
             },
             'permission_callback' => function () {
@@ -253,6 +254,24 @@ class REST
             }
         ));
 
+
+        // PMPro Migration endpoint (Phase 4)
+        register_rest_route(self::NAMESPACE , '/migration/pmpro', array(
+            'methods' => 'POST',
+            'callback' => function ($request) {
+                $limit = $request->get_param('limit') ?? 10;
+                return rest_ensure_response(Migration::migrate_pmpro_batch($limit));
+            },
+            'args' => array(
+                'limit' => array(
+                    'sanitize_callback' => 'absint',
+                    'default' => 10,
+                ),
+            ),
+            'permission_callback' => function () {
+                return current_user_can('manage_options');
+            }
+        ));
 
         /* ── Debug Log ──────────────────────────────────────────────── */
 
@@ -543,8 +562,6 @@ class REST
             'paged' => $page,
             'orderby' => 'display_name',
             'order' => 'ASC',
-            'meta_key' => '_lms_progress',
-            'meta_compare' => 'EXISTS',
         );
 
         if (!empty($search)) {
@@ -562,31 +579,37 @@ class REST
             if (!is_array($progress)) {
                 $progress = array();
             }
-            
+
             $course_completion = get_user_meta($user->ID, '_lms_completed_at', true);
             if (!is_array($course_completion)) {
                 $course_completion = array();
             }
 
+            // Source courses from enrollment table, overlay progress data.
+            $enrolled_courses = Relationships::get_courses_for_user($user->ID);
             $courses = array();
-            foreach ($progress as $course_id => $lessons) {
+
+            foreach ($enrolled_courses as $enrollment) {
+                $course_id = (int) $enrollment->id;
                 $course_post = get_post($course_id);
                 if (!$course_post) {
                     continue;
                 }
+
+                $course_progress = isset($progress[$course_id]) ? $progress[$course_id] : array();
 
                 $total_lessons = get_post_meta($course_id, '_simple_lms_order', true);
                 if (!is_array($total_lessons)) {
                     $total_lessons = array();
                 }
                 $total_count = count($total_lessons);
-                $done_count = is_array($lessons) ? count($lessons) : 0;
+                $done_count = is_array($course_progress) ? count($course_progress) : 0;
 
                 $enriched_lessons = array();
                 foreach ($total_lessons as $lesson_id) {
                     $lesson_post = get_post($lesson_id);
-                    $is_completed = isset($lessons[$lesson_id]);
-                    $completed_at = $is_completed ? $lessons[$lesson_id] : null;
+                    $is_completed = isset($course_progress[$lesson_id]);
+                    $completed_at = $is_completed ? $course_progress[$lesson_id] : null;
                     $enriched_lessons[$lesson_id] = array(
                         'title' => $lesson_post ? $lesson_post->post_title : 'Lesson #' . $lesson_id,
                         'completed' => $is_completed,
@@ -595,8 +618,8 @@ class REST
                 }
 
                 // Also include any lessons that are marked completed but might not be in the current _simple_lms_order array.
-                if (is_array($lessons)) {
-                    foreach ($lessons as $lesson_id => $lesson_data) {
+                if (is_array($course_progress)) {
+                    foreach ($course_progress as $lesson_id => $lesson_data) {
                         if (!isset($enriched_lessons[$lesson_id])) {
                             $lesson_post = get_post($lesson_id);
                             $enriched_lessons[$lesson_id] = array(
@@ -609,7 +632,7 @@ class REST
                 }
 
                 $courses[] = array(
-                    'course_id' => (int)$course_id,
+                    'course_id' => $course_id,
                     'course_title' => $course_post->post_title,
                     'total' => $total_count,
                     'completed' => $done_count,
