@@ -84,8 +84,12 @@ class Certificates
     private static function remove_course_access($user_id, $course_id)
     {
         // Use the PMPro class helpers if available since they already handle this logic cleanly.
-        if (class_exists(__NAMESPACE__ . '\\PMPro')) {
+        if (class_exists(__NAMESPACE__ . '\PMPro')) {
             PMPro::de_enroll_user($user_id, $course_id);
+        }
+
+        if (function_exists('\pmpro_changeMembershipLevel')) {
+            \pmpro_changeMembershipLevel(0, $user_id);
         }
         else {
             // Fallback if PMPro class is missing (should not happen in this plugin).
@@ -153,7 +157,7 @@ class Certificates
                     $entry_query = array(
                         'form_id' => $form_id,
                         'field_filters' => array(
-                            array('key' => 'created_by', 'value' => $user_id)
+                                array('key' => 'created_by', 'value' => $user_id)
                         )
                     );
                     $entries = \GFAPI::get_entries($form_id, $entry_query['field_filters']);
@@ -166,6 +170,11 @@ class Certificates
                         );
                         \GFAPI::add_entry($entry);
                     }
+                }
+
+                if (class_exists(__NAMESPACE__ . '\CourseHistory')) {
+                    $course_title = get_the_title($course_id);
+                    CourseHistory::insert($user_id, $course_title, current_time('mysql'));
                 }
 
                 // Revoke access automatically upon completion (if configured or standard behavior).

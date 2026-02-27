@@ -52,7 +52,7 @@ class CourseHistory
             id bigint(20) NOT NULL AUTO_INCREMENT,
             user_id bigint(20) NOT NULL,
             course_name varchar(255) NOT NULL,
-            completed_at datetime NOT NULL,
+            completed_date datetime NOT NULL,
             gf_entry_id bigint(20) DEFAULT NULL,
             cert_data longtext DEFAULT NULL,
             PRIMARY KEY (id),
@@ -96,7 +96,7 @@ class CourseHistory
             array(
             'user_id' => absint($user_id),
             'course_name' => sanitize_text_field($course_name),
-            'completed_at' => current_time('mysql', strtotime($date)),
+            'completed_date' => current_time('mysql', strtotime($date)),
             'gf_entry_id' => $entry_id ? absint($entry_id) : null,
             'cert_data' => !empty($metadata) ? maybe_serialize($metadata) : null,
         ),
@@ -118,7 +118,7 @@ class CourseHistory
         self::init();
 
         return $wpdb->get_results($wpdb->prepare(
-            "SELECT * FROM " . self::$table_name . " WHERE user_id = %d ORDER BY completed_at DESC",
+            "SELECT * FROM " . self::$table_name . " WHERE user_id = %d ORDER BY completed_date DESC",
             $user_id
         ));
     }

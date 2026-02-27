@@ -82,9 +82,9 @@ function slms_admin_menu()
         'manage_options',
         'simple-lms',
         function () {
-            // Dashboard or overview could go here. For now, redirect to courses.
-            echo '<div class="wrap"><h1>' . esc_html__('SimpleLMS Overview', 'simple-lms-bridge') . '</h1><p>' . esc_html__('Welcome to SimpleLMS. Use the side menu to manage your courses, lessons, and students.', 'simple-lms-bridge') . '</p></div>';
-        },
+        // Dashboard or overview could go here. For now, redirect to courses.
+        echo '<div class="wrap"><h1>' . esc_html__('SimpleLMS Overview', 'simple-lms-bridge') . '</h1><p>' . esc_html__('Welcome to SimpleLMS. Use the side menu to manage your courses, lessons, and students.', 'simple-lms-bridge') . '</p></div>';
+    },
         'dashicons-welcome-learn-more',
         6
     );
@@ -105,8 +105,8 @@ function slms_admin_menu()
         'manage_options',
         'slms-migration',
         function () {
-            echo '<div class="wrap slms-admin-wrap tw-preflight"><div id="slms-admin-root"></div></div>';
-        }
+        echo '<div class="wrap slms-admin-wrap tw-preflight"><div id="slms-admin-root"></div></div>';
+    }
     );
 
     add_submenu_page(
@@ -116,8 +116,8 @@ function slms_admin_menu()
         'manage_options',
         'slms-debug-log',
         function () {
-            echo '<div class="wrap slms-admin-wrap tw-preflight"><div id="slms-admin-root"></div></div>';
-        }
+        echo '<div class="wrap slms-admin-wrap tw-preflight"><div id="slms-admin-root"></div></div>';
+    }
     );
 }
 
@@ -132,6 +132,7 @@ function slms_activate()
 {
     CPT::register_post_types();
     Relationships::create_table();
+    CourseHistory::create_table();
     flush_rewrite_rules();
 }
 register_activation_hook(__FILE__, __NAMESPACE__ . '\\slms_activate');

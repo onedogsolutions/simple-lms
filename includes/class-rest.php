@@ -643,17 +643,17 @@ class REST
 
             // Get user meta for profile tab
             $user_meta = array(
-                'billing_address_1' => get_user_meta($user->ID, 'billing_address_1', true),
-                'billing_address_2' => get_user_meta($user->ID, 'billing_address_2', true),
-                'billing_city' => get_user_meta($user->ID, 'billing_city', true),
-                'billing_state' => get_user_meta($user->ID, 'billing_state', true),
-                'billing_postcode' => get_user_meta($user->ID, 'billing_postcode', true),
-                'billing_phone' => get_user_meta($user->ID, 'billing_phone', true),
-                'aalp_member' => get_user_meta($user->ID, 'aalp_member', true),
-                'registration_date' => get_user_meta($user->ID, 'registration_date', true),
-                'license_number' => get_user_meta($user->ID, 'license_number', true),
-                'pro_exam_date' => get_user_meta($user->ID, 'pro_exam_date', true),
-                'pro_exam_status' => get_user_meta($user->ID, 'pro_exam_status', true),
+                'billing_address_1' => get_user_meta($user->ID, 'billing_address_1', true) ?: '',
+                'billing_address_2' => get_user_meta($user->ID, 'billing_address_2', true) ?: '',
+                'billing_city' => get_user_meta($user->ID, 'billing_city', true) ?: '',
+                'billing_state' => get_user_meta($user->ID, 'billing_state', true) ?: '',
+                'billing_postcode' => get_user_meta($user->ID, 'billing_postcode', true) ?: '',
+                'billing_phone' => get_user_meta($user->ID, 'billing_phone', true) ?: '',
+                'aalp_member' => get_user_meta($user->ID, 'aalp_member', true) ?: '',
+                'registration_date' => get_user_meta($user->ID, 'registration_date', true) ?: '',
+                'license_number' => get_user_meta($user->ID, 'license_number', true) ?: '',
+                'pro_exam_date' => get_user_meta($user->ID, 'pro_exam_date', true) ?: '',
+                'pro_exam_status' => get_user_meta($user->ID, 'pro_exam_status', true) ?: '',
             );
 
             $result[] = array(

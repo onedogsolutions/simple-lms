@@ -141,6 +141,8 @@ const MigrationTool = () => {
 
 				pending = res.pending;
 
+				if (res.status === 'complete') break;
+
 				// Use the total returned by the batch response for accurate tracking.
 				if ( res.total && res.total > 0 ) {
 					setTotals( ( prev ) => ( {
@@ -238,7 +240,7 @@ const MigrationTool = () => {
 
 			<div className="space-y-6">
 				{ /* Phase 1 */ }
-				<div className="bg-white border border-gray-200 shadow-sm rounded-lg p-6 transition-all duration-200">
+				<div className="bg-white rounded-xl shadow-lg p-8 border border-gray-100 mb-8 transition-all duration-200">
 					<div className="flex flex-col sm:flex-row justify-between items-start mb-5">
 						<div className="mb-4 sm:mb-0">
 							<h2 className="text-xl font-bold text-gray-900 flex items-center gap-3">
