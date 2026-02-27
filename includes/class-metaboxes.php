@@ -104,9 +104,8 @@ class MetaBoxes
      */
     public static function render_students_page()
     {
-        echo '<div class="wrap slms-admin-wrap tw-preflight">';
-        echo '<h1>' . esc_html__('Student Manager', 'simple-lms-bridge') . '</h1>';
-        echo '<div id="slms-admin-root"></div>';
+        echo '<div class="wrap slms-admin-wrap">';
+        echo '<div id="slms-admin-root" class="bg-white rounded-xl shadow-md p-8 border border-gray-200"></div>';
         echo '</div>';
     }
 }
