@@ -236,6 +236,7 @@ class Migration
         error_log('[SimpleLMS] Phase 2: Found ' . count($user_ids) . ' users to process in this batch.');
 
         $count = 0;
+        $mapped = 0;
 
         foreach ($user_ids as $user_id) {
             $user_id = (int)$user_id;
@@ -246,59 +247,39 @@ class Migration
                 continue;
             }
 
-            error_log('[SimpleLMS] Phase 2: Processing user ID: ' . $user_id);
+            // Load existing progress array (the canonical format used by the entire system)
+            $progress = get_user_meta($user_id, '_lms_progress', true);
+            if (!is_array($progress)) {
+                $progress = array();
+            }
 
-            // Fetch wpcomplete array
+            // ── Collect all legacy completions for this user ──────────────
+            $legacy_completions = array(); // [ legacy_post_id => timestamp ]
+
+            // 1. The main 'wpcomplete' serialized array
             $wpc_data_raw = get_user_meta($user_id, 'wpcomplete', true);
             $wpc_data = maybe_unserialize($wpc_data_raw);
 
-            // Handle potentially stringified JSON
             if (is_string($wpc_data) && strpos(trim($wpc_data ?? ''), '{') === 0) {
                 $wpc_data = json_decode($wpc_data, true);
             }
 
-            $wpc_data = $wpc_data ?? [];
-
             if (is_array($wpc_data) && !empty($wpc_data)) {
                 foreach ($wpc_data as $post_key => $post_data) {
-                    if ($post_key === '0-site' || strpos($post_key, '0-site') !== false)
+                    if ($post_key === '0-site' || strpos($post_key ?? '', '0-site') !== false) {
                         continue;
-
-                    $legacy_lesson_id = self::extract_post_id($post_key);
-                    if (!$legacy_lesson_id)
-                        continue;
-
-                    // Query the new simple lms post
-                    $new_lesson_query = new \WP_Query(array(
-                        'post_type' => array('slms_lesson', 'slms_course'),
-                        'meta_key' => '_legacy_id',
-                        'meta_value' => $legacy_lesson_id,
-                        'posts_per_page' => 1,
-                        'fields' => 'ids',
-                        'no_found_rows' => true,
-                    ));
-
-                    if ($new_lesson_query->have_posts()) {
-                        $new_post_id = $new_lesson_query->posts[0];
-
-                        $timestamp = time();
-                        if (is_array($post_data) && !empty($post_data['completed'])) {
-                            $timestamp = strtotime($post_data['completed']) ?: time();
-                        }
-                        else if (is_string($post_data) && strtotime($post_data)) {
-                            $timestamp = strtotime($post_data);
-                        }
-                        else if (is_numeric($post_data)) {
-                            $timestamp = (int)$post_data;
-                        }
-
-                        // Save using the new schema
-                        update_user_meta($user_id, '_slms_lesson_completed_' . $new_post_id, $timestamp);
                     }
+
+                    $legacy_id = self::extract_post_id($post_key);
+                    if (!$legacy_id) {
+                        continue;
+                    }
+
+                    $legacy_completions[$legacy_id] = self::extract_timestamp($post_data);
                 }
             }
 
-            // Handle non-array wpcomplete_% keys if needed...
+            // 2. Individual wpcomplete_% meta rows
             global $wpdb;
             $wpc_metas = $wpdb->get_results($wpdb->prepare(
                 "SELECT meta_key, meta_value FROM {$wpdb->usermeta} WHERE user_id = %d AND meta_key LIKE 'wpcomplete_%%'",
@@ -306,57 +287,117 @@ class Migration
             ));
 
             foreach ($wpc_metas as $meta) {
-                $key = $meta->meta_key;
+                $key = $meta->meta_key ?? '';
                 if (strpos($key, 'wpcomplete_0-site') !== false) {
                     continue;
                 }
 
-                $legacy_lesson_id = (int)preg_replace('/[^0-9]/', '', str_replace('wpcomplete_', '', $key));
-                if (!$legacy_lesson_id)
+                $legacy_id = (int)preg_replace('/[^0-9]/', '', str_replace('wpcomplete_', '', $key));
+                if (!$legacy_id) {
                     continue;
+                }
 
-                $value = maybe_unserialize($meta->meta_value);
+                $value = maybe_unserialize($meta->meta_value ?? '');
                 if (is_string($value) && strpos(trim($value ?? ''), '{') === 0) {
                     $value = json_decode($value, true);
                 }
 
-                $new_lesson_query = new \WP_Query(array(
+                // Only add if we don't already have this legacy id from the main array
+                if (!isset($legacy_completions[$legacy_id])) {
+                    $legacy_completions[$legacy_id] = self::extract_timestamp($value);
+                }
+            }
+
+            // Skip if user has no actual completion data
+            if (empty($legacy_completions)) {
+                error_log('[SimpleLMS] Phase 2: User ' . $user_id . ' has wpcomplete meta but no parseable completions. Skipping.');
+                update_user_meta($user_id, '_slms_progress_migrated', time());
+                $count++;
+                continue;
+            }
+
+            error_log('[SimpleLMS] Phase 2: Processing user ' . $user_id . ' with ' . count($legacy_completions) . ' legacy completions.');
+
+            // ── Map legacy IDs to new IDs and save into _lms_progress ────
+            foreach ($legacy_completions as $legacy_id => $timestamp) {
+                // Find the new slms_lesson or slms_course that was imported from this legacy post
+                $new_post_query = new \WP_Query(array(
                     'post_type' => array('slms_lesson', 'slms_course'),
                     'meta_key' => '_legacy_id',
-                    'meta_value' => $legacy_lesson_id,
+                    'meta_value' => $legacy_id,
                     'posts_per_page' => 1,
                     'fields' => 'ids',
                     'no_found_rows' => true,
                 ));
 
-                if ($new_lesson_query->have_posts()) {
-                    $new_post_id = $new_lesson_query->posts[0];
+                if (!$new_post_query->have_posts()) {
+                    // Fallback: try matching by post slug
+                    $legacy_post_name = get_post_field('post_name', $legacy_id);
+                    if ($legacy_post_name) {
+                        $new_post_query = new \WP_Query(array(
+                            'post_type' => array('slms_lesson', 'slms_course'),
+                            'name' => $legacy_post_name,
+                            'posts_per_page' => 1,
+                            'fields' => 'ids',
+                            'no_found_rows' => true,
+                        ));
+                    }
+                }
 
-                    $timestamp = time();
-                    if (is_array($value) && !empty($value['completed'])) {
-                        $timestamp = strtotime($value['completed']) ?: time();
-                    }
-                    else if (is_string($value) && strtotime($value)) {
-                        $timestamp = strtotime($value);
-                    }
-                    else if (is_numeric($value)) {
-                        $timestamp = (int)$value;
-                    }
+                if (!$new_post_query->have_posts()) {
+                    continue;
+                }
 
-                    update_user_meta($user_id, '_slms_lesson_completed_' . $new_post_id, $timestamp);
+                $new_post_id = (int)$new_post_query->posts[0];
+                $new_post_type = \get_post_type($new_post_id);
+
+                if ($new_post_type === 'slms_lesson') {
+                    // Find parent course(s) for this lesson via the M2M join table
+                    $linked_courses = Relationships::get_courses_for_lesson($new_post_id);
+
+                    if (!empty($linked_courses)) {
+                        foreach ($linked_courses as $course_obj) {
+                            $course_id = (int)$course_obj->id;
+                            if (!isset($progress[$course_id])) {
+                                $progress[$course_id] = array();
+                            }
+                            $progress[$course_id][$new_post_id] = $timestamp;
+                        }
+                        $mapped++;
+                    }
+                    else {
+                        error_log('[SimpleLMS] Phase 2: Lesson ' . $new_post_id . ' (legacy ' . $legacy_id . ') has no linked course.');
+                    }
+                }
+                elseif ($new_post_type === 'slms_course') {
+                    // Legacy completion was on the course itself (single-lesson course)
+                    // Find lessons linked to this course
+                    $linked_lessons = Relationships::get_lessons_for_course($new_post_id);
+                    if (!empty($linked_lessons)) {
+                        if (!isset($progress[$new_post_id])) {
+                            $progress[$new_post_id] = array();
+                        }
+                        foreach ($linked_lessons as $lesson_obj) {
+                            $progress[$new_post_id][(int)$lesson_obj->id] = $timestamp;
+                        }
+                        $mapped++;
+                    }
                 }
             }
 
-            // Mark user as completely migrated for progress
+            // ── Persist the progress array ────────────────────────────────
+            update_user_meta($user_id, '_lms_progress', $progress);
             update_user_meta($user_id, '_slms_progress_migrated', time());
             $count++;
         }
 
         $duration = round(microtime(true) - $start_time, 2);
         $total_count = self::get_total_migration_count();
+        error_log('[SimpleLMS] Phase 2: Batch complete. Processed: ' . $count . ', Mapped completions: ' . $mapped . ', Duration: ' . $duration . 's');
 
         return array(
             'processed_count' => $count,
+            'mapped_count' => $mapped,
             'total_count' => $total_count,
             'duration' => $duration,
             'success' => true,
@@ -544,7 +585,7 @@ class Migration
                             }
 
                             CourseHistory::insert(
-                                $user_id,
+                                (int)$user_id,
                                 $course_name,
                                 $entry['date_created'],
                                 $entry['id'],
@@ -715,6 +756,31 @@ class Migration
             return (int)$parts[0];
         }
         return (int)$key;
+    }
+
+    /**
+     * Helper: Extract a Unix timestamp from WPComplete completion data.
+     *
+     * WPComplete stores timestamps in various formats:
+     * - Array with 'completed' key (ISO date string)
+     * - Plain date string
+     * - Numeric Unix timestamp
+     *
+     * @param mixed $data Raw completion data from WPComplete.
+     * @return int Unix timestamp.
+     */
+    private static function extract_timestamp($data)
+    {
+        if (is_array($data) && !empty($data['completed'])) {
+            return strtotime($data['completed']) ?: time();
+        }
+        if (is_string($data) && !empty($data) && strtotime($data)) {
+            return strtotime($data);
+        }
+        if (is_numeric($data)) {
+            return (int)$data;
+        }
+        return time();
     }
 
     /**

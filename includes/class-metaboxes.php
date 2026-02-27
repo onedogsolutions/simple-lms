@@ -105,7 +105,7 @@ class MetaBoxes
     public static function render_students_page()
     {
         echo '<div class="wrap slms-admin-wrap">';
-        echo '<div id="slms-admin-root" class="bg-white rounded-xl shadow-lg p-8 border border-gray-100"></div>';
+        echo '<div id="slms-admin-root" class="bg-white rounded-xl shadow-md p-8 border border-gray-200"></div>';
         echo '</div>';
     }
 }

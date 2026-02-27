@@ -106,7 +106,7 @@ function slms_admin_menu()
         'manage_options',
         'slms-migration',
         function () {
-        echo '<div class="wrap slms-admin-wrap tw-preflight"><div id="slms-admin-root"></div></div>';
+        echo '<div class="wrap slms-admin-wrap"><div id="slms-admin-root" class="bg-white rounded-xl shadow-md p-8 border border-gray-200"></div></div>';
     }
     );
 }
