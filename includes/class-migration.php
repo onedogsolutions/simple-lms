@@ -53,9 +53,9 @@ class Migration
     {
         $timestamp = current_time('Y-m-d H:i:s');
         $entry = array(
-            'time'  => current_time('H:i:s'),
+            'time' => current_time('H:i:s'),
             'level' => $level,
-            'msg'   => $message,
+            'msg' => $message,
         );
         self::$log[] = $entry;
         error_log('[SimpleLMS][' . strtoupper($level) . '] ' . $message);
@@ -73,10 +73,10 @@ class Migration
      */
     public static function get_log_file_path()
     {
-        $upload_dir = wp_upload_dir();
+        $upload_dir = \wp_upload_dir();
         $log_dir = $upload_dir['basedir'] . '/slms-logs';
         if (!is_dir($log_dir)) {
-            wp_mkdir_p($log_dir);
+            \wp_mkdir_p($log_dir);
             // Protect log directory with .htaccess.
             @file_put_contents($log_dir . '/.htaccess', 'deny from all');
             @file_put_contents($log_dir . '/index.php', '<?php // Silence is golden.');
@@ -190,18 +190,18 @@ class Migration
         $start_time = microtime(true);
 
         $legacy_courses = get_posts(array(
-            'post_type'      => 'course',
-            'post_status'    => 'publish',
-            'post_parent'    => 0, // Only parents are "Courses"
-            'numberposts'    => $limit,
-            'meta_query'     => array(
-                array(
-                    'key'     => '_slms_migrated',
+            'post_type' => 'course',
+            'post_status' => 'publish',
+            'post_parent' => 0, // Only parents are "Courses"
+            'numberposts' => $limit,
+            'meta_query' => array(
+                    array(
+                    'key' => '_slms_migrated',
                     'compare' => 'NOT EXISTS',
                 ),
             ),
-            'orderby'        => 'ID',
-            'order'          => 'ASC',
+            'orderby' => 'ID',
+            'order' => 'ASC',
         ));
 
         self::log('Found ' . count($legacy_courses) . ' unmigrated legacy courses.');
@@ -228,12 +228,12 @@ class Migration
 
             // 2. Identify child posts (lessons)
             $legacy_lessons = get_posts(array(
-                'post_type'      => 'course',
-                'post_status'    => 'publish',
-                'post_parent'    => $legacy_course->ID,
-                'orderby'        => 'menu_order',
-                'order'          => 'ASC',
-                'numberposts'    => -1,
+                'post_type' => 'course',
+                'post_status' => 'publish',
+                'post_parent' => $legacy_course->ID,
+                'orderby' => 'menu_order',
+                'order' => 'ASC',
+                'numberposts' => -1,
             ));
 
             $new_lesson_ids = array();
@@ -247,7 +247,8 @@ class Migration
                         wp_set_post_terms($new_lesson_id, $terms, 'slms_course_cat', true);
                     }
                 }
-            } else {
+            }
+            else {
                 self::log('Found ' . count($legacy_lessons) . ' child lessons for legacy course ' . $legacy_course->ID . '.');
                 foreach ($legacy_lessons as $legacy_lesson) {
                     $new_lesson_id = self::import_lesson($legacy_lesson);
@@ -256,7 +257,8 @@ class Migration
                         if (!empty($terms) && !is_wp_error($terms)) {
                             wp_set_post_terms($new_lesson_id, $terms, 'slms_course_cat', true);
                         }
-                    } else {
+                    }
+                    else {
                         self::log('SKIP: Could not import lesson for legacy ID ' . $legacy_lesson->ID . '.', 'warn');
                     }
                 }
@@ -280,11 +282,11 @@ class Migration
 
         return array(
             'processed' => $count,
-            'pending'   => $pending,
-            'total'     => $count + $pending,
-            'duration'  => $duration,
-            'success'   => true,
-            'log'       => self::flush_log(),
+            'pending' => $pending,
+            'total' => $count + $pending,
+            'duration' => $duration,
+            'success' => true,
+            'log' => self::flush_log(),
         );
     }
 
@@ -304,7 +306,7 @@ class Migration
      */
     public static function migrate_progress_batch($limit = -1)
     {
-        $limit = (int) $limit;
+        $limit = (int)$limit;
         self::log('Phase 2: Starting student progress migration (limit=' . $limit . ').');
         $start_time = microtime(true);
 
@@ -376,13 +378,14 @@ class Migration
 
                         self::process_legacy_lesson_progress($user_id, $legacy_lesson_id, $post_data, $current_progress, $stats, $user_label);
                     }
-                } else {
+                }
+                else {
                     if (strpos($key, 'wpcomplete_0-site') !== false) {
                         delete_user_meta($user_id, $key);
                         continue;
                     }
 
-                    $legacy_lesson_id = (int) preg_replace('/[^0-9]/', '', str_replace('wpcomplete_', '', $key));
+                    $legacy_lesson_id = (int)preg_replace('/[^0-9]/', '', str_replace('wpcomplete_', '', $key));
                     if (!$legacy_lesson_id) {
                         self::log('User ' . $user_label . ': could not parse lesson ID from meta key "' . $key . '".', 'warn');
                         delete_user_meta($user_id, $key);
@@ -417,12 +420,12 @@ class Migration
 
         return array(
             'processed' => $count,
-            'pending'   => $pending,
-            'total'     => $count + $pending,
-            'duration'  => $duration,
-            'success'   => true,
-            'stats'     => $stats,
-            'log'       => self::flush_log(),
+            'pending' => $pending,
+            'total' => $count + $pending,
+            'duration' => $duration,
+            'success' => true,
+            'stats' => $stats,
+            'log' => self::flush_log(),
         );
     }
 
@@ -432,47 +435,51 @@ class Migration
      * Users with WPComplete data were clearly accessing courses historically,
      * so we auto-enroll them during migration rather than skipping.
      */
-    private static function process_legacy_lesson_progress($user_id, $legacy_lesson_id, $data, &$current_progress, &$stats = null, $user_label = '') {
+    private static function process_legacy_lesson_progress($user_id, $legacy_lesson_id, $data, &$current_progress, &$stats = null, $user_label = '')
+    {
         // 1. Look up new lesson by _legacy_id meta.
         $new_lesson_query = new \WP_Query(array(
-            'post_type'      => 'slms_lesson',
-            'meta_key'       => '_legacy_id',
-            'meta_value'     => $legacy_lesson_id,
+            'post_type' => 'slms_lesson',
+            'meta_key' => '_legacy_id',
+            'meta_value' => $legacy_lesson_id,
             'posts_per_page' => 1,
-            'fields'         => 'ids',
-            'no_found_rows'  => true,
+            'fields' => 'ids',
+            'no_found_rows' => true,
         ));
 
         // 2. Fallback: try matching by post ID directly (legacy ID IS the slms_lesson ID).
         if (!$new_lesson_query->have_posts()) {
             $direct_post = get_post($legacy_lesson_id);
-            if ($direct_post && $direct_post->post_type === 'slms_lesson' && $direct_post->post_status === 'publish') {
+            if ($direct_post instanceof \WP_Post && $direct_post->post_type === 'slms_lesson' && $direct_post->post_status === 'publish') {
                 $new_lesson_id = $direct_post->ID;
                 self::log($user_label . ': legacy lesson ' . $legacy_lesson_id . ' matched directly as slms_lesson ' . $new_lesson_id . '.', 'debug');
-            } else {
+            }
+            else {
                 // 3. Fallback: try matching by title.
                 $legacy_post = get_post($legacy_lesson_id);
                 if ($legacy_post) {
                     $title_query = new \WP_Query(array(
-                        'post_type'      => 'slms_lesson',
-                        'title'          => $legacy_post->post_title,
+                        'post_type' => 'slms_lesson',
+                        'title' => $legacy_post->post_title,
                         'posts_per_page' => 1,
-                        'fields'         => 'ids',
-                        'no_found_rows'  => true,
-                        'post_status'    => 'publish',
+                        'fields' => 'ids',
+                        'no_found_rows' => true,
+                        'post_status' => 'publish',
                     ));
                     if ($title_query->have_posts()) {
                         $new_lesson_id = $title_query->posts[0];
                         update_post_meta($new_lesson_id, '_legacy_id', $legacy_lesson_id);
                         self::log($user_label . ': legacy lesson ' . $legacy_lesson_id . ' (' . $legacy_post->post_title . ') matched by title to slms_lesson ' . $new_lesson_id . '.', 'debug');
-                    } else {
+                    }
+                    else {
                         self::log($user_label . ': legacy lesson ' . $legacy_lesson_id . ' (' . $legacy_post->post_title . ') has no matching slms_lesson — _legacy_id lookup failed, direct ID lookup failed (post_type=' . $legacy_post->post_type . '), title lookup failed.', 'warn');
                         if ($stats !== null) {
                             $stats['lessons_skipped_no_match']++;
                         }
                         return;
                     }
-                } else {
+                }
+                else {
                     self::log($user_label . ': legacy lesson ' . $legacy_lesson_id . ' has no matching slms_lesson — _legacy_id lookup failed, post ID ' . $legacy_lesson_id . ' does not exist in wp_posts.', 'warn');
                     if ($stats !== null) {
                         $stats['lessons_skipped_no_match']++;
@@ -480,7 +487,8 @@ class Migration
                     return;
                 }
             }
-        } else {
+        }
+        else {
             $new_lesson_id = $new_lesson_query->posts[0];
         }
 
@@ -494,10 +502,12 @@ class Migration
                 $timestamp = $parsed;
                 $ts_source = 'array[completed]=' . $data['completed'];
             }
-        } elseif (is_string($data) && strtotime($data)) {
+        }
+        elseif (is_string($data) && strtotime($data)) {
             $timestamp = strtotime($data);
             $ts_source = 'string=' . $data;
-        } elseif (is_numeric($data)) {
+        }
+        elseif (is_numeric($data)) {
             $timestamp = (int)$data;
             $ts_source = 'numeric=' . $data;
         }
@@ -521,7 +531,7 @@ class Migration
                     $cpost = get_post($cid);
                     if ($cpost && $cpost->post_type === 'slms_course') {
                         $obj = new \stdClass();
-                        $obj->id = (int) $cid;
+                        $obj->id = (int)$cid;
                         $obj->title = $cpost->post_title;
                         $linked_courses[] = $obj;
                     }
@@ -540,7 +550,7 @@ class Migration
         // Auto-enroll and map progress for each linked course.
         // Users with WPComplete data were accessing courses, so enroll them automatically.
         foreach ($linked_courses as $course_obj) {
-            $course_id = (int) $course_obj->id;
+            $course_id = (int)$course_obj->id;
 
             // Auto-enroll the user — they had WPComplete data so they were active.
             Relationships::enroll_user($user_id, $course_id, 'migration');
@@ -575,11 +585,11 @@ class Migration
 
         $history_table = $wpdb->prefix . 'slms_course_history';
 
-        $users = get_users(array(
-            'meta_key'     => '_lms_history_migrated',
+        $users = \get_users(array(
+            'meta_key' => '_lms_history_migrated',
             'meta_compare' => 'NOT EXISTS',
-            'number'       => $limit,
-            'fields'       => 'ID',
+            'number' => $limit,
+            'fields' => 'ID',
         ));
 
         self::log('Found ' . count($users) . ' users pending history migration.');
@@ -589,8 +599,8 @@ class Migration
         $skipped_dup = 0;
 
         foreach ($users as $user_id) {
-            $user_id    = (int) $user_id;
-            $user       = get_userdata($user_id);
+            $user_id = (int)$user_id;
+            $user = get_userdata($user_id);
             $user_label = $user ? $user->user_email : 'UID:' . $user_id;
 
             if (!class_exists('GFAPI')) {
@@ -622,26 +632,26 @@ class Migration
 
             // Search by user ID.
             $search_criteria = array(
-                'status'        => 'active',
+                'status' => 'active',
                 'field_filters' => array(
                     'mode' => 'any',
-                    array('key' => 'created_by', 'value' => $user_id),
+                        array('key' => 'created_by', 'value' => $user_id),
                 ),
             );
             $entries = \GFAPI::get_entries($form_ids, $search_criteria);
 
             // Search by email (catches entries not linked by user ID).
             $search_criteria_email = array(
-                'status'        => 'active',
+                'status' => 'active',
                 'field_filters' => array(
                     'mode' => 'any',
-                    array('value' => $user->user_email),
+                        array('value' => $user->user_email),
                 ),
             );
             $entries_by_email = \GFAPI::get_entries($form_ids, $search_criteria_email);
 
             // Merge and deduplicate by entry ID.
-            $all_entries    = array_merge((array) $entries, (array) $entries_by_email);
+            $all_entries = array_merge((array)$entries, (array)$entries_by_email);
             $unique_entries = array();
             foreach ($all_entries as $entry) {
                 if (isset($entry['id']) && !isset($unique_entries[$entry['id']])) {
@@ -649,14 +659,14 @@ class Migration
                 }
             }
 
-            self::log($user_label . ': found ' . count($unique_entries) . ' unique GF entries (by_id=' . count((array) $entries) . ', by_email=' . count((array) $entries_by_email) . ').');
+            self::log($user_label . ': found ' . count($unique_entries) . ' unique GF entries (by_id=' . count((array)$entries) . ', by_email=' . count((array)$entries_by_email) . ').');
 
             // Insert each entry into the compliance history table.
             foreach ($unique_entries as $entry) {
                 $gf_entry_id = absint($entry['id']);
 
                 // Skip if this GF entry is already in the table (dedup).
-                $exists = (int) $wpdb->get_var($wpdb->prepare(
+                $exists = (int)$wpdb->get_var($wpdb->prepare(
                     "SELECT COUNT(*) FROM {$history_table} WHERE gf_entry_id = %d",
                     $gf_entry_id
                 ));
@@ -668,13 +678,13 @@ class Migration
 
                 // Resolve course name from GF entry fields.
                 $course_name = __('Unknown Course', 'simple-lms-bridge');
-                $form        = \GFAPI::get_form($entry['form_id']);
+                $form = \GFAPI::get_form($entry['form_id']);
 
                 if ($form && isset($form['fields'])) {
                     foreach ($form['fields'] as $field) {
                         $label = $field->label ?? '';
                         if (stripos($label, 'Course') !== false) {
-                            $value = rgar($entry, (string) $field->id);
+                            $value = rgar($entry, (string)$field->id);
                             if (!empty($value)) {
                                 $course_name = $value;
                                 break;
@@ -692,11 +702,11 @@ class Migration
                 $wpdb->insert(
                     $history_table,
                     array(
-                        'user_id'        => $user_id,
-                        'course_name'    => sanitize_text_field($course_name),
-                        'completed_date' => sanitize_text_field($entry['date_created'] ?? current_time('mysql')),
-                        'gf_entry_id'    => $gf_entry_id,
-                    ),
+                    'user_id' => $user_id,
+                    'course_name' => sanitize_text_field($course_name),
+                    'completed_date' => sanitize_text_field($entry['date_created'] ?? current_time('mysql')),
+                    'gf_entry_id' => $gf_entry_id,
+                ),
                     array('%d', '%s', '%s', '%d')
                 );
                 $inserted++;
@@ -704,7 +714,8 @@ class Migration
 
             if ($inserted > 0) {
                 self::log($user_label . ': inserted ' . $inserted . ' compliance record(s), skipped ' . $skipped_dup . ' duplicate(s).');
-            } else {
+            }
+            else {
                 self::log($user_label . ': no new certificate entries to insert.');
             }
 
@@ -722,12 +733,12 @@ class Migration
 
         return array(
             'processed' => $count,
-            'pending'   => $pending,
-            'total'     => $count + $pending,
-            'inserted'  => $inserted,
-            'duration'  => $duration,
-            'success'   => true,
-            'log'       => self::flush_log(),
+            'pending' => $pending,
+            'total' => $count + $pending,
+            'inserted' => $inserted,
+            'duration' => $duration,
+            'success' => true,
+            'log' => self::flush_log(),
         );
     }
 
@@ -761,11 +772,11 @@ class Migration
             self::log('GFAPI class not available — cannot run Phase 4.', 'error');
             return array(
                 'processed' => 0,
-                'pending'   => 0,
-                'total'     => 0,
-                'duration'  => 0,
-                'success'   => false,
-                'log'       => self::flush_log(),
+                'pending' => 0,
+                'total' => 0,
+                'duration' => 0,
+                'success' => false,
+                'log' => self::flush_log(),
             );
         }
 
@@ -773,11 +784,11 @@ class Migration
             self::log('PMPro not active — cannot run Phase 4.', 'error');
             return array(
                 'processed' => 0,
-                'pending'   => 0,
-                'total'     => 0,
-                'duration'  => 0,
-                'success'   => false,
-                'log'       => self::flush_log(),
+                'pending' => 0,
+                'total' => 0,
+                'duration' => 0,
+                'success' => false,
+                'log' => self::flush_log(),
             );
         }
 
@@ -798,18 +809,18 @@ class Migration
             self::log('No entries found in GF Form ID ' . $gf_form_id . '.', 'warn');
             return array(
                 'processed' => 0,
-                'pending'   => 0,
-                'total'     => 0,
-                'duration'  => 0,
-                'success'   => true,
-                'log'       => self::flush_log(),
+                'pending' => 0,
+                'total' => 0,
+                'duration' => 0,
+                'success' => true,
+                'log' => self::flush_log(),
             );
         }
 
         // Filter to only unmigrated entries.
         $unmigrated = array();
         foreach ($entries as $entry) {
-            $migrated = gform_get_meta($entry['id'], '_slms_pmpro_migrated');
+            $migrated = \gform_get_meta($entry['id'], '_slms_pmpro_migrated');
             if (!$migrated) {
                 $unmigrated[] = $entry;
             }
@@ -822,7 +833,7 @@ class Migration
         if (function_exists('pmpro_getAllLevels')) {
             $all_levels = pmpro_getAllLevels(false, true);
             foreach ($all_levels as $level) {
-                $level_cache[strtolower(trim($level->name))] = (int) $level->id;
+                $level_cache[strtolower(trim($level->name))] = (int)$level->id;
             }
         }
 
@@ -832,14 +843,14 @@ class Migration
 
         foreach ($unmigrated as $entry) {
             $entry_id = absint($entry['id']);
-            $user_id = !empty($entry['created_by']) ? (int) $entry['created_by'] : 0;
+            $user_id = !empty($entry['created_by']) ? (int)$entry['created_by'] : 0;
             $entry_date = $entry['date_created'] ?? '';
 
             // Resolve user by email if created_by is missing.
             if (!$user_id) {
                 // Search common email fields in the entry.
                 foreach ($entry as $fkey => $fval) {
-                    if (is_string($fval) && is_email($fval)) {
+                    if (is_string($fval) && \is_email($fval)) {
                         $wp_user = get_user_by('email', $fval);
                         if ($wp_user) {
                             $user_id = $wp_user->ID;
@@ -851,7 +862,7 @@ class Migration
 
             if (!$user_id) {
                 self::log('Entry #' . $entry_id . ': no user found, skipping.', 'warn');
-                gform_update_meta($entry_id, '_slms_pmpro_migrated', time());
+                \gform_update_meta($entry_id, '_slms_pmpro_migrated', time());
                 $count++;
                 continue;
             }
@@ -862,7 +873,7 @@ class Migration
             // Extract product names from the product field IDs.
             $products = array();
             foreach ($product_field_ids as $field_id) {
-                $value = rgar($entry, (string) $field_id);
+                $value = rgar($entry, (string)$field_id);
                 if (!empty($value)) {
                     // GF product fields may contain "Product Name|Price" format.
                     $product_name = $value;
@@ -878,7 +889,7 @@ class Migration
 
             if (empty($products)) {
                 self::log('Entry #' . $entry_id . ' (' . $user_label . '): no product fields found, skipping.', 'debug');
-                gform_update_meta($entry_id, '_slms_pmpro_migrated', time());
+                \gform_update_meta($entry_id, '_slms_pmpro_migrated', time());
                 $count++;
                 continue;
             }
@@ -893,11 +904,11 @@ class Migration
                 // Create the level if it doesn't exist.
                 if (!$level_id && function_exists('pmpro_insert_or_replace')) {
                     $new_level = array(
-                        'name'              => sanitize_text_field($product_name),
-                        'description'       => 'Auto-created from GF Form #' . $gf_form_id . ' migration.',
-                        'allow_signups'     => 0,
-                        'expiration_number'  => 90,
-                        'expiration_period'  => 'Day',
+                        'name' => sanitize_text_field($product_name),
+                        'description' => 'Auto-created from GF Form #' . $gf_form_id . ' migration.',
+                        'allow_signups' => 0,
+                        'expiration_number' => 90,
+                        'expiration_period' => 'Day',
                     );
 
                     global $wpdb;
@@ -908,29 +919,32 @@ class Migration
                         $wpdb->insert(
                             $pmpro_table,
                             array(
-                                'name'               => sanitize_text_field($product_name),
-                                'description'        => 'Auto-created from GF migration.',
-                                'allow_signups'      => 0,
-                                'expiration_number'  => 90,
-                                'expiration_period'  => 'Day',
-                            ),
+                            'name' => sanitize_text_field($product_name),
+                            'description' => 'Auto-created from GF migration.',
+                            'allow_signups' => 0,
+                            'expiration_number' => 90,
+                            'expiration_period' => 'Day',
+                        ),
                             array('%s', '%s', '%d', '%d', '%s')
                         );
-                        $level_id = (int) $wpdb->insert_id;
+                        $level_id = (int)$wpdb->insert_id;
 
                         if ($level_id) {
                             $level_cache[$level_key] = $level_id;
                             $levels_created++;
                             self::log('Created PMPro level "' . $product_name . '" (ID: ' . $level_id . ').');
-                        } else {
+                        }
+                        else {
                             self::log('Failed to create PMPro level "' . $product_name . '".', 'error');
                             continue;
                         }
-                    } else {
+                    }
+                    else {
                         self::log('PMPro membership_levels table not found, cannot create level.', 'error');
                         continue;
                     }
-                } elseif (!$level_id) {
+                }
+                elseif (!$level_id) {
                     self::log('Cannot create PMPro level "' . $product_name . '" — pmpro_insert_or_replace not available.', 'warn');
                     continue;
                 }
@@ -946,12 +960,12 @@ class Migration
 
                 // Enroll the user via pmpro_changeMembershipLevel.
                 $level_params = array(
-                    'user_id'  => $user_id,
+                    'user_id' => $user_id,
                     'membership_id' => $level_id,
-                    'enddate'  => $enddate,
+                    'enddate' => $enddate,
                 );
 
-                $result = pmpro_changeMembershipLevel($level_params, $user_id);
+                $result = \pmpro_changeMembershipLevel($level_params, $user_id);
 
                 if ($result) {
                     self::log($user_label . ': enrolled in PMPro level ' . $level_id . ' ("' . $product_name . '") enddate=' . $enddate . '.', 'debug');
@@ -964,12 +978,13 @@ class Migration
                             Relationships::enroll_user($user_id, $course_id, 'pmpro_migration');
                         }
                     }
-                } else {
+                }
+                else {
                     self::log($user_label . ': pmpro_changeMembershipLevel failed for level ' . $level_id . '.', 'error');
                 }
             }
 
-            gform_update_meta($entry_id, '_slms_pmpro_migrated', time());
+            \gform_update_meta($entry_id, '_slms_pmpro_migrated', time());
             $count++;
         }
 
@@ -982,14 +997,14 @@ class Migration
         $pending = self::get_pending_pmpro_count();
 
         return array(
-            'processed'      => $count,
-            'pending'        => $pending,
-            'total'          => $count + $pending,
-            'enrolled'       => $enrolled,
+            'processed' => $count,
+            'pending' => $pending,
+            'total' => $count + $pending,
+            'enrolled' => $enrolled,
             'levels_created' => $levels_created,
-            'duration'       => $duration,
-            'success'        => true,
-            'log'            => self::flush_log(),
+            'duration' => $duration,
+            'success' => true,
+            'log' => self::flush_log(),
         );
     }
 
@@ -1002,10 +1017,10 @@ class Migration
     public static function cleanup_legacy_data()
     {
         $legacy_posts = get_posts(array(
-            'post_type'   => 'course',
+            'post_type' => 'course',
             'post_status' => 'any',
             'numberposts' => -1,
-            'fields'      => 'ids',
+            'fields' => 'ids',
         ));
 
         $count = 0;
@@ -1026,12 +1041,12 @@ class Migration
     {
         // Deduplicate by _legacy_id first (most accurate)
         $existing = new \WP_Query(array(
-            'post_type'      => 'slms_lesson',
-            'meta_key'       => '_legacy_id',
-            'meta_value'     => $legacy_lesson->ID,
+            'post_type' => 'slms_lesson',
+            'meta_key' => '_legacy_id',
+            'meta_value' => $legacy_lesson->ID,
             'posts_per_page' => 1,
-            'fields'         => 'ids',
-            'no_found_rows'  => true,
+            'fields' => 'ids',
+            'no_found_rows' => true,
         ));
 
         if ($existing->have_posts()) {
@@ -1040,12 +1055,12 @@ class Migration
 
         // Fallback: Deduplicate by title/slug
         $existing_title = new \WP_Query(array(
-            'post_type'      => 'slms_lesson',
-            'title'          => $legacy_lesson->post_title,
+            'post_type' => 'slms_lesson',
+            'title' => $legacy_lesson->post_title,
             'posts_per_page' => 1,
-            'fields'         => 'ids',
-            'no_found_rows'  => true,
-            'post_status'    => 'publish',
+            'fields' => 'ids',
+            'no_found_rows' => true,
+            'post_status' => 'publish',
         ));
 
         if ($existing_title->have_posts()) {
@@ -1055,23 +1070,23 @@ class Migration
         }
 
         $new_lesson_id = wp_insert_post(array(
-            'post_title'   => $legacy_lesson->post_title,
+            'post_title' => $legacy_lesson->post_title,
             'post_content' => $legacy_lesson->post_content,
-            'post_name'    => $legacy_lesson->post_name,
-            'post_status'  => 'publish',
-            'post_type'    => 'slms_lesson',
+            'post_name' => $legacy_lesson->post_name,
+            'post_status' => 'publish',
+            'post_type' => 'slms_lesson',
         ));
 
         if (!is_wp_error($new_lesson_id)) {
             update_post_meta($new_lesson_id, '_legacy_id', $legacy_lesson->ID);
-            
+
             // Map Video Meta if exists (Legacy Pods)
             $video = get_post_meta($legacy_lesson->ID, 'lesson_video', true);
             if ($video) {
                 update_post_meta($new_lesson_id, '_slms_lesson_type', 'video');
                 update_post_meta($new_lesson_id, '_slms_presto_video', $video);
             }
-            
+
             return $new_lesson_id;
         }
 
@@ -1084,12 +1099,12 @@ class Migration
     private static function import_course($legacy_course)
     {
         $existing = new \WP_Query(array(
-            'post_type'      => 'slms_course',
-            'meta_key'       => '_legacy_id',
-            'meta_value'     => $legacy_course->ID,
+            'post_type' => 'slms_course',
+            'meta_key' => '_legacy_id',
+            'meta_value' => $legacy_course->ID,
             'posts_per_page' => 1,
-            'fields'         => 'ids',
-            'no_found_rows'  => true,
+            'fields' => 'ids',
+            'no_found_rows' => true,
         ));
 
         if ($existing->have_posts()) {
@@ -1097,16 +1112,16 @@ class Migration
         }
 
         $new_course_id = wp_insert_post(array(
-            'post_title'   => $legacy_course->post_title,
+            'post_title' => $legacy_course->post_title,
             'post_content' => $legacy_course->post_content,
-            'post_name'    => $legacy_course->post_name,
-            'post_status'  => 'publish',
-            'post_type'    => 'slms_course',
+            'post_name' => $legacy_course->post_name,
+            'post_status' => 'publish',
+            'post_type' => 'slms_course',
         ));
 
         if (!is_wp_error($new_course_id)) {
             update_post_meta($new_course_id, '_legacy_id', $legacy_course->ID);
-            
+
             // Map Price
             $price = get_post_meta($legacy_course->ID, 'course_price', true);
             if ($price) {
@@ -1138,7 +1153,7 @@ class Migration
     {
         global $wpdb;
         $count = $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM {$wpdb->usermeta} WHERE meta_key = 'wpcomplete' OR meta_key LIKE 'wpcomplete_%'");
-        return (int) $count;
+        return (int)$count;
     }
 
     /**
@@ -1146,7 +1161,7 @@ class Migration
      */
     public static function get_pending_history_count()
     {
-        return count(get_users(array(
+        return count(\get_users(array(
             'meta_key' => '_lms_history_migrated',
             'meta_compare' => 'NOT EXISTS',
             'fields' => 'ID'
@@ -1175,10 +1190,10 @@ class Migration
         $gf_meta_table = $wpdb->prefix . 'gf_entry_meta';
 
         if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $gf_meta_table)) !== $gf_meta_table) {
-            return (int) $total;
+            return (int)$total;
         }
 
-        $migrated = (int) $wpdb->get_var($wpdb->prepare(
+        $migrated = (int)$wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM {$gf_meta_table} em
              INNER JOIN {$wpdb->prefix}gf_entry e ON em.entry_id = e.id
              WHERE em.meta_key = '_slms_pmpro_migrated'
@@ -1186,7 +1201,7 @@ class Migration
             $gf_form_id
         ));
 
-        return max(0, (int) $total - $migrated);
+        return max(0, (int)$total - $migrated);
     }
 
     /**
@@ -1195,15 +1210,15 @@ class Migration
     public static function get_pending_content_count()
     {
         $query = new \WP_Query(array(
-            'post_type'   => 'course',
+            'post_type' => 'course',
             'post_parent' => 0,
-            'meta_query'  => array(
-                array(
-                    'key'     => '_slms_migrated',
+            'meta_query' => array(
+                    array(
+                    'key' => '_slms_migrated',
                     'compare' => 'NOT EXISTS',
                 ),
             ),
-            'fields'      => 'ids',
+            'fields' => 'ids',
         ));
         return $query->found_posts;
     }

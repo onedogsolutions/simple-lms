@@ -372,11 +372,11 @@ class PMPro
         if (function_exists('pmpro_changeMembershipLevel') && function_exists('pmpro_getMembershipLevelForUser')) {
             $required_levels = get_post_meta($course_id, '_lms_pmpro_levels', true);
             if (is_array($required_levels)) {
-                $current_level = pmpro_getMembershipLevelForUser($user_id);
-                $current_level_id = $current_level ? (int) $current_level->id : 0;
+                $current_level = \pmpro_getMembershipLevelForUser($user_id);
+                $current_level_id = $current_level ? (int)$current_level->id : 0;
 
                 if ($current_level_id && in_array($current_level_id, array_map('intval', $required_levels), true)) {
-                    pmpro_changeMembershipLevel(0, $user_id);
+                    \pmpro_changeMembershipLevel(0, $user_id);
                 }
             }
         }
