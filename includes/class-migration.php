@@ -553,9 +553,21 @@ class Migration
         $products = array();
         foreach ($entries as $entry) {
             foreach ($product_field_ids as $field_id) {
-                $value = rgar($entry, (string)$field_id);
-                if (!empty($value)) {
-                    $product_name = (string)$value;
+                $product_name = '';
+
+                // Try sub-field .1 first (standard GF product name sub-field).
+                $sub_value = rgar($entry, $field_id . '.1');
+                if (!empty($sub_value)) {
+                    $product_name = (string)$sub_value;
+                } else {
+                    // Fall back to bare field ID.
+                    $value = rgar($entry, (string)$field_id);
+                    if (!empty($value)) {
+                        $product_name = (string)$value;
+                    }
+                }
+
+                if (!empty($product_name)) {
                     if (strpos($product_name, '|') !== false) {
                         $parts = explode('|', $product_name);
                         $product_name = trim($parts[0]);
