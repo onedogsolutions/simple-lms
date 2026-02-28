@@ -18,8 +18,6 @@ use function add_action;
 use function add_filter;
 use function get_post_meta;
 use function esc_html;
-use function pmpro_getLevel;
-use function pmpro_hasMembershipLevel;
 use function update_user_meta;
 use function get_user_meta;
 use function time;
@@ -233,7 +231,7 @@ class PMPro
             $level_names = array();
             foreach ($levels as $level_id) {
                 if (function_exists('pmpro_getLevel')) {
-                    $level = pmpro_getLevel($level_id);
+                    $level = \pmpro_getLevel($level_id);
                     $level_names[] = $level ? esc_html($level->name) : '#' . esc_html($level_id);
                 }
                 else {
@@ -279,7 +277,7 @@ class PMPro
             return false;
         }
 
-        return pmpro_hasMembershipLevel($required_levels, $user_id);
+        return \pmpro_hasMembershipLevel($required_levels, $user_id);
     }
 
     /**

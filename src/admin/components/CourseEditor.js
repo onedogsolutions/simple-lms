@@ -10,13 +10,12 @@ import { useState, useEffect, useCallback } from '@wordpress/element';
 import {
 	PanelBody,
 	SelectControl,
-	TextControl,
 	SearchControl,
 	Button,
 	Spinner,
 	Notice,
 } from '@wordpress/components';
-import { __, sprintf } from '@wordpress/i18n';
+import { __ } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 import { Reorder } from 'motion/react';
 
@@ -36,7 +35,6 @@ const CourseEditor = ( { postId } ) => {
 	const [ allLessons, setAllLessons ] = useState( [] );
 	const [ forms, setForms ] = useState( [] );
 	const [ certificateForm, setCertificateForm ] = useState( 0 );
-	const [ accessDays, setAccessDays ] = useState( 0 );
 	const [ pmproLevels, setPmproLevels ] = useState( [] );
 	const [ allPMProLevels, setAllPMProLevels ] = useState( [] );
 	const [ enrolledStudents, setEnrolledStudents ] = useState( [] );
@@ -77,7 +75,6 @@ const CourseEditor = ( { postId } ) => {
 				const meta = postRes.meta || {};
 				setLessonOrder( relationshipsRes.map( ( l ) => l.id ) || [] );
 				setCertificateForm( meta._lms_certificate_form || 0 );
-				setAccessDays( meta._lms_access_days || 0 );
 				setPmproLevels( meta._lms_pmpro_levels || [] );
 			} catch ( err ) {
 				setNotice( { status: 'error', message: err.message } );
@@ -101,7 +98,6 @@ const CourseEditor = ( { postId } ) => {
 						meta: {
 							_lms_certificate_form:
 								parseInt( certificateForm, 10 ) || 0,
-							_lms_access_days: parseInt( accessDays, 10 ) || 0,
 							_lms_pmpro_levels: pmproLevels,
 						},
 					},
@@ -123,31 +119,7 @@ const CourseEditor = ( { postId } ) => {
 		} finally {
 			setSaving( false );
 		}
-	}, [ postId, lessonOrder, certificateForm, accessDays, pmproLevels ] );
-
-	// ── Auto-populate access days from PMPro ──────────────────────
-	useEffect( () => {
-		if ( ! pmproLevels.length || ! allPMProLevels.length ) {
-			return;
-		}
-
-		// Find the first level with an expiration.
-		const levelWithExp = allPMProLevels.find(
-			( l ) => pmproLevels.includes( l.id ) && l.expiration_days > 0
-		);
-
-		if ( levelWithExp && accessDays !== levelWithExp.expiration_days ) {
-			setAccessDays( levelWithExp.expiration_days );
-		}
-	}, [ pmproLevels, allPMProLevels ] ); // eslint-disable-line react-hooks/exhaustive-deps
-
-	// Determine if PMPro is driving the expiration.
-	const activePMProExpiration = allPMProLevels.find(
-		( l ) =>
-			pmproLevels.includes( l.id ) &&
-			l.expiration_days > 0 &&
-			l.expiration_days === accessDays
-	);
+	}, [ postId, lessonOrder, certificateForm, pmproLevels ] );
 
 	// ── Add lesson to order ───────────────────────────────────────
 	const addLesson = ( lessonId ) => {
@@ -294,6 +266,7 @@ const CourseEditor = ( { postId } ) => {
 				/>
 			</PanelBody>
 
+<<<<<<< HEAD
 			{ /* ── Access Days ────────────────────────────────────── */ }
 			<PanelBody
 				title={ __( 'Access Control', 'simple-lms-bridge' ) }
@@ -332,6 +305,8 @@ const CourseEditor = ( { postId } ) => {
 				/>
 			</PanelBody>
 
+=======
+>>>>>>> claude/review-state-file-5z5Ti
 			{ /* ── PMPro Membership Levels ─────────────────────────── */ }
 			<PanelBody
 				title={ __( 'PMPro Enrollment', 'simple-lms-bridge' ) }

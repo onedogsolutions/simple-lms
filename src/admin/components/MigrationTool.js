@@ -94,10 +94,44 @@ const MigrationTool = () => {
 		}
 	};
 
+<<<<<<< HEAD
 	const runMigration = async ( type ) => {
 		setMigrating( true );
 		setError( null );
 		setNotice( null );
+=======
+	const resetPhase4 = async () => {
+		if (!window.confirm(__('Reset Phase 4? This clears all migration markers so entries can be re-processed.', 'simple-lms-bridge'))) {
+			return;
+		}
+		setMigrating(true);
+		setError(null);
+		try {
+			const res = await apiFetch({
+				path: '/simple-lms/v1/migration/pmpro/reset',
+				method: 'POST',
+			});
+			if (res.log) {
+				appendLog(res.log);
+			}
+			setNotice(sprintf(
+				__('Phase 4 reset: %d markers cleared, %d entries ready to re-process.', 'simple-lms-bridge'),
+				res.deleted,
+				res.pending
+			));
+			await loadStatus();
+		} catch (err) {
+			setError(err.message);
+		} finally {
+			setMigrating(false);
+		}
+	};
+
+	const runMigration = async (type) => {
+		setMigrating(true);
+		setError(null);
+		setNotice(null);
+>>>>>>> claude/review-state-file-5z5Ti
 
 		let activePhase = 0;
 		if ( type === 'content' ) {
@@ -141,8 +175,27 @@ const MigrationTool = () => {
 				pending = status.pmpro?.pending || 0;
 			}
 
+<<<<<<< HEAD
 			while ( pending > 0 ) {
 				const res = await apiFetch( {
+=======
+			let zeroProgressCount = 0;
+			const MAX_ITERATIONS = 500;
+			let iterations = 0;
+
+			while (pending > 0) {
+				iterations++;
+				if (iterations >= MAX_ITERATIONS) {
+					appendLog([{
+						time: new Date().toLocaleTimeString(),
+						level: 'error',
+						msg: `Safety limit reached (${MAX_ITERATIONS} batches). Stopping.`,
+					}]);
+					break;
+				}
+
+				const res = await apiFetch({
+>>>>>>> claude/review-state-file-5z5Ti
 					path: endpoint,
 					method: 'POST',
 					data: { limit: type === 'content' ? 5 : 10 },
@@ -155,8 +208,35 @@ const MigrationTool = () => {
 
 				pending = res.pending;
 
+<<<<<<< HEAD
 				if ( res.status === 'complete' ) {
 					break;
+=======
+				if (res.status === 'complete') break;
+
+				// Stall detection: if 3 consecutive batches process 0 items
+				// but pending remains > 0, the migration is stuck — break gracefully.
+				if (res.processed === 0 && pending > 0) {
+					zeroProgressCount++;
+					if (zeroProgressCount >= 3) {
+						appendLog([{
+							time: new Date().toLocaleTimeString(),
+							level: 'warn',
+							msg: `Migration stalled — ${pending} item(s) could not be processed. Check debug log.`,
+						}]);
+						break;
+					}
+				} else {
+					zeroProgressCount = 0;
+				}
+
+				// Use the total returned by the batch response for accurate tracking.
+				if (res.total && res.total > 0) {
+					setTotals((prev) => ({
+						...prev,
+						[type]: Math.max(prev[type], res.total),
+					}));
+>>>>>>> claude/review-state-file-5z5Ti
 				}
 
 				// Use the total returned by the batch response for accurate tracking.
@@ -173,6 +253,7 @@ const MigrationTool = () => {
 				} ) );
 			}
 
+<<<<<<< HEAD
 			if ( type === 'content' ) {
 				setNotice(
 					__(
@@ -203,6 +284,22 @@ const MigrationTool = () => {
 				);
 			}
 
+=======
+			if (pending > 0) {
+				setNotice(sprintf(
+					__('Phase completed with %d item(s) that could not be processed. Check the debug log.', 'simple-lms-bridge'),
+					pending
+				));
+			} else {
+				let noticeMessage = '';
+				if (type === 'content') noticeMessage = 'Phase 1: Content migration completed successfully.';
+				if (type === 'progress') noticeMessage = 'Phase 2: Student Progress migration completed successfully.';
+				if (type === 'history') noticeMessage = 'Phase 3: Historical Certificates migration completed successfully.';
+				if (type === 'pmpro') noticeMessage = 'Phase 4: PMPro Membership migration completed successfully.';
+
+				setNotice(__(noticeMessage, 'simple-lms-bridge'));
+			}
+>>>>>>> claude/review-state-file-5z5Ti
 			await loadStatus();
 		} catch ( err ) {
 			setError( err.message );
@@ -712,7 +809,7 @@ const MigrationTool = () => {
 						/>
 					</div>
 
-					<div className="mt-4 ml-11">
+					<div className="mt-4 ml-11 flex gap-3">
 						<Button
 							variant="primary"
 							isBusy={ migrating && phase === 4 }
@@ -740,6 +837,16 @@ const MigrationTool = () => {
 								);
 							} )() }
 						</Button>
+						{isPhase3Complete && pmproPending === 0 && (
+							<Button
+								variant="secondary"
+								disabled={migrating}
+								onClick={resetPhase4}
+								className="font-medium px-4 py-2 rounded-md"
+							>
+								{__('Reset Phase 4', 'simple-lms-bridge')}
+							</Button>
+						)}
 					</div>
 				</div>
 
