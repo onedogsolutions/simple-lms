@@ -349,16 +349,20 @@ class Migration
                 $key = $meta->meta_key;
                 $value = $meta->meta_value;
 
-                $data = maybe_unserialize($value);
-                $format_used = 'serialized';
+                // Try JSON first — WPComplete stores data as JSON.
+                $data = json_decode($value, true);
+                $format_used = 'json';
 
-                if (is_string($data) && strpos(trim($data), '{') === 0) {
-                    $data = json_decode($data, true);
-                    $format_used = 'json';
-                    if ($data === null) {
-                        self::log('User ' . $user_label . ': JSON decode failed for key "' . $key . '".', 'error');
-                        continue;
-                    }
+                if ($data === null) {
+                    // Fallback to maybe_unserialize for older formats.
+                    $data = maybe_unserialize($value);
+                    $format_used = 'serialized';
+                }
+
+                if (!is_array($data)) {
+                    self::log('User ' . $user_label . ': could not parse value for key "' . $key . '" as JSON or serialized.', 'warn');
+                    delete_user_meta($user_id, $key);
+                    continue;
                 }
 
                 if ($key === 'wpcomplete' && is_array($data)) {
@@ -366,7 +370,7 @@ class Migration
                     self::log('User ' . $user_label . ': bulk key "wpcomplete" has ' . $entry_count . ' entries (' . $format_used . ').', 'debug');
 
                     foreach ($data as $post_key => $post_data) {
-                        if ($post_key === '0-site' || strpos($post_key, '0-site') !== false) {
+                        if ($post_key === '0-site' || strpos((string)$post_key, '0-site') !== false) {
                             continue;
                         }
 
@@ -380,7 +384,7 @@ class Migration
                     }
                 }
                 else {
-                    if (strpos($key, 'wpcomplete_0-site') !== false) {
+                    if (strpos((string)$key, 'wpcomplete_0-site') !== false) {
                         delete_user_meta($user_id, $key);
                         continue;
                     }
@@ -877,7 +881,7 @@ class Migration
                 if (!empty($value)) {
                     // GF product fields may contain "Product Name|Price" format.
                     $product_name = $value;
-                    if (strpos($value, '|') !== false) {
+                    if (strpos((string)$value, '|') !== false) {
                         $parts = explode('|', $value);
                         $product_name = trim($parts[0]);
                     }
@@ -1139,7 +1143,7 @@ class Migration
      */
     private static function extract_post_id($key)
     {
-        if (strpos($key, '-') !== false) {
+        if (strpos((string)$key, '-') !== false) {
             $parts = explode('-', $key);
             return (int)$parts[0];
         }
@@ -1152,7 +1156,7 @@ class Migration
     public static function get_pending_migration_count()
     {
         global $wpdb;
-        $count = $wpdb->get_var("SELECT COUNT(DISTINCT user_id) FROM {$wpdb->usermeta} WHERE meta_key = 'wpcomplete' OR meta_key LIKE 'wpcomplete_%'");
+        $count = $wpdb->get_var("SELECT COUNT(DISTINCT um.user_id) FROM {$wpdb->usermeta} um WHERE um.meta_key = 'wpcomplete' OR um.meta_key LIKE 'wpcomplete_%'");
         return (int)$count;
     }
 

@@ -32,6 +32,7 @@ require_once SLMS_PLUGIN_DIR . 'includes/class-rest.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-metaboxes.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-pmpro.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-expiration.php';
+require_once SLMS_PLUGIN_DIR . 'includes/class-course-history.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-certificates.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-migration.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-user-meta.php';
@@ -168,7 +169,8 @@ function slms_enqueue_admin_assets($hook_suffix)
 
     // Load on our CPT edit screens and the Student Manager / Migration Tool pages.
     $is_lms_cpt = in_array($screen->post_type, array('slms_course', 'slms_lesson'), true);
-    $is_slms_page = (strpos($screen->id, 'slms-students') !== false || strpos($screen->id, 'slms-migration') !== false || strpos($screen->id, 'slms-debug-log') !== false || strpos($screen->id, 'simple-lms') !== false);
+    $screen_id = (string)($screen->id ?? '');
+    $is_slms_page = (strpos($screen_id, 'slms-students') !== false || strpos($screen_id, 'slms-migration') !== false || strpos($screen_id, 'slms-debug-log') !== false || strpos($screen_id, 'simple-lms') !== false);
 
     if (!$is_lms_cpt && !$is_slms_page) {
         return;
@@ -182,16 +184,16 @@ function slms_enqueue_admin_assets($hook_suffix)
 
     $asset = require $asset_file;
 
-    if ($is_slms_page) {
-        // Tailwind CDN fallback — ensures admin UI renders even if local build is stale.
-        wp_enqueue_script(
-            'slms-tailwind-cdn',
-            'https://cdn.tailwindcss.com',
-            array(),
-            null,
-            false
-        );
+    // Tailwind CDN fallback — ensures admin UI renders even if local build is stale.
+    wp_enqueue_script(
+        'slms-tailwind-cdn',
+        'https://cdn.tailwindcss.com',
+        array(),
+        null,
+        false
+    );
 
+    if ($is_slms_page) {
         wp_enqueue_style(
             'slms-tailwind',
             SLMS_PLUGIN_URL . 'build/admin/tailwind.css',
