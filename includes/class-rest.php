@@ -273,6 +273,17 @@ class REST
         }
         ));
 
+        // Reset Phase 4 migration meta so entries can be re-processed.
+        register_rest_route(self::NAMESPACE , '/migration/pmpro/reset', array(
+            'methods' => 'POST',
+            'callback' => function () {
+            return rest_ensure_response(Migration::reset_pmpro_migration());
+        },
+            'permission_callback' => function () {
+            return current_user_can('manage_options');
+        }
+        ));
+
         /* ── Debug Log ──────────────────────────────────────────────── */
 
         register_rest_route(self::NAMESPACE , '/debug-log', array(

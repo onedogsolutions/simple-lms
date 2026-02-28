@@ -89,6 +89,33 @@ const MigrationTool = () => {
 		}
 	};
 
+	const resetPhase4 = async () => {
+		if (!window.confirm(__('Reset Phase 4? This clears all migration markers so entries can be re-processed.', 'simple-lms-bridge'))) {
+			return;
+		}
+		setMigrating(true);
+		setError(null);
+		try {
+			const res = await apiFetch({
+				path: '/simple-lms/v1/migration/pmpro/reset',
+				method: 'POST',
+			});
+			if (res.log) {
+				appendLog(res.log);
+			}
+			setNotice(sprintf(
+				__('Phase 4 reset: %d markers cleared, %d entries ready to re-process.', 'simple-lms-bridge'),
+				res.deleted,
+				res.pending
+			));
+			await loadStatus();
+		} catch (err) {
+			setError(err.message);
+		} finally {
+			setMigrating(false);
+		}
+	};
+
 	const runMigration = async (type) => {
 		setMigrating(true);
 		setError(null);
@@ -514,7 +541,7 @@ const MigrationTool = () => {
 						<ProgressBar value={pmproProgress} className="h-2.5 rounded-full" />
 					</div>
 
-					<div className="mt-4 ml-11">
+					<div className="mt-4 ml-11 flex gap-3">
 						<Button
 							variant="primary"
 							isBusy={migrating && phase === 4}
@@ -531,6 +558,16 @@ const MigrationTool = () => {
 									? __('Migrating Memberships…', 'simple-lms-bridge')
 									: __('Start PMPro Migration', 'simple-lms-bridge')}
 						</Button>
+						{isPhase3Complete && pmproPending === 0 && (
+							<Button
+								variant="secondary"
+								disabled={migrating}
+								onClick={resetPhase4}
+								className="font-medium px-4 py-2 rounded-md"
+							>
+								{__('Reset Phase 4', 'simple-lms-bridge')}
+							</Button>
+						)}
 					</div>
 				</div>
 

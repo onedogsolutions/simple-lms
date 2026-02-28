@@ -1052,6 +1052,18 @@ class Migration
 
         self::log('Found ' . count($unmigrated) . ' unmigrated entries to process.');
 
+        // Log the first entry's field keys for diagnostic purposes.
+        if (!empty($unmigrated[0])) {
+            $sample = $unmigrated[0];
+            $populated_keys = array();
+            foreach ($sample as $key => $val) {
+                if (!empty($val) && is_numeric(str_replace('.', '', $key))) {
+                    $populated_keys[] = $key . '=' . mb_substr((string)$val, 0, 60);
+                }
+            }
+            self::log('Sample entry #' . $sample['id'] . ' populated field keys: ' . implode(' | ', $populated_keys), 'debug');
+        }
+
         // Build a level name cache from existing PMPro levels.
         $level_cache = array();
         if (function_exists('pmpro_getAllLevels')) {
@@ -1095,14 +1107,28 @@ class Migration
             $user_label = $user ? $user->user_email : 'UID:' . $user_id;
 
             // Extract product names from the product field IDs.
+            // GF product fields store data in sub-fields: {id}.1 = name, {id}.2 = price, {id}.3 = qty.
+            // We check both the bare field ID and the .1 sub-field for the product name.
             $products = array();
             foreach ($product_field_ids as $field_id) {
-                $value = rgar($entry, (string)$field_id);
-                if (!empty($value)) {
+                $product_name = '';
+
+                // Try sub-field .1 first (standard GF product name sub-field).
+                $sub_value = rgar($entry, $field_id . '.1');
+                if (!empty($sub_value)) {
+                    $product_name = $sub_value;
+                } else {
+                    // Fall back to bare field ID (non-product or legacy format).
+                    $sub_value = rgar($entry, (string)$field_id);
+                    if (!empty($sub_value)) {
+                        $product_name = $sub_value;
+                    }
+                }
+
+                if (!empty($product_name)) {
                     // GF product fields may contain "Product Name|Price" format.
-                    $product_name = $value;
-                    if (strpos((string)$value, '|') !== false) {
-                        $parts = explode('|', $value);
+                    if (strpos((string)$product_name, '|') !== false) {
+                        $parts = explode('|', $product_name);
                         $product_name = trim($parts[0]);
                     }
                     if (!empty($product_name)) {
@@ -1427,6 +1453,34 @@ class Migration
         ));
 
         return max(0, (int)$total - $migrated);
+    }
+
+    /**
+     * Reset Phase 4 migration meta so all GF Form 2 entries can be re-processed.
+     *
+     * @return array Result summary.
+     */
+    public static function reset_pmpro_migration()
+    {
+        global $wpdb;
+        $gf_meta_table = $wpdb->prefix . 'gf_entry_meta';
+
+        if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $gf_meta_table)) !== $gf_meta_table) {
+            return array('deleted' => 0, 'pending' => 0, 'success' => false, 'message' => 'GF entry meta table not found.');
+        }
+
+        $deleted = $wpdb->query(
+            "DELETE FROM {$gf_meta_table} WHERE meta_key = '_slms_pmpro_migrated'"
+        );
+
+        self::log('Phase 4 reset: removed ' . (int)$deleted . ' migration markers.', 'info');
+
+        return array(
+            'deleted' => (int)$deleted,
+            'pending' => self::get_pending_pmpro_count(),
+            'success' => true,
+            'log' => self::flush_log(),
+        );
     }
 
     /**
