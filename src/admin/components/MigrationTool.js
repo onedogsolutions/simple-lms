@@ -118,6 +118,8 @@ const MigrationTool = () => {
 							? status.history.pending
 							: (status.pmpro?.pending || 0);
 
+			let zeroProgressCount = 0;
+
 			while (pending > 0) {
 				const res = await apiFetch({
 					path: endpoint,
@@ -142,6 +144,22 @@ const MigrationTool = () => {
 				pending = res.pending;
 
 				if (res.status === 'complete') break;
+
+				// Stall detection: if 3 consecutive batches process 0 items
+				// but pending remains > 0, the migration is stuck.
+				if (res.processed === 0 && pending > 0) {
+					zeroProgressCount++;
+					if (zeroProgressCount >= 3) {
+						throw new Error(
+							__(
+								'Migration appears stuck — 0 items processed in 3 consecutive batches. Check the debug log.',
+								'simple-lms-bridge'
+							)
+						);
+					}
+				} else {
+					zeroProgressCount = 0;
+				}
 
 				// Use the total returned by the batch response for accurate tracking.
 				if (res.total && res.total > 0) {

@@ -286,6 +286,7 @@ class Migration
             'total' => $count + $pending,
             'duration' => $duration,
             'success' => true,
+            'status' => $pending === 0 ? 'complete' : 'processing',
             'log' => self::flush_log(),
         );
     }
@@ -345,17 +346,22 @@ class Migration
                 $current_progress = array();
             }
 
+            // Pre-fetch enrollment and purchase data for ownership validation.
+            $user_courses = Relationships::get_courses_for_user($user_id);
+            $enrolled_ids = array_map(function ($c) { return (int)$c->id; }, $user_courses);
+            $user_gf_products = self::get_user_gf_products($user_id);
+
             foreach ($wpc_metas as $meta) {
                 $key = $meta->meta_key;
                 $value = $meta->meta_value;
 
                 // Try JSON first — WPComplete stores data as JSON.
-                $data = json_decode($value, true);
+                $data = json_decode($value ?? '', true);
                 $format_used = 'json';
 
                 if ($data === null) {
                     // Fallback to maybe_unserialize for older formats.
-                    $data = maybe_unserialize($value);
+                    $data = maybe_unserialize($value ?? '');
                     $format_used = 'serialized';
                 }
 
@@ -380,7 +386,7 @@ class Migration
                             continue;
                         }
 
-                        self::process_legacy_lesson_progress($user_id, $legacy_lesson_id, $post_data, $current_progress, $stats, $user_label);
+                        self::process_legacy_lesson_progress($user_id, $legacy_lesson_id, $post_data, $current_progress, $stats, $user_label, $enrolled_ids, $user_gf_products);
                     }
                 }
                 else {
@@ -396,7 +402,7 @@ class Migration
                         continue;
                     }
 
-                    self::process_legacy_lesson_progress($user_id, $legacy_lesson_id, $data, $current_progress, $stats, $user_label);
+                    self::process_legacy_lesson_progress($user_id, $legacy_lesson_id, $data, $current_progress, $stats, $user_label, $enrolled_ids, $user_gf_products);
                 }
 
                 delete_user_meta($user_id, $key);
@@ -428,18 +434,149 @@ class Migration
             'total' => $count + $pending,
             'duration' => $duration,
             'success' => true,
+            'status' => $pending === 0 ? 'complete' : 'processing',
             'stats' => $stats,
             'log' => self::flush_log(),
         );
     }
 
     /**
+     * Resolve the origin course for a legacy lesson using the post_parent hierarchy.
+     *
+     * In the legacy Pods CPT, lessons were children of courses (post_parent).
+     * This method finds the new slms_course that maps to the legacy parent.
+     *
+     * @param int $legacy_lesson_id The legacy lesson post ID.
+     * @return int|null The slms_course ID if resolved, or null.
+     */
+    private static function resolve_origin_course($legacy_lesson_id)
+    {
+        $legacy_post = get_post($legacy_lesson_id);
+        if (!$legacy_post || empty($legacy_post->post_parent)) {
+            return null;
+        }
+
+        $parent_id = (int)$legacy_post->post_parent;
+
+        // Check if the parent itself is an slms_course.
+        $parent_post = get_post($parent_id);
+        if ($parent_post && $parent_post->post_type === 'slms_course') {
+            return $parent_id;
+        }
+
+        // Look up slms_course by _legacy_id meta matching the parent.
+        $query = new \WP_Query(array(
+            'post_type' => 'slms_course',
+            'meta_key' => '_legacy_id',
+            'meta_value' => $parent_id,
+            'posts_per_page' => 1,
+            'fields' => 'ids',
+            'no_found_rows' => true,
+        ));
+
+        if ($query->have_posts()) {
+            return (int)$query->posts[0];
+        }
+
+        return null;
+    }
+
+    /**
+     * Check if a user has ownership/access evidence for a specific course.
+     *
+     * Uses a three-tier check:
+     *   1. Enrollment table (wp_slms_user_course)
+     *   2. Active PMPro membership level
+     *   3. GF Form 2 purchase history (product name vs course title)
+     *
+     * @param int   $user_id          User ID.
+     * @param int   $course_id        Course post ID.
+     * @param array $enrolled_ids     Pre-fetched array of course IDs the user is enrolled in.
+     * @param array $user_gf_products Pre-fetched array of GF product names (lowercase) for the user.
+     * @return bool
+     */
+    private static function user_owns_course($user_id, $course_id, $enrolled_ids, $user_gf_products)
+    {
+        // Check A: Enrollment table.
+        if (in_array($course_id, $enrolled_ids, true)) {
+            return true;
+        }
+
+        // Check B: PMPro active membership level.
+        if (class_exists(__NAMESPACE__ . '\\PMPro') && PMPro::has_course_access($user_id, $course_id)) {
+            return true;
+        }
+
+        // Check C: GF Form 2 purchase history — match product name to course title.
+        if (!empty($user_gf_products)) {
+            $course_post = get_post($course_id);
+            if ($course_post) {
+                $course_title_lower = strtolower(trim($course_post->post_title));
+                foreach ($user_gf_products as $product_lower) {
+                    if ($product_lower === $course_title_lower || strpos($course_title_lower, $product_lower) !== false || strpos($product_lower, $course_title_lower) !== false) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Pre-fetch GF Form 2 product names for a user (for ownership validation).
+     *
+     * @param int $user_id User ID.
+     * @return array Array of lowercase product name strings.
+     */
+    private static function get_user_gf_products($user_id)
+    {
+        if (!class_exists('GFAPI')) {
+            return array();
+        }
+
+        $gf_form_id = 2;
+        $product_field_ids = array(21, 22, 44, 23, 30, 24, 25, 26, 27, 34, 43);
+
+        $search_criteria = array(
+            'status' => 'active',
+            'field_filters' => array(
+                array('key' => 'created_by', 'value' => $user_id),
+            ),
+        );
+
+        $entries = \GFAPI::get_entries($gf_form_id, $search_criteria);
+        if (!is_array($entries)) {
+            return array();
+        }
+
+        $products = array();
+        foreach ($entries as $entry) {
+            foreach ($product_field_ids as $field_id) {
+                $value = rgar($entry, (string)$field_id);
+                if (!empty($value)) {
+                    $product_name = (string)$value;
+                    if (strpos($product_name, '|') !== false) {
+                        $parts = explode('|', $product_name);
+                        $product_name = trim($parts[0]);
+                    }
+                    if (!empty($product_name)) {
+                        $products[] = strtolower(trim($product_name));
+                    }
+                }
+            }
+        }
+
+        return array_unique($products);
+    }
+
+    /**
      * Helper to process legacy lesson completions.
      *
-     * Users with WPComplete data were clearly accessing courses historically,
-     * so we auto-enroll them during migration rather than skipping.
+     * Validates course ownership before recording progress for shared lessons.
+     * Uses a tiered approach: legacy parent match, then enrollment/purchase checks.
      */
-    private static function process_legacy_lesson_progress($user_id, $legacy_lesson_id, $data, &$current_progress, &$stats = null, $user_label = '')
+    private static function process_legacy_lesson_progress($user_id, $legacy_lesson_id, $data, &$current_progress, &$stats = null, $user_label = '', $enrolled_ids = array(), $user_gf_products = array())
     {
         // 1. Look up new lesson by _legacy_id meta.
         $new_lesson_query = new \WP_Query(array(
@@ -501,13 +638,14 @@ class Migration
         $ts_source = 'fallback(now)';
 
         if (is_array($data) && !empty($data['completed'])) {
-            $parsed = strtotime($data['completed']);
+            $completed_val = (string)($data['completed'] ?? '');
+            $parsed = $completed_val !== '' ? strtotime($completed_val) : false;
             if ($parsed) {
                 $timestamp = $parsed;
-                $ts_source = 'array[completed]=' . $data['completed'];
+                $ts_source = 'array[completed]=' . $completed_val;
             }
         }
-        elseif (is_string($data) && strtotime($data)) {
+        elseif (is_string($data) && $data !== '' && strtotime($data)) {
             $timestamp = strtotime($data);
             $ts_source = 'string=' . $data;
         }
@@ -551,23 +689,80 @@ class Migration
             }
         }
 
-        // Auto-enroll and map progress for each linked course.
-        // Users with WPComplete data were accessing courses, so enroll them automatically.
-        foreach ($linked_courses as $course_obj) {
+        // Determine which course(s) to record progress for.
+        // Tier 1: Resolve origin course from legacy post_parent hierarchy.
+        $origin_course_id = self::resolve_origin_course($legacy_lesson_id);
+
+        if ($origin_course_id) {
+            // Verify the origin course is among the linked courses.
+            $origin_is_linked = false;
+            $origin_title = '';
+            foreach ($linked_courses as $course_obj) {
+                if ((int)$course_obj->id === $origin_course_id) {
+                    $origin_is_linked = true;
+                    $origin_title = $course_obj->title;
+                    break;
+                }
+            }
+
+            if ($origin_is_linked) {
+                Relationships::enroll_user($user_id, $origin_course_id, 'migration');
+                if (!isset($current_progress[$origin_course_id])) {
+                    $current_progress[$origin_course_id] = array();
+                }
+                $current_progress[$origin_course_id][$new_lesson_id] = $timestamp;
+                self::log($user_label . ': mapped legacy ' . $legacy_lesson_id . ' -> lesson ' . $new_lesson_id . ' in origin course ' . $origin_course_id . ' (' . $origin_title . ') via post_parent (ts: ' . $ts_source . ').', 'debug');
+                if ($stats !== null) {
+                    $stats['lessons_mapped']++;
+                }
+                return;
+            }
+            // Origin course not in linked courses — fall through to tiered validation.
+            self::log($user_label . ': legacy lesson ' . $legacy_lesson_id . ' post_parent resolved to course ' . $origin_course_id . ' but it is not in the linked courses list. Falling back to ownership validation.', 'debug');
+        }
+
+        // Tier 3: Single-course passthrough — no ambiguity, skip validation.
+        if (count($linked_courses) === 1) {
+            $course_obj = $linked_courses[0];
             $course_id = (int)$course_obj->id;
-
-            // Auto-enroll the user — they had WPComplete data so they were active.
             Relationships::enroll_user($user_id, $course_id, 'migration');
-
             if (!isset($current_progress[$course_id])) {
                 $current_progress[$course_id] = array();
             }
-
             $current_progress[$course_id][$new_lesson_id] = $timestamp;
-            self::log($user_label . ': mapped legacy ' . $legacy_lesson_id . ' -> lesson ' . $new_lesson_id . ' in course ' . $course_id . ' (' . $course_obj->title . ') (ts: ' . $ts_source . ').', 'debug');
+            self::log($user_label . ': mapped legacy ' . $legacy_lesson_id . ' -> lesson ' . $new_lesson_id . ' in course ' . $course_id . ' (' . $course_obj->title . ') (single course, no ambiguity) (ts: ' . $ts_source . ').', 'debug');
             if ($stats !== null) {
                 $stats['lessons_mapped']++;
             }
+            return;
+        }
+
+        // Tier 2: Multiple courses — validate ownership for each candidate.
+        $mapped_any = false;
+        foreach ($linked_courses as $course_obj) {
+            $course_id = (int)$course_obj->id;
+
+            if (self::user_owns_course($user_id, $course_id, $enrolled_ids, $user_gf_products)) {
+                Relationships::enroll_user($user_id, $course_id, 'migration');
+                if (!isset($current_progress[$course_id])) {
+                    $current_progress[$course_id] = array();
+                }
+                $current_progress[$course_id][$new_lesson_id] = $timestamp;
+                self::log($user_label . ': mapped legacy ' . $legacy_lesson_id . ' -> lesson ' . $new_lesson_id . ' in course ' . $course_id . ' (' . $course_obj->title . ') (ownership verified) (ts: ' . $ts_source . ').', 'debug');
+                if ($stats !== null) {
+                    $stats['lessons_mapped']++;
+                }
+                $mapped_any = true;
+            } else {
+                self::log($user_label . ': lesson ' . $new_lesson_id . ' linked to course ' . $course_id . ' (' . $course_obj->title . ') but user has no purchase/enrollment evidence. Skipping.', 'warn');
+                if ($stats !== null) {
+                    $stats['lessons_skipped_not_enrolled']++;
+                }
+            }
+        }
+
+        if (!$mapped_any) {
+            self::log($user_label . ': legacy lesson ' . $legacy_lesson_id . ' (new ' . $new_lesson_id . ') linked to ' . count($linked_courses) . ' courses but user has no ownership evidence for any. No progress recorded.', 'warn');
         }
     }
 
@@ -742,6 +937,7 @@ class Migration
             'inserted' => $inserted,
             'duration' => $duration,
             'success' => true,
+            'status' => ($pending === 0 || count($users) === 0) ? 'complete' : 'processing',
             'log' => self::flush_log(),
         );
     }
@@ -799,38 +995,59 @@ class Migration
         $gf_form_id = 2;
         $product_field_ids = array(21, 22, 44, 23, 30, 24, 25, 26, 27, 34, 43);
 
-        // Get entries from Form ID 2 that haven't been migrated yet.
-        // We track migration via a GF entry meta key '_slms_pmpro_migrated'.
+        // Get unmigrated entries from Form ID 2 using a self-advancing offset.
+        // The offset advances past already-migrated entries to avoid an infinite loop.
         $search_criteria = array(
             'status' => 'active',
         );
         $sorting = array('key' => 'id', 'direction' => 'ASC');
-        $paging = array('offset' => 0, 'page_size' => $limit);
 
-        $entries = \GFAPI::get_entries($gf_form_id, $search_criteria, $sorting, $paging);
+        $unmigrated = array();
+        $offset = 0;
+        $max_scans = 100; // Safety limit to prevent runaway scanning.
 
-        if (!is_array($entries)) {
-            self::log('No entries found in GF Form ID ' . $gf_form_id . '.', 'warn');
+        while (count($unmigrated) < $limit && $max_scans > 0) {
+            $paging = array('offset' => $offset, 'page_size' => $limit);
+            $entries = \GFAPI::get_entries($gf_form_id, $search_criteria, $sorting, $paging);
+
+            if (!is_array($entries) || empty($entries)) {
+                break; // No more entries in the form.
+            }
+
+            foreach ($entries as $entry) {
+                $migrated = \gform_get_meta($entry['id'], '_slms_pmpro_migrated');
+                if (!$migrated) {
+                    $unmigrated[] = $entry;
+                    if (count($unmigrated) >= $limit) {
+                        break;
+                    }
+                }
+            }
+
+            // If we fetched fewer entries than the page size, we've reached the end.
+            if (count($entries) < $limit) {
+                break;
+            }
+
+            $offset += $limit;
+            $max_scans--;
+        }
+
+        if (empty($unmigrated)) {
+            self::log('No unmigrated entries found in GF Form ID ' . $gf_form_id . '.');
+            $pending = self::get_pending_pmpro_count();
             return array(
                 'processed' => 0,
-                'pending' => 0,
-                'total' => 0,
-                'duration' => 0,
+                'pending' => $pending,
+                'total' => $pending,
+                'duration' => round(microtime(true) - $start_time, 2),
                 'success' => true,
+                'status' => $pending === 0 ? 'complete' : 'processing',
                 'log' => self::flush_log(),
             );
         }
 
-        // Filter to only unmigrated entries.
-        $unmigrated = array();
-        foreach ($entries as $entry) {
-            $migrated = \gform_get_meta($entry['id'], '_slms_pmpro_migrated');
-            if (!$migrated) {
-                $unmigrated[] = $entry;
-            }
-        }
-
-        self::log('Found ' . count($unmigrated) . ' unmigrated entries (of ' . count($entries) . ' fetched).');
+        self::log('Found ' . count($unmigrated) . ' unmigrated entries to process.');
 
         // Build a level name cache from existing PMPro levels.
         $level_cache = array();
@@ -1008,6 +1225,7 @@ class Migration
             'levels_created' => $levels_created,
             'duration' => $duration,
             'success' => true,
+            'status' => $pending === 0 ? 'complete' : 'processing',
             'log' => self::flush_log(),
         );
     }
