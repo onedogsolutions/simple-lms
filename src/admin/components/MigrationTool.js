@@ -119,8 +119,20 @@ const MigrationTool = () => {
 							: (status.pmpro?.pending || 0);
 
 			let zeroProgressCount = 0;
+			const MAX_ITERATIONS = 500;
+			let iterations = 0;
 
 			while (pending > 0) {
+				iterations++;
+				if (iterations >= MAX_ITERATIONS) {
+					appendLog([{
+						time: new Date().toLocaleTimeString(),
+						level: 'error',
+						msg: `Safety limit reached (${MAX_ITERATIONS} batches). Stopping.`,
+					}]);
+					break;
+				}
+
 				const res = await apiFetch({
 					path: endpoint,
 					method: 'POST',
@@ -146,16 +158,16 @@ const MigrationTool = () => {
 				if (res.status === 'complete') break;
 
 				// Stall detection: if 3 consecutive batches process 0 items
-				// but pending remains > 0, the migration is stuck.
+				// but pending remains > 0, the migration is stuck — break gracefully.
 				if (res.processed === 0 && pending > 0) {
 					zeroProgressCount++;
 					if (zeroProgressCount >= 3) {
-						throw new Error(
-							__(
-								'Migration appears stuck — 0 items processed in 3 consecutive batches. Check the debug log.',
-								'simple-lms-bridge'
-							)
-						);
+						appendLog([{
+							time: new Date().toLocaleTimeString(),
+							level: 'warn',
+							msg: `Migration stalled — ${pending} item(s) could not be processed. Check debug log.`,
+						}]);
+						break;
 					}
 				} else {
 					zeroProgressCount = 0;
@@ -175,13 +187,20 @@ const MigrationTool = () => {
 				}));
 			}
 
-			let noticeMessage = '';
-			if (type === 'content') noticeMessage = 'Phase 1: Content migration completed successfully.';
-			if (type === 'progress') noticeMessage = 'Phase 2: Student Progress migration completed successfully.';
-			if (type === 'history') noticeMessage = 'Phase 3: Historical Certificates migration completed successfully.';
-			if (type === 'pmpro') noticeMessage = 'Phase 4: PMPro Membership migration completed successfully.';
+			if (pending > 0) {
+				setNotice(sprintf(
+					__('Phase completed with %d item(s) that could not be processed. Check the debug log.', 'simple-lms-bridge'),
+					pending
+				));
+			} else {
+				let noticeMessage = '';
+				if (type === 'content') noticeMessage = 'Phase 1: Content migration completed successfully.';
+				if (type === 'progress') noticeMessage = 'Phase 2: Student Progress migration completed successfully.';
+				if (type === 'history') noticeMessage = 'Phase 3: Historical Certificates migration completed successfully.';
+				if (type === 'pmpro') noticeMessage = 'Phase 4: PMPro Membership migration completed successfully.';
 
-			setNotice(__(noticeMessage, 'simple-lms-bridge'));
+				setNotice(__(noticeMessage, 'simple-lms-bridge'));
+			}
 			await loadStatus();
 		} catch (err) {
 			setError(err.message);

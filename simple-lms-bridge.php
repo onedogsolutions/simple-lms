@@ -49,6 +49,8 @@ require_once SLMS_PLUGIN_DIR . 'includes/class-account-dashboard.php';
  */
 function slms_init()
 {
+    load_plugin_textdomain('simple-lms-bridge', false, dirname(SLMS_PLUGIN_BASENAME) . '/languages');
+
     CPT::init();
     REST::init();
     MetaBoxes::init();

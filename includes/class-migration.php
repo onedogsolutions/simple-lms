@@ -286,7 +286,7 @@ class Migration
             'total' => $count + $pending,
             'duration' => $duration,
             'success' => true,
-            'status' => $pending === 0 ? 'complete' : 'processing',
+            'status' => ($pending === 0 || $count === 0) ? 'complete' : 'processing',
             'log' => self::flush_log(),
         );
     }
@@ -305,9 +305,9 @@ class Migration
      * @param int $limit Max users to migrate in this batch.
      * @return array Result summary.
      */
-    public static function migrate_progress_batch($limit = -1)
+    public static function migrate_progress_batch($limit = 10)
     {
-        $limit = (int)$limit;
+        $limit = max(1, min(absint($limit), 100));
         self::log('Phase 2: Starting student progress migration (limit=' . $limit . ').');
         $start_time = microtime(true);
 
@@ -434,7 +434,7 @@ class Migration
             'total' => $count + $pending,
             'duration' => $duration,
             'success' => true,
-            'status' => $pending === 0 ? 'complete' : 'processing',
+            'status' => ($pending === 0 || $count === 0) ? 'complete' : 'processing',
             'stats' => $stats,
             'log' => self::flush_log(),
         );
@@ -918,7 +918,10 @@ class Migration
                 self::log($user_label . ': no new certificate entries to insert.');
             }
 
-            update_user_meta($user_id, '_lms_history_migrated', time());
+            $updated = update_user_meta($user_id, '_lms_history_migrated', time());
+            if (!$updated) {
+                self::log('CRITICAL: Failed to set _lms_history_migrated for user ' . $user_id . '. This user will be re-processed next batch.', 'error');
+            }
             $count++;
         }
 
@@ -1225,7 +1228,7 @@ class Migration
             'levels_created' => $levels_created,
             'duration' => $duration,
             'success' => true,
-            'status' => $pending === 0 ? 'complete' : 'processing',
+            'status' => ($pending === 0 || $count === 0) ? 'complete' : 'processing',
             'log' => self::flush_log(),
         );
     }
