@@ -2,6 +2,7 @@ node_modules/
 build/
 .DS_Store
 *.log
+*.zip
 stubs.php
 debug-problems.log
 package-lock.json
