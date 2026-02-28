@@ -270,6 +270,12 @@ class Migration
                 self::log('Linked ' . count($new_lesson_ids) . ' lessons to course ' . $new_course_id . '.');
             }
 
+            // 5. Create a PMPro membership level for this course.
+            $level_id = self::create_pmpro_level_for_course($new_course_id, $legacy_course);
+            if ($level_id) {
+                self::log('PMPro level ' . $level_id . ' mapped to course ' . $new_course_id . '.');
+            }
+
             // Mark legacy course as migrated
             update_post_meta($legacy_course->ID, '_slms_migrated', time());
             $count++;
@@ -487,12 +493,12 @@ class Migration
      * Uses a three-tier check:
      *   1. Enrollment table (wp_slms_user_course)
      *   2. Active PMPro membership level
-     *   3. GF Form 2 purchase history (product name vs course title)
+     *   3. GF Form 2 purchase history (field 20 legacy course IDs → new course IDs)
      *
      * @param int   $user_id          User ID.
-     * @param int   $course_id        Course post ID.
+     * @param int   $course_id        Course post ID (new slms_course).
      * @param array $enrolled_ids     Pre-fetched array of course IDs the user is enrolled in.
-     * @param array $user_gf_products Pre-fetched array of GF product names (lowercase) for the user.
+     * @param array $user_gf_products Pre-fetched array of new slms_course IDs from GF purchases.
      * @return bool
      */
     private static function user_owns_course($user_id, $course_id, $enrolled_ids, $user_gf_products)
@@ -507,27 +513,22 @@ class Migration
             return true;
         }
 
-        // Check C: GF Form 2 purchase history — match product name to course title.
-        if (!empty($user_gf_products)) {
-            $course_post = get_post($course_id);
-            if ($course_post) {
-                $course_title_lower = strtolower(trim($course_post->post_title));
-                foreach ($user_gf_products as $product_lower) {
-                    if ($product_lower === $course_title_lower || strpos($course_title_lower, $product_lower) !== false || strpos($product_lower, $course_title_lower) !== false) {
-                        return true;
-                    }
-                }
-            }
+        // Check C: GF Form 2 purchase history — course ID match.
+        if (!empty($user_gf_products) && in_array($course_id, $user_gf_products, true)) {
+            return true;
         }
 
         return false;
     }
 
     /**
-     * Pre-fetch GF Form 2 product names for a user (for ownership validation).
+     * Pre-fetch GF Form 2 course purchases for a user (for ownership validation).
+     *
+     * Reads checkbox field 20 ("Select Your Courses") which contains legacy
+     * course post IDs. Maps those to new slms_course IDs via _legacy_id.
      *
      * @param int $user_id User ID.
-     * @return array Array of lowercase product name strings.
+     * @return array Array of new slms_course post IDs the user has purchased.
      */
     private static function get_user_gf_products($user_id)
     {
@@ -536,7 +537,7 @@ class Migration
         }
 
         $gf_form_id = 2;
-        $product_field_ids = array(21, 22, 44, 23, 30, 24, 25, 26, 27, 34, 43);
+        $course_field_id = 20;
 
         $search_criteria = array(
             'status' => 'active',
@@ -550,36 +551,39 @@ class Migration
             return array();
         }
 
-        $products = array();
+        $course_ids = array();
         foreach ($entries as $entry) {
-            foreach ($product_field_ids as $field_id) {
-                $product_name = '';
-
-                // Try sub-field .1 first (standard GF product name sub-field).
-                $sub_value = rgar($entry, $field_id . '.1');
-                if (!empty($sub_value)) {
-                    $product_name = (string)$sub_value;
-                } else {
-                    // Fall back to bare field ID.
-                    $value = rgar($entry, (string)$field_id);
-                    if (!empty($value)) {
-                        $product_name = (string)$value;
-                    }
-                }
-
-                if (!empty($product_name)) {
-                    if (strpos($product_name, '|') !== false) {
-                        $parts = explode('|', $product_name);
-                        $product_name = trim($parts[0]);
-                    }
-                    if (!empty($product_name)) {
-                        $products[] = strtolower(trim($product_name));
-                    }
+            // GF checkboxes store each choice in sub-fields: 20.1, 20.2, etc.
+            for ($i = 1; $i <= 20; $i++) {
+                $val = rgar($entry, $course_field_id . '.' . $i);
+                if (!empty($val) && is_numeric($val)) {
+                    $course_ids[] = (int)$val;
                 }
             }
         }
 
-        return array_unique($products);
+        if (empty($course_ids)) {
+            return array();
+        }
+
+        // Map legacy course IDs to new slms_course IDs.
+        $new_course_ids = array();
+        foreach (array_unique($course_ids) as $legacy_id) {
+            $query = new \WP_Query(array(
+                'post_type' => 'slms_course',
+                'meta_key' => '_legacy_id',
+                'meta_value' => $legacy_id,
+                'posts_per_page' => 1,
+                'fields' => 'ids',
+                'no_found_rows' => true,
+            ));
+
+            if ($query->have_posts()) {
+                $new_course_ids[] = (int)$query->posts[0];
+            }
+        }
+
+        return array_unique($new_course_ids);
     }
 
     /**
@@ -968,11 +972,12 @@ class Migration
     /**
      * Phase 4: PMPro Membership Migration.
      *
-     * Migrates historical access data from Gravity Forms Registration (Form ID 2)
-     * into PMPro membership levels. Creates missing levels, enrolls users with
-     * 90-day access windows from the original GF entry date.
+     * Reads GF Form 2 "Select Your Courses" checkbox field (ID 20) which
+     * contains legacy course post IDs. Maps each old post ID → new slms_course
+     * (via _legacy_id) → PMPro level (via _lms_pmpro_levels), then enrolls
+     * the user with a 90-day access window from the original GF entry date.
      *
-     * GF Form ID 2 product field IDs: 21, 22, 44, 23, 30, 24, 25, 26, 27, 34, 43
+     * PMPro levels should already exist from Phase 1 (create_pmpro_level_for_course).
      *
      * @param int $limit Max entries to migrate in this batch.
      * @return array Result summary.
@@ -1008,10 +1013,9 @@ class Migration
         }
 
         $gf_form_id = 2;
-        $product_field_ids = array(21, 22, 44, 23, 30, 24, 25, 26, 27, 34, 43);
+        $course_field_id = 20; // Checkbox field: "Select Your Courses" with legacy post IDs as values.
 
         // Get unmigrated entries from Form ID 2 using a self-advancing offset.
-        // The offset advances past already-migrated entries to avoid an infinite loop.
         $search_criteria = array(
             'status' => 'active',
         );
@@ -1019,14 +1023,14 @@ class Migration
 
         $unmigrated = array();
         $offset = 0;
-        $max_scans = 100; // Safety limit to prevent runaway scanning.
+        $max_scans = 100;
 
         while (count($unmigrated) < $limit && $max_scans > 0) {
             $paging = array('offset' => $offset, 'page_size' => $limit);
             $entries = \GFAPI::get_entries($gf_form_id, $search_criteria, $sorting, $paging);
 
             if (!is_array($entries) || empty($entries)) {
-                break; // No more entries in the form.
+                break;
             }
 
             foreach ($entries as $entry) {
@@ -1039,7 +1043,6 @@ class Migration
                 }
             }
 
-            // If we fetched fewer entries than the page size, we've reached the end.
             if (count($entries) < $limit) {
                 break;
             }
@@ -1064,30 +1067,24 @@ class Migration
 
         self::log('Found ' . count($unmigrated) . ' unmigrated entries to process.');
 
-        // Log the first entry's field keys for diagnostic purposes.
+        // Log the first entry's field 20 sub-fields for diagnostics.
         if (!empty($unmigrated[0])) {
             $sample = $unmigrated[0];
-            $populated_keys = array();
+            $sample_fields = array();
             foreach ($sample as $key => $val) {
-                if (!empty($val) && is_numeric(str_replace('.', '', $key))) {
-                    $populated_keys[] = $key . '=' . mb_substr((string)$val, 0, 60);
+                if (!empty($val) && strpos((string)$key, $course_field_id . '.') === 0) {
+                    $sample_fields[] = $key . '=' . $val;
                 }
             }
-            self::log('Sample entry #' . $sample['id'] . ' populated field keys: ' . implode(' | ', $populated_keys), 'debug');
+            self::log('Sample entry #' . $sample['id'] . ' field 20 sub-fields: ' . (empty($sample_fields) ? '(none)' : implode(' | ', $sample_fields)), 'debug');
         }
 
-        // Build a level name cache from existing PMPro levels.
-        $level_cache = array();
-        if (function_exists('pmpro_getAllLevels')) {
-            $all_levels = pmpro_getAllLevels(false, true);
-            foreach ($all_levels as $level) {
-                $level_cache[strtolower(trim($level->name))] = (int)$level->id;
-            }
-        }
+        // Build a lookup cache: legacy course ID -> { new_course_id, level_ids[] }.
+        $legacy_map = self::build_legacy_course_map();
+        self::log('Legacy course map has ' . count($legacy_map) . ' entries.', 'debug');
 
         $count = 0;
         $enrolled = 0;
-        $levels_created = 0;
 
         foreach ($unmigrated as $entry) {
             $entry_id = absint($entry['id']);
@@ -1096,7 +1093,6 @@ class Migration
 
             // Resolve user by email if created_by is missing.
             if (!$user_id) {
-                // Search common email fields in the entry.
                 foreach ($entry as $fkey => $fval) {
                     if (is_string($fval) && \is_email($fval)) {
                         $wp_user = get_user_by('email', $fval);
@@ -1118,132 +1114,69 @@ class Migration
             $user = get_userdata($user_id);
             $user_label = $user ? $user->user_email : 'UID:' . $user_id;
 
-            // Extract product names from the product field IDs.
-            // GF product fields store data in sub-fields: {id}.1 = name, {id}.2 = price, {id}.3 = qty.
-            // We check both the bare field ID and the .1 sub-field for the product name.
-            $products = array();
-            foreach ($product_field_ids as $field_id) {
-                $product_name = '';
-
-                // Try sub-field .1 first (standard GF product name sub-field).
-                $sub_value = rgar($entry, $field_id . '.1');
-                if (!empty($sub_value)) {
-                    $product_name = $sub_value;
-                } else {
-                    // Fall back to bare field ID (non-product or legacy format).
-                    $sub_value = rgar($entry, (string)$field_id);
-                    if (!empty($sub_value)) {
-                        $product_name = $sub_value;
-                    }
-                }
-
-                if (!empty($product_name)) {
-                    // GF product fields may contain "Product Name|Price" format.
-                    if (strpos((string)$product_name, '|') !== false) {
-                        $parts = explode('|', $product_name);
-                        $product_name = trim($parts[0]);
-                    }
-                    if (!empty($product_name)) {
-                        $products[] = $product_name;
-                    }
+            // Extract legacy course post IDs from checkbox field 20.
+            // GF checkboxes store each choice in sub-fields: 20.1, 20.2, 20.3, etc.
+            $legacy_course_ids = array();
+            for ($i = 1; $i <= 20; $i++) {
+                $val = rgar($entry, $course_field_id . '.' . $i);
+                if (!empty($val) && is_numeric($val)) {
+                    $legacy_course_ids[] = (int)$val;
                 }
             }
 
-            if (empty($products)) {
-                self::log('Entry #' . $entry_id . ' (' . $user_label . '): no product fields found, skipping.', 'debug');
+            if (empty($legacy_course_ids)) {
+                self::log('Entry #' . $entry_id . ' (' . $user_label . '): no course selections in field ' . $course_field_id . ', skipping.', 'debug');
                 \gform_update_meta($entry_id, '_slms_pmpro_migrated', time());
                 $count++;
                 continue;
             }
 
-            self::log('Entry #' . $entry_id . ' (' . $user_label . '): found ' . count($products) . ' product(s): ' . implode(', ', $products) . '.');
+            self::log('Entry #' . $entry_id . ' (' . $user_label . '): found ' . count($legacy_course_ids) . ' course(s): ' . implode(', ', $legacy_course_ids) . '.');
 
-            // For each product, find or create a PMPro level and enroll the user.
-            foreach ($products as $product_name) {
-                $level_key = strtolower(trim($product_name));
-                $level_id = isset($level_cache[$level_key]) ? $level_cache[$level_key] : 0;
-
-                // Create the level if it doesn't exist.
-                if (!$level_id && function_exists('pmpro_insert_or_replace')) {
-                    $new_level = array(
-                        'name' => sanitize_text_field($product_name),
-                        'description' => 'Auto-created from GF Form #' . $gf_form_id . ' migration.',
-                        'allow_signups' => 0,
-                        'expiration_number' => 90,
-                        'expiration_period' => 'Day',
-                    );
-
-                    global $wpdb;
-                    $pmpro_table = $wpdb->prefix . 'pmpro_membership_levels';
-
-                    // Check table exists before inserting.
-                    if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $pmpro_table)) === $pmpro_table) {
-                        $wpdb->insert(
-                            $pmpro_table,
-                            array(
-                            'name' => sanitize_text_field($product_name),
-                            'description' => 'Auto-created from GF migration.',
-                            'allow_signups' => 0,
-                            'expiration_number' => 90,
-                            'expiration_period' => 'Day',
-                        ),
-                            array('%s', '%s', '%d', '%d', '%s')
-                        );
-                        $level_id = (int)$wpdb->insert_id;
-
-                        if ($level_id) {
-                            $level_cache[$level_key] = $level_id;
-                            $levels_created++;
-                            self::log('Created PMPro level "' . $product_name . '" (ID: ' . $level_id . ').');
-                        }
-                        else {
-                            self::log('Failed to create PMPro level "' . $product_name . '".', 'error');
-                            continue;
-                        }
-                    }
-                    else {
-                        self::log('PMPro membership_levels table not found, cannot create level.', 'error');
-                        continue;
-                    }
+            // Calculate 90-day enddate from the GF entry date.
+            $enddate = '';
+            if (!empty($entry_date)) {
+                $entry_timestamp = strtotime($entry_date);
+                if ($entry_timestamp) {
+                    $enddate = gmdate('Y-m-d H:i:s', $entry_timestamp + (90 * DAY_IN_SECONDS));
                 }
-                elseif (!$level_id) {
-                    self::log('Cannot create PMPro level "' . $product_name . '" — pmpro_insert_or_replace not available.', 'warn');
+            }
+
+            foreach ($legacy_course_ids as $legacy_id) {
+                if (!isset($legacy_map[$legacy_id])) {
+                    self::log($user_label . ': legacy course ID ' . $legacy_id . ' not found in migration map, skipping.', 'warn');
                     continue;
                 }
 
-                // Calculate 90-day enddate from the GF entry date.
-                $enddate = '';
-                if (!empty($entry_date)) {
-                    $entry_timestamp = strtotime($entry_date);
-                    if ($entry_timestamp) {
-                        $enddate = gmdate('Y-m-d H:i:s', $entry_timestamp + (90 * DAY_IN_SECONDS));
+                $map_entry = $legacy_map[$legacy_id];
+                $new_course_id = $map_entry['new_course_id'];
+                $level_ids = $map_entry['level_ids'];
+
+                if (empty($level_ids)) {
+                    self::log($user_label . ': new course ' . $new_course_id . ' (legacy ' . $legacy_id . ') has no PMPro level mapped, skipping.', 'warn');
+                    continue;
+                }
+
+                // Enroll in each PMPro level mapped to this course.
+                foreach ($level_ids as $level_id) {
+                    $level_params = array(
+                        'user_id' => $user_id,
+                        'membership_id' => $level_id,
+                        'enddate' => $enddate,
+                    );
+
+                    $result = \pmpro_changeMembershipLevel($level_params, $user_id);
+
+                    if ($result) {
+                        self::log($user_label . ': enrolled in PMPro level ' . $level_id . ' (legacy course ' . $legacy_id . ' -> course ' . $new_course_id . ') enddate=' . $enddate . '.', 'debug');
+                        $enrolled++;
+                    } else {
+                        self::log($user_label . ': pmpro_changeMembershipLevel failed for level ' . $level_id . '.', 'error');
                     }
                 }
 
-                // Enroll the user via pmpro_changeMembershipLevel.
-                $level_params = array(
-                    'user_id' => $user_id,
-                    'membership_id' => $level_id,
-                    'enddate' => $enddate,
-                );
-
-                $result = \pmpro_changeMembershipLevel($level_params, $user_id);
-
-                if ($result) {
-                    self::log($user_label . ': enrolled in PMPro level ' . $level_id . ' ("' . $product_name . '") enddate=' . $enddate . '.', 'debug');
-                    $enrolled++;
-
-                    // Also enroll in SimpleLMS courses mapped to this level.
-                    if (class_exists(__NAMESPACE__ . '\\PMPro')) {
-                        $course_ids = PMPro::get_courses_for_level($level_id);
-                        foreach ($course_ids as $course_id) {
-                            Relationships::enroll_user($user_id, $course_id, 'pmpro_migration');
-                        }
-                    }
-                }
-                else {
-                    self::log($user_label . ': pmpro_changeMembershipLevel failed for level ' . $level_id . '.', 'error');
-                }
+                // Also enroll in the SimpleLMS course directly.
+                Relationships::enroll_user($user_id, $new_course_id, 'pmpro_migration');
             }
 
             \gform_update_meta($entry_id, '_slms_pmpro_migrated', time());
@@ -1252,8 +1185,8 @@ class Migration
 
         $duration = round(microtime(true) - $start_time, 2);
         self::log(sprintf(
-            'Phase 4 complete: entries=%d, enrolled=%d, levels_created=%d, duration=%ss.',
-            $count, $enrolled, $levels_created, $duration
+            'Phase 4 complete: entries=%d, enrolled=%d, duration=%ss.',
+            $count, $enrolled, $duration
         ));
 
         $pending = self::get_pending_pmpro_count();
@@ -1263,12 +1196,51 @@ class Migration
             'pending' => $pending,
             'total' => $count + $pending,
             'enrolled' => $enrolled,
-            'levels_created' => $levels_created,
             'duration' => $duration,
             'success' => true,
             'status' => ($pending === 0 || $count === 0) ? 'complete' : 'processing',
             'log' => self::flush_log(),
         );
+    }
+
+    /**
+     * Build a lookup map: legacy course post ID -> new course + PMPro level(s).
+     *
+     * Queries all slms_course posts that have a _legacy_id meta value, then
+     * reads their _lms_pmpro_levels to build the mapping table.
+     *
+     * @return array { legacy_id => { 'new_course_id' => int, 'level_ids' => int[] } }
+     */
+    private static function build_legacy_course_map()
+    {
+        $map = array();
+
+        $courses = get_posts(array(
+            'post_type' => 'slms_course',
+            'post_status' => 'publish',
+            'numberposts' => -1,
+            'meta_key' => '_legacy_id',
+            'meta_compare' => 'EXISTS',
+        ));
+
+        foreach ($courses as $course) {
+            $legacy_id = (int)get_post_meta($course->ID, '_legacy_id', true);
+            if (!$legacy_id) {
+                continue;
+            }
+
+            $level_ids = get_post_meta($course->ID, '_lms_pmpro_levels', true);
+            if (!is_array($level_ids)) {
+                $level_ids = array();
+            }
+
+            $map[$legacy_id] = array(
+                'new_course_id' => (int)$course->ID,
+                'level_ids' => array_map('intval', $level_ids),
+            );
+        }
+
+        return $map;
     }
 
     /**
@@ -1407,6 +1379,93 @@ class Migration
             return (int)$parts[0];
         }
         return (int)$key;
+    }
+
+    /**
+     * Create or find a PMPro membership level for a course during Phase 1.
+     *
+     * Creates a "One Time" level with 90-day expiration using the legacy
+     * course_price, then maps it to the new course via _lms_pmpro_levels meta.
+     *
+     * @param int      $new_course_id  New slms_course post ID.
+     * @param \WP_Post $legacy_course  Legacy course post object.
+     * @return int|false PMPro level ID on success, false on failure.
+     */
+    private static function create_pmpro_level_for_course($new_course_id, $legacy_course)
+    {
+        if (!function_exists('pmpro_getAllLevels')) {
+            self::log('PMPro not active — skipping level creation for course ' . $new_course_id . '.', 'warn');
+            return false;
+        }
+
+        // Check if the course already has a PMPro level mapped.
+        $existing_levels = get_post_meta($new_course_id, '_lms_pmpro_levels', true);
+        if (!empty($existing_levels) && is_array($existing_levels)) {
+            self::log('Course ' . $new_course_id . ' already has PMPro level(s): ' . implode(', ', $existing_levels) . '. Skipping.', 'debug');
+            return (int)$existing_levels[0];
+        }
+
+        $course_title = get_the_title($new_course_id);
+        $level_key = strtolower(trim($course_title));
+
+        // Check if a level with this name already exists.
+        $all_levels = pmpro_getAllLevels(false, true);
+        foreach ($all_levels as $level) {
+            if (strtolower(trim($level->name)) === $level_key) {
+                self::log('Found existing PMPro level "' . $level->name . '" (ID: ' . $level->id . ') for course ' . $new_course_id . '.');
+                update_post_meta($new_course_id, '_lms_pmpro_levels', array((int)$level->id));
+                return (int)$level->id;
+            }
+        }
+
+        // Get the course price from legacy meta.
+        $price = get_post_meta($legacy_course->ID, 'course_price', true);
+        $price_clean = preg_replace('/[^0-9.]/', '', (string)$price);
+        $price_float = $price_clean !== '' ? (float)$price_clean : 0.00;
+
+        // Create a new PMPro level.
+        global $wpdb;
+        $pmpro_table = $wpdb->prefix . 'pmpro_membership_levels';
+
+        if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $pmpro_table)) !== $pmpro_table) {
+            self::log('PMPro membership_levels table not found.', 'error');
+            return false;
+        }
+
+        $wpdb->insert(
+            $pmpro_table,
+            array(
+                'name' => sanitize_text_field($course_title),
+                'description' => sprintf('One-time access to "%s".', sanitize_text_field($course_title)),
+                'initial_payment' => $price_float,
+                'billing_amount' => 0,
+                'cycle_number' => 0,
+                'cycle_period' => '',
+                'billing_limit' => 0,
+                'trial_amount' => 0,
+                'trial_limit' => 0,
+                'allow_signups' => 1,
+                'expiration_number' => 90,
+                'expiration_period' => 'Day',
+            ),
+            array('%s', '%s', '%f', '%f', '%d', '%s', '%d', '%f', '%d', '%d', '%d', '%s')
+        );
+        $level_id = (int)$wpdb->insert_id;
+
+        if (!$level_id) {
+            self::log('Failed to create PMPro level for course "' . $course_title . '".', 'error');
+            return false;
+        }
+
+        // Map the level to the course.
+        update_post_meta($new_course_id, '_lms_pmpro_levels', array($level_id));
+
+        // Set access days to 90 to match the PMPro level expiration.
+        update_post_meta($new_course_id, '_lms_access_days', 90);
+
+        self::log('Created PMPro level "' . $course_title . '" (ID: ' . $level_id . ', price: $' . number_format($price_float, 2) . ', 90-day expiration).');
+
+        return $level_id;
     }
 
     /**
