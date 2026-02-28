@@ -796,10 +796,11 @@ class Migration
      * @param int $limit Max users to migrate in this batch.
      * @return array Result summary.
      */
-    public static function migrate_history_batch($limit = 10)
+    public static function migrate_history_batch($limit = 10, $offset = 0)
     {
         $limit = absint($limit);
-        self::log('Phase 3: Starting historical certificate migration (limit=' . $limit . ').');
+        $offset = absint($offset);
+        self::log('Phase 3: Starting historical certificate migration (limit=' . $limit . ', offset=' . $offset . ').');
         $start_time = microtime(true);
         global $wpdb;
 
@@ -809,6 +810,7 @@ class Migration
             'meta_key' => '_lms_history_migrated',
             'meta_compare' => 'NOT EXISTS',
             'number' => $limit,
+            'offset' => $offset,
             'fields' => 'ID',
         ));
 
@@ -885,18 +887,6 @@ class Migration
             foreach ($unique_entries as $entry) {
                 $gf_entry_id = absint($entry['id']);
 
-                // Skip if this GF entry is already in the table (dedup).
-                $exists = (int)$wpdb->get_var($wpdb->prepare(
-                    "SELECT COUNT(*) FROM {$history_table} WHERE gf_entry_id = %d",
-                    $gf_entry_id
-                ));
-
-                if ($exists) {
-                    $skipped_dup++;
-                    continue;
-                }
-
-                // Resolve course name from GF entry fields.
                 $course_name = __('Unknown Course', 'simple-lms-bridge');
                 $form = \GFAPI::get_form($entry['form_id']);
 
@@ -917,6 +907,18 @@ class Migration
                 if ($course_name === __('Unknown Course', 'simple-lms-bridge') && $form) {
                     $course_name = str_ireplace('Certificate', '', $form['title'] ?? '');
                     $course_name = trim($course_name, ' -');
+                }
+
+                // Strict Deduplication Check based on user_id and course_name
+                $exists = (int)$wpdb->get_var($wpdb->prepare(
+                    "SELECT COUNT(*) FROM {$history_table} WHERE user_id = %d AND course_name = %s",
+                    $user_id,
+                    sanitize_text_field($course_name)
+                ));
+
+                if ($exists) {
+                    $skipped_dup++;
+                    continue;
                 }
 
                 $wpdb->insert(
@@ -953,6 +955,7 @@ class Migration
         ));
 
         $pending = self::get_pending_history_count();
+        $is_complete = ($pending === 0 || count($users) === 0);
 
         return array(
             'processed' => $count, 'pending' => $pending,
@@ -960,7 +963,8 @@ class Migration
             'inserted' => $inserted,
             'duration' => $duration,
             'success' => true,
-            'status' => ($pending === 0 || count($users) === 0) ? 'complete' : 'processing',
+            'status' => $is_complete ? 'complete' : 'processing',
+            'offset' => $is_complete ? 0 : $offset + $limit,
             'log' => self::flush_log(),
         );
     }

@@ -183,6 +183,7 @@ const MigrationTool = () => {
 			let zeroProgressCount = 0;
 			const MAX_ITERATIONS = 500;
 			let iterations = 0;
+			let currentOffset = 0;
 
 			while (pending > 0) {
 				iterations++;
@@ -200,7 +201,7 @@ const MigrationTool = () => {
 				const res = await apiFetch({
 					path: endpoint,
 					method: 'POST',
-					data: { limit: type === 'content' ? 5 : 10 },
+					data: { limit: type === 'content' ? 5 : 10, offset: currentOffset },
 				});
 
 				// Append log entries from the response
@@ -209,6 +210,7 @@ const MigrationTool = () => {
 				}
 
 				pending = res.pending;
+				currentOffset = res.offset || 0;
 
 				if (res.status === 'complete') {
 					break;
@@ -230,14 +232,6 @@ const MigrationTool = () => {
 					}
 				} else {
 					zeroProgressCount = 0;
-				}
-
-				// Use the total returned by the batch response for accurate tracking.
-				if (res.total && res.total > 0) {
-					setTotals((prev) => ({
-						...prev,
-						[type]: Math.max(prev[type], res.total),
-					}));
 				}
 
 				// Use the total returned by the batch response for accurate tracking.
@@ -400,8 +394,8 @@ const MigrationTool = () => {
 						</div>
 						<span
 							className={`px-3 py-1 rounded-full text-xs font-semibold ${isPhase1Complete
-									? 'bg-green-100 text-green-800'
-									: 'bg-yellow-100 text-yellow-800'
+								? 'bg-green-100 text-green-800'
+								: 'bg-yellow-100 text-yellow-800'
 								}`}
 						>
 							{isPhase1Complete
@@ -466,8 +460,8 @@ const MigrationTool = () => {
 				{ /* Phase 2 */}
 				<div
 					className={`bg-white border ${isPhase1Complete
-							? 'border-gray-200'
-							: 'border-gray-200 opacity-60'
+						? 'border-gray-200'
+						: 'border-gray-200 opacity-60'
 						} shadow-sm rounded-lg p-6 transition-all duration-200`}
 				>
 					<div className="flex flex-col sm:flex-row justify-between items-start mb-5">
@@ -475,8 +469,8 @@ const MigrationTool = () => {
 							<h2 className="text-xl font-bold text-gray-900 flex items-center gap-3">
 								<span
 									className={`${isPhase1Complete
-											? 'bg-blue-100 text-blue-800'
-											: 'bg-gray-100 text-gray-500'
+										? 'bg-blue-100 text-blue-800'
+										: 'bg-gray-100 text-gray-500'
 										} rounded-full h-8 w-8 flex items-center justify-center text-sm`}
 								>
 									2
@@ -495,8 +489,8 @@ const MigrationTool = () => {
 						</div>
 						<span
 							className={`px-3 py-1 rounded-full text-xs font-semibold ${isPhase2Complete
-									? 'bg-green-100 text-green-800'
-									: 'bg-gray-100 text-gray-700'
+								? 'bg-green-100 text-green-800'
+								: 'bg-gray-100 text-gray-700'
 								}`}
 						>
 							{isPhase2Complete
@@ -554,8 +548,8 @@ const MigrationTool = () => {
 								disabled={migrating || !isPhase1Complete}
 								onClick={() => runMigration('progress')}
 								className={`${!isPhase1Complete
-										? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-										: 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
+									? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+									: 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
 									} font-medium px-6 py-2 rounded-md transition-colors`}
 							>
 								{(() => {
@@ -584,8 +578,8 @@ const MigrationTool = () => {
 				{ /* Phase 3 */}
 				<div
 					className={`bg-white border ${isPhase2Complete
-							? 'border-gray-200'
-							: 'border-gray-200 opacity-60'
+						? 'border-gray-200'
+						: 'border-gray-200 opacity-60'
 						} shadow-sm rounded-lg p-6 transition-all duration-200`}
 				>
 					<div className="flex flex-col sm:flex-row justify-between items-start mb-5">
@@ -593,8 +587,8 @@ const MigrationTool = () => {
 							<h2 className="text-xl font-bold text-gray-900 flex items-center gap-3">
 								<span
 									className={`${isPhase2Complete
-											? 'bg-blue-100 text-blue-800'
-											: 'bg-gray-100 text-gray-500'
+										? 'bg-blue-100 text-blue-800'
+										: 'bg-gray-100 text-gray-500'
 										} rounded-full h-8 w-8 flex items-center justify-center text-sm`}
 								>
 									3
@@ -613,8 +607,8 @@ const MigrationTool = () => {
 						</div>
 						<span
 							className={`px-3 py-1 rounded-full text-xs font-semibold ${historyPending === 0 && isPhase2Complete
-									? 'bg-green-100 text-green-800'
-									: 'bg-gray-100 text-gray-700'
+								? 'bg-green-100 text-green-800'
+								: 'bg-gray-100 text-gray-700'
 								}`}
 						>
 							{historyPending === 0 && isPhase2Complete
@@ -672,8 +666,8 @@ const MigrationTool = () => {
 								disabled={migrating || !isPhase2Complete}
 								onClick={() => runMigration('history')}
 								className={`${!isPhase2Complete
-										? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-										: 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
+									? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+									: 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
 									} font-medium px-6 py-2 rounded-md transition-colors`}
 							>
 								{(() => {
@@ -702,8 +696,8 @@ const MigrationTool = () => {
 				{ /* Phase 4 */}
 				<div
 					className={`bg-white border ${isPhase3Complete
-							? 'border-gray-200'
-							: 'border-gray-200 opacity-60'
+						? 'border-gray-200'
+						: 'border-gray-200 opacity-60'
 						} shadow-sm rounded-lg p-6 transition-all duration-200`}
 				>
 					<div className="flex flex-col sm:flex-row justify-between items-start mb-5">
@@ -711,8 +705,8 @@ const MigrationTool = () => {
 							<h2 className="text-xl font-bold text-gray-900 flex items-center gap-3">
 								<span
 									className={`${isPhase3Complete
-											? 'bg-purple-100 text-purple-800'
-											: 'bg-gray-100 text-gray-500'
+										? 'bg-purple-100 text-purple-800'
+										: 'bg-gray-100 text-gray-500'
 										} rounded-full h-8 w-8 flex items-center justify-center text-sm`}
 								>
 									4
@@ -731,8 +725,8 @@ const MigrationTool = () => {
 						</div>
 						<span
 							className={`px-3 py-1 rounded-full text-xs font-semibold ${pmproPending === 0 && isPhase3Complete
-									? 'bg-green-100 text-green-800'
-									: 'bg-gray-100 text-gray-700'
+								? 'bg-green-100 text-green-800'
+								: 'bg-gray-100 text-gray-700'
 								}`}
 						>
 							{pmproPending === 0 && isPhase3Complete
@@ -789,8 +783,8 @@ const MigrationTool = () => {
 							disabled={migrating || !isPhase3Complete}
 							onClick={() => runMigration('pmpro')}
 							className={`${!isPhase3Complete
-									? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-									: 'bg-purple-600 hover:bg-purple-700 text-white shadow-sm'
+								? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+								: 'bg-purple-600 hover:bg-purple-700 text-white shadow-sm'
 								} font-medium px-6 py-2 rounded-md transition-colors`}
 						>
 							{(() => {
@@ -877,8 +871,8 @@ const MigrationTool = () => {
 												setLogFilter(level)
 											}
 											className={`px-3 py-1 text-xs font-medium rounded-full border cursor-pointer transition-colors ${logFilter === level
-													? 'bg-gray-800 text-white border-gray-800'
-													: 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
+												? 'bg-gray-800 text-white border-gray-800'
+												: 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
 												}`}
 										>
 											{level.charAt(0).toUpperCase() +
@@ -909,7 +903,7 @@ const MigrationTool = () => {
 											<span
 												className={`flex-shrink-0 uppercase font-semibold w-12 ${LOG_LEVEL_COLORS[
 													entry.level
-													] || 'text-gray-400'
+												] || 'text-gray-400'
 													}`}
 											>
 												{entry.level}

@@ -241,12 +241,17 @@ class REST
             'methods' => 'POST',
             'callback' => function ($request) {
             $limit = $request->get_param('limit') ?? 10;
-            return rest_ensure_response(Migration::migrate_history_batch($limit));
+            $offset = $request->get_param('offset') ?? 0;
+            return rest_ensure_response(Migration::migrate_history_batch($limit, $offset));
         },
             'args' => array(
                 'limit' => array(
                     'sanitize_callback' => 'absint',
                     'default' => 10,
+                ),
+                'offset' => array(
+                    'sanitize_callback' => 'absint',
+                    'default' => 0,
                 ),
             ),
             'permission_callback' => function () {
