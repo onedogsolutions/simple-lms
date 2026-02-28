@@ -33,22 +33,22 @@ import apiFetch from '@wordpress/api-fetch';
  * @param {number} root0.userId
  * @return {JSX.Element} The rendered component.
  */
-const HistoryTab = ( { userId } ) => {
-	const [ history, setHistory ] = useState( [] );
-	const [ loading, setLoading ] = useState( true );
+const HistoryTab = ({ userId }) => {
+	const [history, setHistory] = useState([]);
+	const [loading, setLoading] = useState(true);
 
-	useEffect( () => {
-		apiFetch( { path: `/simple-lms/v1/student/${ userId }/history` } )
-			.then( ( res ) => {
-				setHistory( res || [] );
-				setLoading( false );
-			} )
-			.catch( () => {
-				setLoading( false );
-			} );
-	}, [ userId ] );
+	useEffect(() => {
+		apiFetch({ path: `/simple-lms/v1/student/${userId}/history` })
+			.then((res) => {
+				setHistory(res || []);
+				setLoading(false);
+			})
+			.catch(() => {
+				setLoading(false);
+			});
+	}, [userId]);
 
-	if ( loading ) {
+	if (loading) {
 		return (
 			<div className="flex justify-center p-6">
 				<Spinner />
@@ -56,13 +56,13 @@ const HistoryTab = ( { userId } ) => {
 		);
 	}
 
-	if ( history.length === 0 ) {
+	if (history.length === 0) {
 		return (
 			<p className="text-gray-500 italic mt-4 p-6 bg-gray-50 rounded-xl border border-gray-200">
-				{ __(
+				{__(
 					'No completion history records found.',
 					'simple-lms-bridge'
-				) }
+				)}
 			</p>
 		);
 	}
@@ -70,34 +70,34 @@ const HistoryTab = ( { userId } ) => {
 	return (
 		<div className="space-y-4 mt-4 bg-gray-50 p-6 rounded-xl border border-gray-200 shadow-sm">
 			<h4 className="font-semibold text-lg text-gray-800 border-b border-gray-200 pb-2 mb-4">
-				{ __( 'Completion History', 'simple-lms-bridge' ) }
+				{__('Completion History', 'simple-lms-bridge')}
 			</h4>
 			<div className="overflow-x-auto">
 				<table className="min-w-full divide-y divide-gray-200 bg-white rounded-lg shadow-sm border border-gray-200">
 					<thead className="bg-gray-100">
 						<tr>
 							<th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-								{ __( 'Date', 'simple-lms-bridge' ) }
+								{__('Date', 'simple-lms-bridge')}
 							</th>
 							<th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-								{ __( 'Class', 'simple-lms-bridge' ) }
+								{__('Class', 'simple-lms-bridge')}
 							</th>
 						</tr>
 					</thead>
 					<tbody className="divide-y divide-gray-100">
-						{ history.map( ( entry, idx ) => (
+						{history.map((entry, idx) => (
 							<tr
-								key={ idx }
+								key={idx}
 								className="hover:bg-gray-50 transition-colors"
 							>
 								<td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-									{ new Date( entry.date ).toLocaleString() }
+									{new Date(entry.date).toLocaleString()}
 								</td>
 								<td className="px-4 py-3 text-sm text-gray-900 font-medium">
-									{ entry.course_name }
+									{entry.course_name}
 								</td>
 							</tr>
-						) ) }
+						))}
 					</tbody>
 				</table>
 			</div>
@@ -111,167 +111,134 @@ const HistoryTab = ( { userId } ) => {
  * @return {JSX.Element} The rendered component.
  */
 const StudentManager = () => {
-	const [ search, setSearch ] = useState( '' );
-	const [ students, setStudents ] = useState( [] );
-	const [ total, setTotal ] = useState( 0 );
-	const [ page, setPage ] = useState( 1 );
-	const [ pages, setPages ] = useState( 1 );
-	const [ loading, setLoading ] = useState( false );
-	const [ expandedStudent, setExpandedStudent ] = useState( null );
-	const [ notice, setNotice ] = useState( null );
-	const [ allAvailableCourses, setAllAvailableCourses ] = useState( [] );
-	const [ enrolling, setEnrolling ] = useState( {} ); // { userId: true }
+	const [search, setSearch] = useState('');
+	const [students, setStudents] = useState([]);
+	const [total, setTotal] = useState(0);
+	const [page, setPage] = useState(1);
+	const [pages, setPages] = useState(1);
+	const [loading, setLoading] = useState(false);
+	const [expandedStudent, setExpandedStudent] = useState(null);
+	const [notice, setNotice] = useState(null);
+	const [allAvailableCourses, setAllAvailableCourses] = useState([]);
+	const [enrolling, setEnrolling] = useState({}); // { userId: true }
 
 	// Sorting & Filtering state
-	const [ sortColumn, setSortColumn ] = useState( 'display_name' );
-	const [ sortDirection, setSortDirection ] = useState( 'asc' );
-	const [ courseFilter, setCourseFilter ] = useState( '' );
+	const [sortColumn, setSortColumn] = useState('display_name');
+	const [sortDirection, setSortDirection] = useState('asc');
+	const [courseFilter, setCourseFilter] = useState('');
 
 	// Dirty state tracking for unsaved changes
-	const [ dirtyData, setDirtyData ] = useState( {} ); // { userId: { courseId: { lessonId: boolean } } }
-	const [ metaData, setMetaData ] = useState( {} ); // { userId: { ...fields } }
-	const [ unsavedChanges, setUnsavedChanges ] = useState( false );
-	const [ saving, setSaving ] = useState( false );
+	const [dirtyData, setDirtyData] = useState({}); // { userId: { courseId: { lessonId: boolean } } }
+	const [metaData, setMetaData] = useState({}); // { userId: { ...fields } }
+	const [unsavedChanges, setUnsavedChanges] = useState(false);
+	const [saving, setSaving] = useState(false);
 
 	// Migration state
-	const [ migrationStatus, setMigrationStatus ] = useState( {
+	const [migrationStatus, setMigrationStatus] = useState({
 		pending: 0,
 		total: 0,
 		active: false,
 		complete: false,
-	} );
+	});
 
 	// Handle beforeunload for unsaved changes
-	useEffect( () => {
-		const handleBeforeUnload = ( e ) => {
-			if ( unsavedChanges ) {
+	useEffect(() => {
+		const handleBeforeUnload = (e) => {
+			if (unsavedChanges) {
 				e.preventDefault();
 				e.returnValue = '';
 			}
 		};
-		window.addEventListener( 'beforeunload', handleBeforeUnload );
+		window.addEventListener('beforeunload', handleBeforeUnload);
 		return () =>
-			window.removeEventListener( 'beforeunload', handleBeforeUnload );
-	}, [ unsavedChanges ] );
+			window.removeEventListener('beforeunload', handleBeforeUnload);
+	}, [unsavedChanges]);
 
 	// ── Fetch students ────────────────────────────────────────────
-	const fetchStudents = useCallback( async ( s, p ) => {
-		setLoading( true );
+	const fetchStudents = useCallback(async (s, p) => {
+		setLoading(true);
 		try {
-			const params = new URLSearchParams( {
+			const params = new URLSearchParams({
 				page: p,
 				per_page: 50, // Increased for better filtering experience
-			} );
-			if ( s ) {
-				params.set( 'search', s );
+			});
+			if (s) {
+				params.set('search', s);
 			}
-			const res = await apiFetch( {
-				path: `/simple-lms/v1/students?${ params.toString() }`,
-			} );
-			setStudents( res.students );
-			setTotal( res.total );
-			setPages( res.pages );
+			const res = await apiFetch({
+				path: `/simple-lms/v1/students?${params.toString()}`,
+			});
+			setStudents(res.students);
+			setTotal(res.total);
+			setPages(res.pages);
 
 			// Initialize meta state
 			const newMeta = {};
-			res.students.forEach( ( student ) => {
-				newMeta[ student.id ] = { ...student.meta };
-			} );
-			setMetaData( newMeta );
-		} catch ( err ) {
-			setNotice( { status: 'error', message: err.message } );
+			res.students.forEach((student) => {
+				newMeta[student.id] = { ...student.meta };
+			});
+			setMetaData(newMeta);
+		} catch (err) {
+			setNotice({ status: 'error', message: err.message });
 		} finally {
-			setLoading( false );
+			setLoading(false);
 		}
-	}, [] );
+	}, []);
 
-<<<<<<< HEAD
-	// Initial load.
-	useEffect( () => {
-		fetchStudents( '', 1 );
-		checkMigrationStatus();
-		fetchAvailableCourses();
-	}, [ fetchStudents, checkMigrationStatus, fetchAvailableCourses ] ); // eslint-disable-line react-hooks/exhaustive-deps
 
-=======
->>>>>>> claude/review-state-file-5z5Ti
 	const fetchAvailableCourses = async () => {
 		try {
-			const res = await apiFetch( {
+			const res = await apiFetch({
 				path: '/simple-lms/v1/relationships/courses',
-			} );
-			setAllAvailableCourses( res || [] );
-		} catch ( err ) {
-			setNotice( { status: 'error', message: err.message } );
+			});
+			setAllAvailableCourses(res || []);
+		} catch (err) {
+			setNotice({ status: 'error', message: err.message });
 		}
 	};
 
-<<<<<<< HEAD
-	const checkMigrationStatus = async () => {
-		try {
-			const res = await apiFetch( {
-				path: '/simple-lms/v1/migration/status',
-			} );
-			if ( res.progress && res.progress.pending > 0 ) {
-				setMigrationStatus( ( prev ) => ( {
-					...prev,
-					pending: res.progress.pending,
-					total: prev.total || res.progress.pending,
-				} ) );
 
-				const urlParams = new URLSearchParams( window.location.search );
-				if ( urlParams.get( 'migrate' ) === '1' ) {
-					startMigration( res.progress.pending );
-				}
-			}
-		} catch ( err ) {
-			setNotice( { status: 'error', message: err.message } );
-		}
-	};
-
-=======
->>>>>>> claude/review-state-file-5z5Ti
-	const startMigration = async ( initialPending ) => {
-		setMigrationStatus( ( prev ) => ( {
+	const startMigration = async (initialPending) => {
+		setMigrationStatus((prev) => ({
 			...prev,
 			active: true,
 			total: initialPending,
 			pending: initialPending,
-		} ) );
+		}));
 
 		let currentPending = initialPending;
 
-		while ( currentPending > 0 ) {
+		while (currentPending > 0) {
 			try {
-				const res = await apiFetch( {
+				const res = await apiFetch({
 					path: '/simple-lms/v1/migration/progress',
 					method: 'POST',
-				} );
+				});
 				currentPending = res.pending;
-				setMigrationStatus( ( prev ) => ( {
+				setMigrationStatus((prev) => ({
 					...prev,
 					pending: currentPending,
-				} ) );
+				}));
 
-				if ( currentPending === 0 ) {
-					setMigrationStatus( ( prev ) => ( {
+				if (currentPending === 0) {
+					setMigrationStatus((prev) => ({
 						...prev,
 						active: false,
 						complete: true,
-					} ) );
-					fetchStudents( search, page );
+					}));
+					fetchStudents(search, page);
 				}
-			} catch ( err ) {
-				setNotice( {
+			} catch (err) {
+				setNotice({
 					status: 'error',
 					message:
-						__( 'Migration failed:', 'simple-lms-bridge' ) +
+						__('Migration failed:', 'simple-lms-bridge') +
 						err.message,
-				} );
-				setMigrationStatus( ( prev ) => ( {
+				});
+				setMigrationStatus((prev) => ({
 					...prev,
 					active: false,
-				} ) );
+				}));
 				break;
 			}
 		}
@@ -279,194 +246,194 @@ const StudentManager = () => {
 
 	const checkMigrationStatus = async () => {
 		try {
-			const res = await apiFetch( {
+			const res = await apiFetch({
 				path: '/simple-lms/v1/migration/status',
-			} );
-			if ( res.progress && res.progress.pending > 0 ) {
-				setMigrationStatus( ( prev ) => ( {
+			});
+			if (res.progress && res.progress.pending > 0) {
+				setMigrationStatus((prev) => ({
 					...prev,
 					pending: res.progress.pending,
 					total: prev.total || res.progress.pending,
-				} ) );
+				}));
 
-				const urlParams = new URLSearchParams( window.location.search );
-				if ( urlParams.get( 'migrate' ) === '1' ) {
-					startMigration( res.progress.pending );
+				const urlParams = new URLSearchParams(window.location.search);
+				if (urlParams.get('migrate') === '1') {
+					startMigration(res.progress.pending);
 				}
 			}
-		} catch ( err ) {
-			console.error( 'Failed to check migration status', err );
+		} catch (err) {
+			console.error('Failed to check migration status', err);
 		}
 	};
 
 	// Initial load.
-	useEffect( () => {
-		fetchStudents( '', 1 );
+	useEffect(() => {
+		fetchStudents('', 1);
 		checkMigrationStatus();
 		fetchAvailableCourses();
-	}, [] );
+	}, []);
 
 	// Track when search triggers a fetch so page-change effect can skip redundant call.
-	const searchTriggeredFetch = useRef( false );
+	const searchTriggeredFetch = useRef(false);
 
 	// Search with debounce.
-	useEffect( () => {
-		const timeout = setTimeout( () => {
+	useEffect(() => {
+		const timeout = setTimeout(() => {
 			searchTriggeredFetch.current = true;
-			setPage( 1 );
-			fetchStudents( search, 1 );
-		}, 400 );
-		return () => clearTimeout( timeout );
-	}, [ search, fetchStudents ] );
+			setPage(1);
+			fetchStudents(search, 1);
+		}, 400);
+		return () => clearTimeout(timeout);
+	}, [search, fetchStudents]);
 
 	// Page change — skip if search already triggered the fetch.
-	useEffect( () => {
-		if ( searchTriggeredFetch.current ) {
+	useEffect(() => {
+		if (searchTriggeredFetch.current) {
 			searchTriggeredFetch.current = false;
 			return;
 		}
-		fetchStudents( search, page );
-	}, [ page, search, fetchStudents ] );
+		fetchStudents(search, page);
+	}, [page, search, fetchStudents]);
 
 	// ── Toggle local completion ─────────────────────────────────────────
-	const toggleLocalCompletion = ( userId, courseId, lessonId ) => {
-		setDirtyData( ( prev ) => {
+	const toggleLocalCompletion = (userId, courseId, lessonId) => {
+		setDirtyData((prev) => {
 			const next = { ...prev };
-			if ( ! next[ userId ] ) {
-				next[ userId ] = {};
+			if (!next[userId]) {
+				next[userId] = {};
 			}
-			if ( ! next[ userId ][ courseId ] ) {
-				next[ userId ][ courseId ] = {};
+			if (!next[userId][courseId]) {
+				next[userId][courseId] = {};
 			}
 
-			const currentState = next[ userId ][ courseId ][ lessonId ];
-			if ( currentState === undefined ) {
-				const student = students.find( ( s ) => s.id === userId );
+			const currentState = next[userId][courseId][lessonId];
+			if (currentState === undefined) {
+				const student = students.find((s) => s.id === userId);
 				const course = student.courses.find(
-					( c ) => c.course_id === courseId
+					(c) => c.course_id === courseId
 				);
-				const isCompleted = course.lessons[ lessonId ].completed;
-				next[ userId ][ courseId ][ lessonId ] = ! isCompleted;
+				const isCompleted = course.lessons[lessonId].completed;
+				next[userId][courseId][lessonId] = !isCompleted;
 			} else {
-				next[ userId ][ courseId ][ lessonId ] = ! currentState;
+				next[userId][courseId][lessonId] = !currentState;
 			}
 
 			return next;
-		} );
-		setUnsavedChanges( true );
+		});
+		setUnsavedChanges(true);
 	};
 
-	const handleMetaChange = ( userId, field, value ) => {
-		setMetaData( ( prev ) => ( {
+	const handleMetaChange = (userId, field, value) => {
+		setMetaData((prev) => ({
 			...prev,
-			[ userId ]: {
-				...prev[ userId ],
-				[ field ]: value,
+			[userId]: {
+				...prev[userId],
+				[field]: value,
 			},
-		} ) );
-		setUnsavedChanges( true );
+		}));
+		setUnsavedChanges(true);
 	};
 
-	const getLessonStatus = ( userId, courseId, lessonId ) => {
-		if ( dirtyData[ userId ]?.[ courseId ]?.[ lessonId ] !== undefined ) {
-			return dirtyData[ userId ][ courseId ][ lessonId ];
+	const getLessonStatus = (userId, courseId, lessonId) => {
+		if (dirtyData[userId]?.[courseId]?.[lessonId] !== undefined) {
+			return dirtyData[userId][courseId][lessonId];
 		}
-		const student = students.find( ( s ) => s.id === userId );
+		const student = students.find((s) => s.id === userId);
 		const course = student.courses.find(
-			( c ) => c.course_id === courseId
+			(c) => c.course_id === courseId
 		);
-		return course.lessons[ lessonId ]?.completed || false;
+		return course.lessons[lessonId]?.completed || false;
 	};
 
-	const handleUpdate = async ( userId ) => {
-		setSaving( true );
+	const handleUpdate = async (userId) => {
+		setSaving(true);
 		try {
 			const updates = [];
 
 			// Save Progress
-			if ( dirtyData[ userId ] ) {
-				for ( const courseId in dirtyData[ userId ] ) {
-					for ( const lessonId in dirtyData[ userId ][ courseId ] ) {
+			if (dirtyData[userId]) {
+				for (const courseId in dirtyData[userId]) {
+					for (const lessonId in dirtyData[userId][courseId]) {
 						updates.push(
-							apiFetch( {
+							apiFetch({
 								path: '/simple-lms/v1/progress',
 								method: 'POST',
 								data: {
 									user_id: userId,
-									course_id: parseInt( courseId, 10 ),
-									lesson_id: parseInt( lessonId, 10 ),
+									course_id: parseInt(courseId, 10),
+									lesson_id: parseInt(lessonId, 10),
 									completed:
-										dirtyData[ userId ][ courseId ][
-											lessonId
+										dirtyData[userId][courseId][
+										lessonId
 										],
 								},
-							} )
+							})
 						);
 					}
 				}
 			}
 
 			// Save Meta
-			if ( metaData[ userId ] ) {
+			if (metaData[userId]) {
 				updates.push(
-					apiFetch( {
-						path: `/simple-lms/v1/students/${ userId }/meta`,
+					apiFetch({
+						path: `/simple-lms/v1/students/${userId}/meta`,
 						method: 'POST',
-						data: metaData[ userId ],
-					} )
+						data: metaData[userId],
+					})
 				);
 			}
 
-			if ( updates.length > 0 ) {
-				await Promise.all( updates );
+			if (updates.length > 0) {
+				await Promise.all(updates);
 			}
 
-			setDirtyData( ( prev ) => {
+			setDirtyData((prev) => {
 				const next = { ...prev };
-				delete next[ userId ];
+				delete next[userId];
 				return next;
-			} );
-			setUnsavedChanges( false );
+			});
+			setUnsavedChanges(false);
 
-			fetchStudents( search, page );
-			setNotice( {
+			fetchStudents(search, page);
+			setNotice({
 				status: 'success',
 				message: __(
 					'Profile and progress updated successfully!',
 					'simple-lms-bridge'
 				),
-			} );
-		} catch ( err ) {
-			setNotice( { status: 'error', message: err.message } );
+			});
+		} catch (err) {
+			setNotice({ status: 'error', message: err.message });
 		} finally {
-			setSaving( false );
+			setSaving(false);
 		}
 	};
 
 	// ── Enrollment Management ─────────────────────────────────────
-	const enrollStudent = async ( userId, courseId ) => {
-		if ( ! courseId ) {
+	const enrollStudent = async (userId, courseId) => {
+		if (!courseId) {
 			return;
 		}
-		setEnrolling( ( prev ) => ( { ...prev, [ userId ]: true } ) );
+		setEnrolling((prev) => ({ ...prev, [userId]: true }));
 		try {
-			await apiFetch( {
-				path: `/simple-lms/v1/enrollments/user/${ userId }/courses`,
+			await apiFetch({
+				path: `/simple-lms/v1/enrollments/user/${userId}/courses`,
 				method: 'POST',
 				data: { course_id: courseId },
-			} );
-			fetchStudents( search, page );
-		} catch ( err ) {
-			setNotice( { status: 'error', message: err.message } );
+			});
+			fetchStudents(search, page);
+		} catch (err) {
+			setNotice({ status: 'error', message: err.message });
 		} finally {
-			setEnrolling( ( prev ) => ( { ...prev, [ userId ]: false } ) );
+			setEnrolling((prev) => ({ ...prev, [userId]: false }));
 		}
 	};
 
-	const unenrollStudent = async ( userId, courseId ) => {
+	const unenrollStudent = async (userId, courseId) => {
 		if (
 			/* eslint-disable no-alert */
-			! window.confirm(
+			!window.confirm(
 				__(
 					'Are you sure you want to unenroll this student from this course? This will NOT delete their progress, but they will lose access.',
 					'simple-lms-bridge'
@@ -476,73 +443,73 @@ const StudentManager = () => {
 		) {
 			return;
 		}
-		setEnrolling( ( prev ) => ( { ...prev, [ userId ]: true } ) );
+		setEnrolling((prev) => ({ ...prev, [userId]: true }));
 		try {
-			await apiFetch( {
-				path: `/simple-lms/v1/enrollments/user/${ userId }/courses/${ courseId }`,
+			await apiFetch({
+				path: `/simple-lms/v1/enrollments/user/${userId}/courses/${courseId}`,
 				method: 'DELETE',
-			} );
-			fetchStudents( search, page );
-		} catch ( err ) {
-			setNotice( { status: 'error', message: err.message } );
+			});
+			fetchStudents(search, page);
+		} catch (err) {
+			setNotice({ status: 'error', message: err.message });
 		} finally {
-			setEnrolling( ( prev ) => ( { ...prev, [ userId ]: false } ) );
+			setEnrolling((prev) => ({ ...prev, [userId]: false }));
 		}
 	};
 
-	const formatDate = ( timestamp ) => {
-		if ( ! timestamp ) {
+	const formatDate = (timestamp) => {
+		if (!timestamp) {
 			return '';
 		}
-		return new Date( timestamp * 1000 ).toLocaleString();
+		return new Date(timestamp * 1000).toLocaleString();
 	};
 
-	const handleSort = ( column ) => {
-		if ( sortColumn === column ) {
-			setSortDirection( sortDirection === 'asc' ? 'desc' : 'asc' );
+	const handleSort = (column) => {
+		if (sortColumn === column) {
+			setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
 		} else {
-			setSortColumn( column );
-			setSortDirection( 'asc' );
+			setSortColumn(column);
+			setSortDirection('asc');
 		}
 	};
 
 	// Derived logic for table display
-	let displayedStudents = [ ...students ];
+	let displayedStudents = [...students];
 
 	// Filter
-	if ( courseFilter ) {
-		displayedStudents = displayedStudents.filter( ( s ) =>
+	if (courseFilter) {
+		displayedStudents = displayedStudents.filter((s) =>
 			s.courses.some(
-				( c ) => c.course_id === parseInt( courseFilter, 10 )
+				(c) => c.course_id === parseInt(courseFilter, 10)
 			)
 		);
 	}
 
 	// Sort
-	displayedStudents.sort( ( a, b ) => {
+	displayedStudents.sort((a, b) => {
 		let valA, valB;
-		if ( sortColumn === 'display_name' ) {
+		if (sortColumn === 'display_name') {
 			valA = a.display_name.toLowerCase();
 			valB = b.display_name.toLowerCase();
-		} else if ( sortColumn === 'email' ) {
+		} else if (sortColumn === 'email') {
 			valA = a.email.toLowerCase();
 			valB = b.email.toLowerCase();
-		} else if ( sortColumn === 'courses' ) {
+		} else if (sortColumn === 'courses') {
 			valA = a.courses.length;
 			valB = b.courses.length;
 		}
 
-		if ( valA < valB ) {
+		if (valA < valB) {
 			return sortDirection === 'asc' ? -1 : 1;
 		}
-		if ( valA > valB ) {
+		if (valA > valB) {
 			return sortDirection === 'asc' ? 1 : -1;
 		}
 		return 0;
-	} );
+	});
 
-	const getSortIcon = ( column ) => {
-		if ( sortColumn !== column ) {
+	const getSortIcon = (column) => {
+		if (sortColumn !== column) {
 			return (
 				<span className="opacity-0 group-hover:opacity-50 ml-1 text-[10px]">
 					▼
@@ -558,126 +525,130 @@ const StudentManager = () => {
 
 	return (
 		<div className="slms-student-manager max-w-7xl mx-auto py-6">
-			{ notice && (
+			{notice && (
 				<Notice
-					status={ notice.status }
+					status={notice.status}
 					isDismissible
-					onDismiss={ () => setNotice( null ) }
+					onDismiss={() => setNotice(null)}
 				>
-					{ notice.message }
+					{notice.message}
 				</Notice>
-			) }
+			)}
 
-			{ migrationStatus.active && (
+			{migrationStatus.active && (
 				<Notice status="info" __nextHasNoMargin>
 					<div className="slms-migration-progress">
 						<p>
-							{ __(
+							{__(
 								'Migrating WP Complete data…',
 								'simple-lms-bridge'
-							) }{ ' ' }
+							)}{' '}
 							<strong>
-								{ migrationStatus.total -
-									migrationStatus.pending }{ ' ' }
-								/ { migrationStatus.total }
+								{migrationStatus.total -
+									migrationStatus.pending}{' '}
+								/ {migrationStatus.total}
 							</strong>
 						</p>
 						<ProgressBar
-							value={ Math.min(
+							value={Math.min(
 								Math.round(
-									( ( migrationStatus.total -
-										migrationStatus.pending ) /
-										Math.max( migrationStatus.total, 1 ) ) *
-										100
+									((migrationStatus.total -
+										migrationStatus.pending) /
+										Math.max(migrationStatus.total, 1)) *
+									100
 								),
 								100
-							) }
+							)}
 						/>
 					</div>
 				</Notice>
-			) }
+			)}
 
-			{ migrationStatus.complete && (
+			{migrationStatus.complete && (
 				<Notice
 					status="success"
 					isDismissible
-					onDismiss={ () =>
-						setMigrationStatus( ( prev ) => ( {
+					onDismiss={() =>
+						setMigrationStatus((prev) => ({
 							...prev,
 							complete: false,
-						} ) )
+						}))
 					}
 				>
-					{ __( 'Migration complete!', 'simple-lms-bridge' ) }
+					{__('Migration complete!', 'simple-lms-bridge')}
 				</Notice>
-			) }
+			)}
 
-			{ ! migrationStatus.active &&
+			{!migrationStatus.active &&
 				migrationStatus.pending > 0 &&
-				! migrationStatus.complete && (
+				!migrationStatus.complete && (
 					<Notice status="warning">
 						<p>
-							/* translators: %d: pending users */ sprintf( __(
-							'There are still %d users with WP Complete data
-							pending migration.', 'simple-lms-bridge' ),
-							migrationStatus.pending ) }{ ' ' }
+							{sprintf(
+								/* translators: %d: pending users */
+								__(
+									'There are still %d users with WP Complete data pending migration.',
+									'simple-lms-bridge'
+								),
+								migrationStatus.pending
+							)}{' '}
 							<Button
 								variant="primary"
-								onClick={ () =>
-									startMigration( migrationStatus.pending )
+								onClick={() =>
+									startMigration(migrationStatus.pending)
 								}
 							>
-								{ __( 'Start Migration', 'simple-lms-bridge' ) }
+								{__('Start Migration', 'simple-lms-bridge')}
 							</Button>
 						</p>
 					</Notice>
-				) }
+				)}
 
 			<div className="mb-6 bg-white p-5 shadow-sm rounded-lg border border-gray-200 flex flex-col md:flex-row gap-4">
 				<div className="flex-grow">
 					<SearchControl
-						__nextHasNoMarginBottom={ true }
-						label={ __( 'Search students', 'simple-lms-bridge' ) }
-						value={ search }
-						onChange={ setSearch }
+						__nextHasNoMarginBottom={true}
+						label={__('Search students', 'simple-lms-bridge')}
+						value={search}
+						onChange={setSearch}
 						className="slms-search w-full"
 					/>
 				</div>
 				<div className="w-full md:w-1/3">
 					<SelectControl
-						label={ __( 'Filter by Course', 'simple-lms-bridge' ) }
-						value={ courseFilter }
-						options={ [
+						label={__('Filter by Course', 'simple-lms-bridge')}
+						value={courseFilter}
+						options={[
 							{
-								label: __( 'All Courses', 'simple-lms-bridge' ),
+								label: __('All Courses', 'simple-lms-bridge'),
 								value: '',
 							},
-							...allAvailableCourses.map( ( c ) => ( {
+							...allAvailableCourses.map((c) => ({
 								label: c.title,
 								value: c.id.toString(),
-							} ) ),
-						] }
-						onChange={ setCourseFilter }
-						__nextHasNoMarginBottom={ true }
+							})),
+						]}
+						onChange={setCourseFilter}
+						__nextHasNoMarginBottom={true}
 					/>
 				</div>
 			</div>
 
-			{ ( () => {
-				if ( loading ) {
+			{(() => {
+				if (loading) {
 					return (
 						<div className="flex justify-center p-12">
 							<Spinner />
 						</div>
 					);
 				}
-				if ( displayedStudents.length === 0 ) {
+				if (displayedStudents.length === 0) {
 					return (
 						<div className="bg-white p-12 text-center text-gray-500 rounded-lg shadow-sm border border-gray-200">
-							{ __(
+							{__(
 								'No students matching the criteria found.',
 								'simple-lms-bridge'
-							) }
+							)}
 						</div>
 					);
 				}
@@ -689,42 +660,42 @@ const StudentManager = () => {
 									<th
 										scope="col"
 										className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer group hover:bg-gray-100 transition-colors"
-										onClick={ () =>
-											handleSort( 'display_name' )
+										onClick={() =>
+											handleSort('display_name')
 										}
 									>
-										{ __( 'Student', 'simple-lms-bridge' ) }
-										{ getSortIcon( 'display_name' ) }
+										{__('Student', 'simple-lms-bridge')}
+										{getSortIcon('display_name')}
 									</th>
 									<th
 										scope="col"
 										className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer group hover:bg-gray-100 transition-colors"
-										onClick={ () => handleSort( 'email' ) }
+										onClick={() => handleSort('email')}
 									>
-										{ __( 'Email', 'simple-lms-bridge' ) }
-										{ getSortIcon( 'email' ) }
+										{__('Email', 'simple-lms-bridge')}
+										{getSortIcon('email')}
 									</th>
 									<th
 										scope="col"
 										className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer group hover:bg-gray-100 transition-colors"
-										onClick={ () =>
-											handleSort( 'courses' )
+										onClick={() =>
+											handleSort('courses')
 										}
 									>
-										{ __( 'Courses', 'simple-lms-bridge' ) }
-										{ getSortIcon( 'courses' ) }
+										{__('Courses', 'simple-lms-bridge')}
+										{getSortIcon('courses')}
 									</th>
 									<th
 										scope="col"
 										className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider"
 									>
-										{ __( 'Actions', 'simple-lms-bridge' ) }
+										{__('Actions', 'simple-lms-bridge')}
 									</th>
 								</tr>
 							</thead>
 							<tbody className="bg-white divide-y divide-gray-200">
-								{ displayedStudents.map( ( student ) => (
-									<Fragment key={ student.id }>
+								{displayedStudents.map((student) => (
+									<Fragment key={student.id}>
 										<tr
 											className={
 												expandedStudent === student.id
@@ -733,42 +704,42 @@ const StudentManager = () => {
 											}
 										>
 											<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-												{ student.display_name }
+												{student.display_name}
 											</td>
 											<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
 												<a
-													href={ `mailto:${ student.email }` }
+													href={`mailto:${student.email}`}
 													className="hover:text-blue-600 transition-colors"
 												>
-													{ student.email }
+													{student.email}
 												</a>
 											</td>
 											<td className="px-6 py-4 text-sm text-gray-500 flex flex-wrap gap-2">
-												{ student.courses.map(
-													( c ) => (
+												{student.courses.map(
+													(c) => (
 														<span
-															key={ c.course_id }
+															key={c.course_id}
 															className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100"
 														>
-															{ c.course_title }{ ' ' }
+															{c.course_title}{' '}
 															<span className="ml-1 opacity-75">
-																({ c.completed }
-																/{ c.total })
+																({c.completed}
+																/{c.total})
 															</span>
 														</span>
 													)
-												) }
+												)}
 											</td>
 											<td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
 												<Button
 													variant={
 														expandedStudent ===
-														student.id
+															student.id
 															? 'primary'
 															: 'secondary'
 													}
 													size="small"
-													onClick={ () =>
+													onClick={() =>
 														setExpandedStudent(
 															expandedStudent ===
 																student.id
@@ -777,23 +748,23 @@ const StudentManager = () => {
 														)
 													}
 												>
-													{ expandedStudent ===
-													student.id
+													{expandedStudent ===
+														student.id
 														? __(
-																'Close',
-																'simple-lms-bridge'
-														  )
+															'Close',
+															'simple-lms-bridge'
+														)
 														: __(
-																'Edit',
-																'simple-lms-bridge'
-														  ) }
+															'Edit',
+															'simple-lms-bridge'
+														)}
 												</Button>
 											</td>
 										</tr>
-										{ expandedStudent === student.id && (
+										{expandedStudent === student.id && (
 											<tr>
 												<td
-													colSpan={ 4 }
+													colSpan={4}
 													className="p-0 border-b-4 border-blue-500"
 												>
 													<div className="bg-white p-6 md:px-10 border-t border-gray-100 shadow-inner">
@@ -804,7 +775,7 @@ const StudentManager = () => {
 																		student.display_name
 																	}
 																	<span className="text-xs font-normal px-2 py-1 bg-gray-100 text-gray-600 rounded-md">
-																		ID:{ ' ' }
+																		ID:{' '}
 																		{
 																			student.id
 																		}
@@ -818,12 +789,12 @@ const StudentManager = () => {
 															</div>
 															<div className="mt-4 md:mt-0 max-w-sm w-full bg-gray-50 p-3 rounded-lg border border-gray-200">
 																<SelectControl
-																	label={ __(
+																	label={__(
 																		'Enroll in New Course',
 																		'simple-lms-bridge'
-																	) }
+																	)}
 																	value=""
-																	options={ [
+																	options={[
 																		{
 																			label: __(
 																				'— Select Course —',
@@ -836,7 +807,7 @@ const StudentManager = () => {
 																				(
 																					ac
 																				) =>
-																					! student.courses.some(
+																					!student.courses.some(
 																						(
 																							sc
 																						) =>
@@ -847,13 +818,13 @@ const StudentManager = () => {
 																			.map(
 																				(
 																					ac
-																				) => ( {
+																				) => ({
 																					label: ac.title,
 																					value: ac.id,
-																				} )
+																				})
 																			),
-																	] }
-																	onChange={ (
+																	]}
+																	onChange={(
 																		val
 																	) =>
 																		enrollStudent(
@@ -863,8 +834,8 @@ const StudentManager = () => {
 																	}
 																	disabled={
 																		enrolling[
-																			student
-																				.id
+																		student
+																			.id
 																		]
 																	}
 																	__nextHasNoMarginBottom={
@@ -877,7 +848,7 @@ const StudentManager = () => {
 														<TabPanel
 															className="slms-student-tabs"
 															activeClass="is-active font-semibold text-blue-600 border-b-2 border-blue-600"
-															tabs={ [
+															tabs={[
 																{
 																	name: 'progress',
 																	title: __(
@@ -905,16 +876,16 @@ const StudentManager = () => {
 																	className:
 																		'slms-tab-history pb-3 px-4 transition-colors hover:text-blue-600',
 																},
-															] }
+															]}
 														>
-															{ ( tab ) => {
+															{(tab) => {
 																if (
 																	tab.name ===
 																	'progress'
 																) {
 																	return (
 																		<div className="space-y-6 mt-6">
-																			{ student.courses.map(
+																			{student.courses.map(
 																				(
 																					course
 																				) => (
@@ -931,9 +902,9 @@ const StudentManager = () => {
 																										course.course_title
 																									}
 																								</h4>
-																								{ course.completed_at && (
+																								{course.completed_at && (
 																									<span className="inline-flex mt-1 text-xs text-green-700 bg-green-50 border border-green-200 px-2 py-1 rounded-md font-medium">
-																										{ sprintf(
+																										{sprintf(
 																											__(
 																												'Course completed: %s',
 																												'simple-lms-bridge'
@@ -941,15 +912,15 @@ const StudentManager = () => {
 																											formatDate(
 																												course.completed_at
 																											)
-																										) }
+																										)}
 																									</span>
-																								) }
+																								)}
 																							</div>
 																							<Button
 																								variant="link"
 																								isDestructive
 																								className="text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1 rounded-md transition-colors"
-																								onClick={ () =>
+																								onClick={() =>
 																									unenrollStudent(
 																										student.id,
 																										course.course_id
@@ -957,21 +928,21 @@ const StudentManager = () => {
 																								}
 																								disabled={
 																									enrolling[
-																										student
-																											.id
+																									student
+																										.id
 																									]
 																								}
 																							>
-																								{ __(
+																								{__(
 																									'Unenroll',
 																									'simple-lms-bridge'
-																								) }
+																								)}
 																							</Button>
 																						</div>
 																						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-																							{ Object.keys(
+																							{Object.keys(
 																								course.lessons ||
-																									{}
+																								{}
 																							).map(
 																								(
 																									lessonId
@@ -988,7 +959,7 @@ const StudentManager = () => {
 																											lessonId
 																										]
 																											.title ||
-																										`Lesson #${ lessonId }`;
+																										`Lesson #${lessonId}`;
 																									const completedAt =
 																										course
 																											.lessons[
@@ -1007,7 +978,7 @@ const StudentManager = () => {
 																													checked={
 																														isCompleted
 																													}
-																													onChange={ () =>
+																													onChange={() =>
 																														toggleLocalCompletion(
 																															student.id,
 																															course.course_id,
@@ -1029,41 +1000,40 @@ const StudentManager = () => {
 																															lessonTitle
 																														}
 																													</span>
-																													{ isCompleted &&
+																													{isCompleted &&
 																														completedAt && (
 																															<span className="text-xs text-gray-400 mt-0.5">
-																																{ formatDate(
+																																{formatDate(
 																																	completedAt
-																																) }
+																																)}
 																															</span>
-																														) }
+																														)}
 																												</div>
 																											</div>
 																											<span
-																												className={ `flex-shrink-0 ml-2 px-2 py-0.5 text-[10px] uppercase font-bold rounded ${
-																													isCompleted
-																														? 'bg-green-100 text-green-700'
-																														: 'bg-gray-200 text-gray-600'
-																												}` }
+																												className={`flex-shrink-0 ml-2 px-2 py-0.5 text-[10px] uppercase font-bold rounded ${isCompleted
+																													? 'bg-green-100 text-green-700'
+																													: 'bg-gray-200 text-gray-600'
+																													}`}
 																											>
-																												{ isCompleted
+																												{isCompleted
 																													? __(
-																															'Done',
-																															'simple-lms-bridge'
-																													  )
+																														'Done',
+																														'simple-lms-bridge'
+																													)
 																													: __(
-																															'Pending',
-																															'simple-lms-bridge'
-																													  ) }
+																														'Pending',
+																														'simple-lms-bridge'
+																													)}
 																											</span>
 																										</div>
 																									);
 																								}
-																							) }
+																							)}
 																						</div>
 																					</div>
 																				)
-																			) }
+																			)}
 																		</div>
 																	);
 																} else if (
@@ -1072,22 +1042,22 @@ const StudentManager = () => {
 																) {
 																	const sMeta =
 																		metaData[
-																			student
-																				.id
+																		student
+																			.id
 																		] || {};
 																	return (
 																		<div className="space-y-6 mt-6 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
 																			<div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
 																				<TextControl
-																					label={ __(
+																					label={__(
 																						'Billing Address 1',
 																						'simple-lms-bridge'
-																					) }
+																					)}
 																					value={
 																						sMeta.billing_address_1 ||
 																						''
 																					}
-																					onChange={ (
+																					onChange={(
 																						v
 																					) =>
 																						handleMetaChange(
@@ -1101,15 +1071,15 @@ const StudentManager = () => {
 																					}
 																				/>
 																				<TextControl
-																					label={ __(
+																					label={__(
 																						'Billing Address 2',
 																						'simple-lms-bridge'
-																					) }
+																					)}
 																					value={
 																						sMeta.billing_address_2 ||
 																						''
 																					}
-																					onChange={ (
+																					onChange={(
 																						v
 																					) =>
 																						handleMetaChange(
@@ -1123,15 +1093,15 @@ const StudentManager = () => {
 																					}
 																				/>
 																				<TextControl
-																					label={ __(
+																					label={__(
 																						'City',
 																						'simple-lms-bridge'
-																					) }
+																					)}
 																					value={
 																						sMeta.billing_city ||
 																						''
 																					}
-																					onChange={ (
+																					onChange={(
 																						v
 																					) =>
 																						handleMetaChange(
@@ -1146,15 +1116,15 @@ const StudentManager = () => {
 																				/>
 																				<div className="grid grid-cols-2 gap-4">
 																					<TextControl
-																						label={ __(
+																						label={__(
 																							'State',
 																							'simple-lms-bridge'
-																						) }
+																						)}
 																						value={
 																							sMeta.billing_state ||
 																							''
 																						}
-																						onChange={ (
+																						onChange={(
 																							v
 																						) =>
 																							handleMetaChange(
@@ -1168,15 +1138,15 @@ const StudentManager = () => {
 																						}
 																					/>
 																					<TextControl
-																						label={ __(
+																						label={__(
 																							'Postcode',
 																							'simple-lms-bridge'
-																						) }
+																						)}
 																						value={
 																							sMeta.billing_postcode ||
 																							''
 																						}
-																						onChange={ (
+																						onChange={(
 																							v
 																						) =>
 																							handleMetaChange(
@@ -1191,15 +1161,15 @@ const StudentManager = () => {
 																					/>
 																				</div>
 																				<TextControl
-																					label={ __(
+																					label={__(
 																						'Phone',
 																						'simple-lms-bridge'
-																					) }
+																					)}
 																					value={
 																						sMeta.billing_phone ||
 																						''
 																					}
-																					onChange={ (
+																					onChange={(
 																						v
 																					) =>
 																						handleMetaChange(
@@ -1213,15 +1183,15 @@ const StudentManager = () => {
 																					}
 																				/>
 																				<TextControl
-																					label={ __(
+																					label={__(
 																						'AALP Member',
 																						'simple-lms-bridge'
-																					) }
+																					)}
 																					value={
 																						sMeta.aalp_member ||
 																						''
 																					}
-																					onChange={ (
+																					onChange={(
 																						v
 																					) =>
 																						handleMetaChange(
@@ -1235,15 +1205,15 @@ const StudentManager = () => {
 																					}
 																				/>
 																				<TextControl
-																					label={ __(
+																					label={__(
 																						'Registration Date',
 																						'simple-lms-bridge'
-																					) }
+																					)}
 																					value={
 																						sMeta.registration_date ||
 																						''
 																					}
-																					onChange={ (
+																					onChange={(
 																						v
 																					) =>
 																						handleMetaChange(
@@ -1257,15 +1227,15 @@ const StudentManager = () => {
 																					}
 																				/>
 																				<TextControl
-																					label={ __(
+																					label={__(
 																						'License Number',
 																						'simple-lms-bridge'
-																					) }
+																					)}
 																					value={
 																						sMeta.license_number ||
 																						''
 																					}
-																					onChange={ (
+																					onChange={(
 																						v
 																					) =>
 																						handleMetaChange(
@@ -1279,15 +1249,15 @@ const StudentManager = () => {
 																					}
 																				/>
 																				<TextControl
-																					label={ __(
+																					label={__(
 																						'Pro Exam Date',
 																						'simple-lms-bridge'
-																					) }
+																					)}
 																					value={
 																						sMeta.pro_exam_date ||
 																						''
 																					}
-																					onChange={ (
+																					onChange={(
 																						v
 																					) =>
 																						handleMetaChange(
@@ -1301,15 +1271,15 @@ const StudentManager = () => {
 																					}
 																				/>
 																				<TextControl
-																					label={ __(
+																					label={__(
 																						'Pro Exam Status',
 																						'simple-lms-bridge'
-																					) }
+																					)}
 																					value={
 																						sMeta.pro_exam_status ||
 																						''
 																					}
-																					onChange={ (
+																					onChange={(
 																						v
 																					) =>
 																						handleMetaChange(
@@ -1337,14 +1307,14 @@ const StudentManager = () => {
 																		/>
 																	);
 																}
-															} }
+															}}
 														</TabPanel>
 
 														<div className="mt-8 flex justify-end">
 															<Button
 																variant="primary"
 																className="px-8 py-2 shadow-md bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
-																onClick={ () =>
+																onClick={() =>
 																	handleUpdate(
 																		student.id
 																	)
@@ -1353,70 +1323,70 @@ const StudentManager = () => {
 																	saving
 																}
 																disabled={
-																	( ! dirtyData[
+																	(!dirtyData[
 																		student
 																			.id
 																	] &&
-																		! unsavedChanges ) ||
+																		!unsavedChanges) ||
 																	saving
 																}
 															>
-																{ __(
+																{__(
 																	'Save Changes',
 																	'simple-lms-bridge'
-																) }
+																)}
 															</Button>
 														</div>
 													</div>
 												</td>
 											</tr>
-										) }
+										)}
 									</Fragment>
-								) ) }
+								))}
 							</tbody>
 						</table>
 
-						{ pages > 1 && (
+						{pages > 1 && (
 							<div className="flex items-center justify-between bg-white px-6 py-4 border border-gray-200 rounded-lg shadow-sm">
 								<Button
 									variant="secondary"
-									disabled={ page <= 1 }
-									onClick={ () => setPage( page - 1 ) }
+									disabled={page <= 1}
+									onClick={() => setPage(page - 1)}
 									className="hover:bg-gray-50"
 								>
-									{ __( '← Previous', 'simple-lms-bridge' ) }
+									{__('← Previous', 'simple-lms-bridge')}
 								</Button>
 								<span className="text-sm text-gray-700">
-									{ __( 'Page', 'simple-lms-bridge' ) }{ ' ' }
+									{__('Page', 'simple-lms-bridge')}{' '}
 									<span className="font-semibold text-gray-900">
-										{ page }
-									</span>{ ' ' }
-									{ __( 'of', 'simple-lms-bridge' ) }{ ' ' }
+										{page}
+									</span>{' '}
+									{__('of', 'simple-lms-bridge')}{' '}
 									<span className="font-semibold text-gray-900">
-										{ pages }
-									</span>{ ' ' }
+										{pages}
+									</span>{' '}
 									<span className="text-gray-400 ml-2">
-										({ total }{ ' ' }
-										{ __(
+										({total}{' '}
+										{__(
 											'students total',
 											'simple-lms-bridge'
-										) }
+										)}
 										)
 									</span>
 								</span>
 								<Button
 									variant="secondary"
-									disabled={ page >= pages }
-									onClick={ () => setPage( page + 1 ) }
+									disabled={page >= pages}
+									onClick={() => setPage(page + 1)}
 									className="hover:bg-gray-50"
 								>
-									{ __( 'Next →', 'simple-lms-bridge' ) }
+									{__('Next →', 'simple-lms-bridge')}
 								</Button>
 							</div>
-						) }
+						)}
 					</div>
 				);
-			} )() }
+			})()}
 		</div>
 	);
 };

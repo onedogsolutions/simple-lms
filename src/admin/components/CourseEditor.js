@@ -29,22 +29,22 @@ import PMProLevels from './PMProLevels';
  * @param {number} props.postId Current course post ID.
  * @return {JSX.Element} The rendered component.
  */
-const CourseEditor = ( { postId } ) => {
+const CourseEditor = ({ postId }) => {
 	// ── State ──────────────────────────────────────────────────────
-	const [ lessonOrder, setLessonOrder ] = useState( [] );
-	const [ allLessons, setAllLessons ] = useState( [] );
-	const [ forms, setForms ] = useState( [] );
-	const [ certificateForm, setCertificateForm ] = useState( 0 );
-	const [ pmproLevels, setPmproLevels ] = useState( [] );
-	const [ allPMProLevels, setAllPMProLevels ] = useState( [] );
-	const [ enrolledStudents, setEnrolledStudents ] = useState( [] );
-	const [ saving, setSaving ] = useState( false );
-	const [ notice, setNotice ] = useState( null );
-	const [ loading, setLoading ] = useState( true );
-	const [ lessonSearch, setLessonSearch ] = useState( '' );
+	const [lessonOrder, setLessonOrder] = useState([]);
+	const [allLessons, setAllLessons] = useState([]);
+	const [forms, setForms] = useState([]);
+	const [certificateForm, setCertificateForm] = useState(0);
+	const [pmproLevels, setPmproLevels] = useState([]);
+	const [allPMProLevels, setAllPMProLevels] = useState([]);
+	const [enrolledStudents, setEnrolledStudents] = useState([]);
+	const [saving, setSaving] = useState(false);
+	const [notice, setNotice] = useState(null);
+	const [loading, setLoading] = useState(true);
+	const [lessonSearch, setLessonSearch] = useState('');
 
 	// ── Load initial data ─────────────────────────────────────────
-	useEffect( () => {
+	useEffect(() => {
 		const load = async () => {
 			try {
 				const [
@@ -54,317 +54,277 @@ const CourseEditor = ( { postId } ) => {
 					postRes,
 					relationshipsRes,
 					studentsRes,
-				] = await Promise.all( [
-					apiFetch( { path: '/simple-lms/v1/lessons' } ),
-					apiFetch( { path: '/simple-lms/v1/forms' } ),
-					apiFetch( { path: '/simple-lms/v1/pmpro-levels' } ),
-					apiFetch( { path: `/wp/v2/lms-courses/${ postId }` } ),
-					apiFetch( {
-						path: `/simple-lms/v1/relationships/course/${ postId }/lessons`,
-					} ),
-					apiFetch( {
-						path: `/simple-lms/v1/enrollments/course/${ postId }/students`,
-					} ),
-				] );
+				] = await Promise.all([
+					apiFetch({ path: '/simple-lms/v1/lessons' }),
+					apiFetch({ path: '/simple-lms/v1/forms' }),
+					apiFetch({ path: '/simple-lms/v1/pmpro-levels' }),
+					apiFetch({ path: `/wp/v2/lms-courses/${postId}` }),
+					apiFetch({
+						path: `/simple-lms/v1/relationships/course/${postId}/lessons`,
+					}),
+					apiFetch({
+						path: `/simple-lms/v1/enrollments/course/${postId}/students`,
+					}),
+				]);
 
-				setAllLessons( lessonsRes );
-				setForms( formsRes );
-				setAllPMProLevels( levelsRes );
-				setEnrolledStudents( studentsRes || [] );
+				setAllLessons(lessonsRes);
+				setForms(formsRes);
+				setAllPMProLevels(levelsRes);
+				setEnrolledStudents(studentsRes || []);
 
 				const meta = postRes.meta || {};
-				setLessonOrder( relationshipsRes.map( ( l ) => l.id ) || [] );
-				setCertificateForm( meta._lms_certificate_form || 0 );
-				setPmproLevels( meta._lms_pmpro_levels || [] );
-			} catch ( err ) {
-				setNotice( { status: 'error', message: err.message } );
+				setLessonOrder(relationshipsRes.map((l) => l.id) || []);
+				setCertificateForm(meta._lms_certificate_form || 0);
+				setPmproLevels(meta._lms_pmpro_levels || []);
+			} catch (err) {
+				setNotice({ status: 'error', message: err.message });
 			} finally {
-				setLoading( false );
+				setLoading(false);
 			}
 		};
 		load();
-	}, [ postId ] );
+	}, [postId]);
 
 	// ── Save handler ──────────────────────────────────────────────
-	const handleSave = useCallback( async () => {
-		setSaving( true );
-		setNotice( null );
+	const handleSave = useCallback(async () => {
+		setSaving(true);
+		setNotice(null);
 		try {
-			await Promise.all( [
-				apiFetch( {
-					path: `/wp/v2/lms-courses/${ postId }`,
+			await Promise.all([
+				apiFetch({
+					path: `/wp/v2/lms-courses/${postId}`,
 					method: 'POST',
 					data: {
 						meta: {
 							_lms_certificate_form:
-								parseInt( certificateForm, 10 ) || 0,
+								parseInt(certificateForm, 10) || 0,
 							_lms_pmpro_levels: pmproLevels,
 						},
 					},
-				} ),
-				apiFetch( {
-					path: `/simple-lms/v1/relationships/course/${ postId }/lessons`,
+				}),
+				apiFetch({
+					path: `/simple-lms/v1/relationships/course/${postId}/lessons`,
 					method: 'POST',
 					data: {
 						lesson_ids: lessonOrder,
 					},
-				} ),
-			] );
-			setNotice( {
+				}),
+			]);
+			setNotice({
 				status: 'success',
-				message: __( 'Course settings saved.', 'simple-lms-bridge' ),
-			} );
-		} catch ( err ) {
-			setNotice( { status: 'error', message: err.message } );
+				message: __('Course settings saved.', 'simple-lms-bridge'),
+			});
+		} catch (err) {
+			setNotice({ status: 'error', message: err.message });
 		} finally {
-			setSaving( false );
+			setSaving(false);
 		}
-	}, [ postId, lessonOrder, certificateForm, pmproLevels ] );
+	}, [postId, lessonOrder, certificateForm, pmproLevels]);
 
 	// ── Add lesson to order ───────────────────────────────────────
-	const addLesson = ( lessonId ) => {
-		const id = parseInt( lessonId, 10 );
-		if ( id && ! lessonOrder.includes( id ) ) {
-			setLessonOrder( [ ...lessonOrder, id ] );
+	const addLesson = (lessonId) => {
+		const id = parseInt(lessonId, 10);
+		if (id && !lessonOrder.includes(id)) {
+			setLessonOrder([...lessonOrder, id]);
 		}
 	};
 
 	// ── Remove lesson from order ──────────────────────────────────
-	const removeLesson = ( lessonId ) => {
-		setLessonOrder( lessonOrder.filter( ( id ) => id !== lessonId ) );
+	const removeLesson = (lessonId) => {
+		setLessonOrder(lessonOrder.filter((id) => id !== lessonId));
 	};
 
 	// ── Build lesson lookup map ───────────────────────────────────
 	const lessonMap = {};
-	allLessons.forEach( ( l ) => {
-		lessonMap[ l.id ] = l.title;
-	} );
+	allLessons.forEach((l) => {
+		lessonMap[l.id] = l.title;
+	});
 
 	// Available lessons (not yet in the order).
 	const availableLessons = allLessons.filter(
-		( l ) => ! lessonOrder.includes( l.id )
+		(l) => !lessonOrder.includes(l.id)
 	);
 
-	if ( loading ) {
+	if (loading) {
 		return <Spinner />;
 	}
 
 	return (
 		<>
-			{ notice && (
+			{notice && (
 				<Notice
-					status={ notice.status }
+					status={notice.status}
 					isDismissible
-					onDismiss={ () => setNotice( null ) }
+					onDismiss={() => setNotice(null)}
 				>
-					{ notice.message }
+					{notice.message}
 				</Notice>
-			) }
+			)}
 
-			{ /* ── Lesson Sorter ─────────────────────────────────── */ }
+			{ /* ── Lesson Sorter ─────────────────────────────────── */}
 			<PanelBody
-				title={ __( 'Course Lessons', 'simple-lms-bridge' ) }
-				initialOpen={ true }
+				title={__('Course Lessons', 'simple-lms-bridge')}
+				initialOpen={true}
 			>
-				{ lessonOrder.length === 0 && (
+				{lessonOrder.length === 0 && (
 					<p className="slms-empty">
-						{ __(
+						{__(
 							'No lessons assigned yet.',
 							'simple-lms-bridge'
-						) }
+						)}
 					</p>
-				) }
+				)}
 
 				<Reorder.Group
 					axis="y"
-					values={ lessonOrder }
-					onReorder={ setLessonOrder }
+					values={lessonOrder}
+					onReorder={setLessonOrder}
 					className="slms-lesson-list"
 				>
-					{ lessonOrder.map( ( id ) => (
+					{lessonOrder.map((id) => (
 						<LessonItem
-							key={ id }
-							value={ id }
-							title={ lessonMap[ id ] || `#${ id }` }
-							onRemove={ () => removeLesson( id ) }
+							key={id}
+							value={id}
+							title={lessonMap[id] || `#${id}`}
+							onRemove={() => removeLesson(id)}
 						/>
-					) ) }
+					))}
 				</Reorder.Group>
 
 				<div className="slms-relationship-picker">
 					<SearchControl
-						label={ __(
+						label={__(
 							'Search Lessons to Add',
 							'simple-lms-bridge'
-						) }
-						value={ lessonSearch }
-						onChange={ setLessonSearch }
+						)}
+						value={lessonSearch}
+						onChange={setLessonSearch}
 					/>
-					{ lessonSearch && (
+					{lessonSearch && (
 						<div className="slms-search-results">
-							{ availableLessons
-								.filter( ( l ) =>
+							{availableLessons
+								.filter((l) =>
 									l.title
 										.toLowerCase()
-										.includes( lessonSearch.toLowerCase() )
+										.includes(lessonSearch.toLowerCase())
 								)
-								.slice( 0, 10 )
-								.map( ( l ) => (
+								.slice(0, 10)
+								.map((l) => (
 									<button
-										key={ l.id }
+										key={l.id}
 										type="button"
 										className="slms-search-result-item"
-										onClick={ () => {
-											addLesson( l.id );
-											setLessonSearch( '' );
-										} }
+										onClick={() => {
+											addLesson(l.id);
+											setLessonSearch('');
+										}}
 									>
-										{ l.title }
+										{l.title}
 									</button>
-								) ) }
-							{ availableLessons.filter( ( l ) =>
+								))}
+							{availableLessons.filter((l) =>
 								l.title
 									.toLowerCase()
-									.includes( lessonSearch.toLowerCase() )
+									.includes(lessonSearch.toLowerCase())
 							).length === 0 && (
-								<div className="slms-no-results">
-									{ __(
-										'No matches found.',
-										'simple-lms-bridge'
-									) }
-								</div>
-							) }
+									<div className="slms-no-results">
+										{__(
+											'No matches found.',
+											'simple-lms-bridge'
+										)}
+									</div>
+								)}
 						</div>
-					) }
+					)}
 				</div>
 			</PanelBody>
 
-			{ /* ── Certificate Form ──────────────────────────────── */ }
+			{ /* ── Certificate Form ──────────────────────────────── */}
 			<PanelBody
-				title={ __( 'Certificate', 'simple-lms-bridge' ) }
-				initialOpen={ false }
+				title={__('Certificate', 'simple-lms-bridge')}
+				initialOpen={false}
 			>
 				<SelectControl
-					label={ __(
+					label={__(
 						'Certificate Gravity Form',
 						'simple-lms-bridge'
-					) }
-					value={ certificateForm }
-					options={ [
+					)}
+					value={certificateForm}
+					options={[
 						{
-							label: __( '— None —', 'simple-lms-bridge' ),
+							label: __('— None —', 'simple-lms-bridge'),
 							value: 0,
 						},
-						...forms.map( ( f ) => ( {
+						...forms.map((f) => ({
 							label: f.title,
 							value: f.id,
-						} ) ),
-					] }
-					onChange={ ( val ) =>
-						setCertificateForm( parseInt( val, 10 ) )
+						})),
+					]}
+					onChange={(val) =>
+						setCertificateForm(parseInt(val, 10))
 					}
 				/>
 			</PanelBody>
 
-<<<<<<< HEAD
-			{ /* ── Access Days ────────────────────────────────────── */ }
-			<PanelBody
-				title={ __( 'Access Control', 'simple-lms-bridge' ) }
-				initialOpen={ false }
-			>
-				{ activePMProExpiration && (
-					<Notice
-						status="info"
-						isDismissible={ false }
-						className="slms-pmpro-notice"
-					>
-						{ /* translators: 1: number of days, 2: PMPro level name */ }
-						{ sprintf(
-							__(
-								'Course access is set to %1$d days based on the "%2$s" PMPro level.',
-								'simple-lms-bridge'
-							),
-							activePMProExpiration.expiration_days,
-							activePMProExpiration.name
-						) }
-					</Notice>
-				) }
-				<TextControl
-					label={ __(
-						'Access Duration (days)',
-						'simple-lms-bridge'
-					) }
-					help={ __( '0 = unlimited access', 'simple-lms-bridge' ) }
-					type="number"
-					min={ 0 }
-					value={ accessDays }
-					onChange={ ( val ) =>
-						setAccessDays( parseInt( val, 10 ) || 0 )
-					}
-					disabled={ !! activePMProExpiration }
-				/>
-			</PanelBody>
 
-=======
->>>>>>> claude/review-state-file-5z5Ti
-			{ /* ── PMPro Membership Levels ─────────────────────────── */ }
+			{ /* ── PMPro Membership Levels ─────────────────────────── */}
 			<PanelBody
-				title={ __( 'PMPro Enrollment', 'simple-lms-bridge' ) }
-				initialOpen={ false }
+				title={__('PMPro Enrollment', 'simple-lms-bridge')}
+				initialOpen={false}
 			>
 				<p className="slms-panel-desc">
-					{ __(
+					{__(
 						'Select membership levels that grant access to this course.',
 						'simple-lms-bridge'
-					) }
+					)}
 				</p>
 				<PMProLevels
-					selectedLevels={ pmproLevels }
-					onChange={ setPmproLevels }
+					selectedLevels={pmproLevels}
+					onChange={setPmproLevels}
 				/>
 			</PanelBody>
 
-			{ /* ── Enrolled Students ───────────────────────────────── */ }
+			{ /* ── Enrolled Students ───────────────────────────────── */}
 			<PanelBody
-				title={ __( 'Enrolled Students', 'simple-lms-bridge' ) }
-				initialOpen={ false }
+				title={__('Enrolled Students', 'simple-lms-bridge')}
+				initialOpen={false}
 			>
-				{ enrolledStudents.length === 0 ? (
+				{enrolledStudents.length === 0 ? (
 					<p className="slms-empty">
-						{ __(
+						{__(
 							'No students enrolled in this course.',
 							'simple-lms-bridge'
-						) }
+						)}
 					</p>
 				) : (
 					<ul className="slms-student-list">
-						{ enrolledStudents.map( ( student ) => (
+						{enrolledStudents.map((student) => (
 							<li
-								key={ student.id }
+								key={student.id}
 								className="slms-student-item"
 							>
-								<strong>{ student.display_name }</strong>
-								<span>{ student.email }</span>
+								<strong>{student.display_name}</strong>
+								<span>{student.email}</span>
 								<span className="slms-badge slms-badge-secondary">
-									{ student.source }
+									{student.source}
 								</span>
 							</li>
-						) ) }
+						))}
 					</ul>
-				) }
+				)}
 			</PanelBody>
 
-			{ /* ── Save Button ────────────────────────────────────── */ }
+			{ /* ── Save Button ────────────────────────────────────── */}
 			<div className="slms-save-bar">
 				<Button
 					variant="primary"
-					isBusy={ saving }
-					disabled={ saving }
-					onClick={ handleSave }
+					isBusy={saving}
+					disabled={saving}
+					onClick={handleSave}
 				>
-					{ saving
-						? __( 'Saving…', 'simple-lms-bridge' )
-						: __( 'Save Course Settings', 'simple-lms-bridge' ) }
+					{saving
+						? __('Saving…', 'simple-lms-bridge')
+						: __('Save Course Settings', 'simple-lms-bridge')}
 				</Button>
 			</div>
 		</>

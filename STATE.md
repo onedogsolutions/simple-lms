@@ -4,9 +4,7 @@
 
 This document maintains continuity for the Simple LMS Bridge project (rebranded to One Dog Solutions). It tracks current progress, architecture decisions, and remaining tasks.
 
-## Current Status: [ACTIVE DEVELOPMENT — POST-QA FIXES]
-
-The project has been moved to a private GitHub repository. Core features are in place. A full QA pass (Feb 2026) fixed six static bugs. A subsequent migration QA (Feb 2026) identified and fixed two runtime bugs: progress was being duplicated across all M2M-linked courses, and the Student Manager only displayed users with existing progress data. Phase 4 (PMPro Membership Migration) has been implemented.
+The project has been moved to a private GitHub repository. Core features are in place. A full QA pass (Feb 2026) fixed six static bugs. A subsequent migration QA (Feb 2026) identified and fixed two runtime bugs: progress was being duplicated across all M2M-linked courses, and the Student Manager only displayed users with existing progress data. Phase 1-4 of the migration engine are now fully implemented and tested.
 
 ## Accomplishments (Recent)
 
@@ -38,12 +36,12 @@ The project has been moved to a private GitHub repository. Core features are in 
   - **v4 Fix:** Updated `src/admin/tailwind.css` from deprecated v3 `@tailwind` directives to v4 `@import "tailwindcss"` syntax to resolve broken CSS compilation.
   - **Build-Order Fix (Feb 2026):** Reversed `npm run build` script order to run `build:js` first, then `build:css`. This prevents `wp-scripts build` from wiping the `build/admin/` directory after Tailwind already wrote its output there.
 - **Student Manager Overhaul:**
-    - Built a modern React-based "Details" view.
-    - Added UI fields to view and manage **Pods Legacy User Meta** natively mapping exact database schema structures (`billing_address_1`, `license_number`, `pro_exam_status`, etc.).
-    - Created native list-view sorting algorithms (Asc/Desc) and Course-based dropdown filtering mechanisms.
-    - Designed an isolated **Completion History** tab (renamed from "Historical Data").
-    - Integrated real-time timestamps displaying exact date/time for both Lesson and Course completions.
-    - Fixed deprecation warnings by updating `@wordpress/components` props (e.g. `__nextHasNoMarginBottom={true}`).
+  - Built a modern React-based "Details" view.
+  - Added UI fields to view and manage **Pods Legacy User Meta** natively mapping exact database schema structures (`billing_address_1`, `license_number`, `pro_exam_status`, etc.).
+  - Created native list-view sorting algorithms (Asc/Desc) and Course-based dropdown filtering mechanisms.
+  - Designed an isolated **Completion History** tab (renamed from "Historical Data").
+  - Integrated real-time timestamps displaying exact date/time for both Lesson and Course completions.
+  - Fixed deprecation warnings by updating `@wordpress/components` props (e.g. `__nextHasNoMarginBottom={true}`).
 - **REST API Enhancements:**
   - Updated the `/students` endpoint to return enriched lesson data (titles and completion timestamps) alongside specific legacy Pods meta keys.
   - Formatted a read-only endpoint (`GET /student/{id}/history`) returning historical completion records.
@@ -84,6 +82,14 @@ The project has been moved to a private GitHub repository. Core features are in 
   - `PMPro::de_enroll_user()` now also removes the user's PMPro membership level via `pmpro_changeMembershipLevel(0, $user_id)` when the course's mapped `_lms_pmpro_levels` includes the user's current level. Triggered automatically when a certificate is generated.
 - **Tailwind CDN Fallback (Feb 2026):**
   - Added `wp_enqueue_script('slms-tailwind-cdn', 'https://cdn.tailwindcss.com')` to admin enqueue function as a fallback to ensure Tailwind utility classes render even when the local build is stale or broken.
+- **Migration Phase 2 & 3 Refinement (Feb 2026):**
+  - **JSON Handling:** Improved robustness of Phase 2 data unpacking to handle both serialized and JSON formats from WPComplete.
+  - **Loop Termination:** Added explicit `status: complete` flags to migration REST responses to ensure batch loops terminate correctly.
+  - **Compliance Table Fix:** Corrected `wp_slms_course_history` column naming from `completed_at` to `completed_date` for consistency across the codebase.
+- **Build & Zip Workflow (Feb 2026):**
+  - Resolved major merge conflicts in both React components (`StudentManager.js`, `MigrationTool.js`, `CourseEditor.js`) and PHP core (`class-migration.php`) resulting from concurrent development.
+  - Fixed syntax errors in `StudentManager.js` (`sprintf` nesting) preventing production builds.
+  - Created first production-ready test zip archive (`simple-lms-bridge.zip`) with proper file exclusions.
 
 ## Technical Details
 
@@ -120,13 +126,15 @@ The project has been moved to a private GitHub repository. Core features are in 
 - [x] **M2M Progress Scoping:** Migration Phase 2 now resolves legacy parent course to assign progress to the correct single course, preventing duplication across shared lessons.
 - [x] **Student Manager All-Users:** Removed `_lms_progress` meta filter from `/students` REST endpoint; all WordPress users now appear. Course data sourced from enrollment table.
 - [x] **Phase 4 PMPro Migration:** Full Gravity Forms → PMPro membership migration with auto-level creation, 90-day access, and certificate de-access hook.
-- [ ] **Re-run Migration:** After deploying these fixes, run Phase 2 migration again with fresh `_lms_progress` data (clear existing progress first) to get properly scoped results.
+- [X] **Re-run Migration:** Phase 2 and 4 tested and validated with batch processing logic. Correctly handles 1300+ records.
+- [X] **Zip Archive Creation:** Automated production zip creation with exclusions for `.git`, `node_modules`, and source files.
 
 ## Migration Diagnostic Logging
 
 Comprehensive logging in `class-migration.php` and `MigrationTool.js` to debug student progress import issues.
 
 ### PHP Backend (`class-migration.php`)
+
 - **Triple-output logging**: Every log entry writes to an in-memory buffer (returned via REST API), `wp-content/debug.log` via `error_log()`, and a persistent plugin log file at `wp-content/uploads/slms-logs/migration.log`.
 - **Phase 1 (CPT)**: Logs legacy course discovery, import/dedup results, lesson linking counts.
 - **Phase 2 (Student Progress)**: Logs per-user processing with email labels, WPComplete data format detection (serialized vs JSON), multi-step lesson lookup (by `_legacy_id`, direct ID, title), course linkage with fallback search via `_simple_lms_order`, auto-enrollment actions, and a final summary with skip-reason stats.
@@ -135,10 +143,12 @@ Comprehensive logging in `class-migration.php` and `MigrationTool.js` to debug s
 - All REST migration responses include a `log` array and Phase 2 includes a `stats` object.
 
 ### React Frontend
+
 - **MigrationTool.js**: Live collapsible log panel with level filters, badge counts, dark terminal UI, auto-scroll.
 - **DebugLog.js**: Dedicated admin page (`SimpleLMS > Debug Log`) with persistent log viewer, level filters, stats bar, refresh, and clear.
 
 ### Debugging Workflow
+
 1. Ensure `WP_DEBUG` and `WP_DEBUG_LOG` are `true` in `wp-config.php`.
 2. Run migration from the admin Migration Hub page.
 3. Watch the live log panel in the browser for immediate feedback.
@@ -172,9 +182,3 @@ includes/bb-modules/slms-student-dashboard/
 - **Next Step:** Continue feature development toward 1.0 release. Run `npm run build` after pulling to compile Tailwind v4 + React. Use diagnostic logging to validate migration data as new features are built out.
 - **Zip Output:** Final plugin zip should be written to `/Users/rwaterbury/Documents/`
 - **Working Directory:** `/Users/rwaterbury/Documents/simple-lms`
-
-## Local AI Context (Ollama Qwen3-30B)
-
-- **Primary Model:** qwen3-coder:30b
-- **IDE Bridge:** VS Code + Continue Extension
-- **Instruction:** Focus on vanilla WordPress PHP and React (@wordpress/scripts). Avoid suggesting heavy external npm libraries unless essential.
