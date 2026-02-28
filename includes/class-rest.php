@@ -1029,7 +1029,7 @@ class REST
 
             // Fallback: extract last path segment and clean it up.
             $path = \wp_parse_url($name, PHP_URL_PATH);
-            if ($path) {
+            if ($path && is_string($path)) {
                 $slug = basename(rtrim($path, '/'));
                 if ($slug) {
                     // Try to find a post by slug.
