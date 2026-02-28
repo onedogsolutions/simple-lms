@@ -23,7 +23,7 @@ import apiFetch from '@wordpress/api-fetch';
  *
  * @param {Object} props
  * @param {number} props.postId Current lesson post ID.
- * @return {JSX.Element}
+ * @return {JSX.Element} The rendered component.
  */
 const LessonSettings = ( { postId } ) => {
 	// ── State ──────────────────────────────────────────────────────

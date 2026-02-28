@@ -9,7 +9,6 @@
 import { useState, useEffect, useCallback } from '@wordpress/element';
 import {
 	PanelBody,
-	PanelRow,
 	SelectControl,
 	TextControl,
 	SearchControl,
@@ -29,7 +28,7 @@ import PMProLevels from './PMProLevels';
  *
  * @param {Object} props
  * @param {number} props.postId Current course post ID.
- * @return {JSX.Element}
+ * @return {JSX.Element} The rendered component.
  */
 const CourseEditor = ( { postId } ) => {
 	// ── State ──────────────────────────────────────────────────────
@@ -239,8 +238,9 @@ const CourseEditor = ( { postId } ) => {
 								)
 								.slice( 0, 10 )
 								.map( ( l ) => (
-									<div
+									<button
 										key={ l.id }
+										type="button"
 										className="slms-search-result-item"
 										onClick={ () => {
 											addLesson( l.id );
@@ -248,7 +248,7 @@ const CourseEditor = ( { postId } ) => {
 										} }
 									>
 										{ l.title }
-									</div>
+									</button>
 								) ) }
 							{ availableLessons.filter( ( l ) =>
 								l.title
@@ -305,9 +305,10 @@ const CourseEditor = ( { postId } ) => {
 						isDismissible={ false }
 						className="slms-pmpro-notice"
 					>
+						{ /* translators: 1: number of days, 2: PMPro level name */ }
 						{ sprintf(
 							__(
-								'Course access is set to %d days based on the "%s" PMPro level.',
+								'Course access is set to %1$d days based on the "%2$s" PMPro level.',
 								'simple-lms-bridge'
 							),
 							activePMProExpiration.expiration_days,

@@ -16,7 +16,7 @@ import apiFetch from '@wordpress/api-fetch';
  * @param {number[]} props.selectedLevels Currently selected level IDs.
  * @param {Function} props.onChange       Callback with updated level IDs array.
  * @param {Function} props.onLevelsLoaded Callback with full level data once fetched.
- * @return {JSX.Element}
+ * @return {JSX.Element} The rendered component.
  */
 const PMProLevels = ( { selectedLevels, onChange, onLevelsLoaded } ) => {
 	const [ levels, setLevels ] = useState( [] );

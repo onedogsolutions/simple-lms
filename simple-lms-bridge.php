@@ -170,7 +170,7 @@ function slms_enqueue_admin_assets($hook_suffix)
     // Load on our CPT edit screens and the Student Manager / Migration Tool pages.
     $is_lms_cpt = in_array($screen->post_type, array('slms_course', 'slms_lesson'), true);
     $screen_id = (string)($screen->id ?? '');
-    $is_slms_page = (strpos($screen_id, 'slms-students') !== false || strpos($screen_id, 'slms-migration') !== false || strpos($screen_id, 'slms-debug-log') !== false || strpos($screen_id, 'simple-lms') !== false);
+    $is_slms_page = (strpos($screen_id ?? '', 'slms-students') !== false || strpos($screen_id ?? '', 'slms-migration') !== false || strpos($screen_id ?? '', 'slms-debug-log') !== false || strpos($screen_id ?? '', 'simple-lms') !== false);
 
     if (!$is_lms_cpt && !$is_slms_page) {
         return;

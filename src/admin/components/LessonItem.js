@@ -15,7 +15,7 @@ import { __ } from '@wordpress/i18n';
  * @param {number}   props.value    Lesson ID (used by Reorder.Item).
  * @param {string}   props.title    Lesson title.
  * @param {Function} props.onRemove Callback to remove this lesson.
- * @return {JSX.Element}
+ * @return {JSX.Element} The rendered component.
  */
 const LessonItem = ( { value, title, onRemove } ) => {
 	const controls = useDragControls();

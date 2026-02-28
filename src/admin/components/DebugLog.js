@@ -1,7 +1,7 @@
 /**
  * DebugLog – Admin log viewer for SimpleLMS migration diagnostics.
  *
- * @package SimpleLMS
+ * @package
  */
 
 import { useState, useEffect, useRef } from '@wordpress/element';
@@ -21,18 +21,32 @@ const DebugLog = () => {
 			const res = await apiFetch( { path: '/simple-lms/v1/debug-log' } );
 			setLog( res.log || '' );
 		} catch ( err ) {
-			setLog( __( 'Failed to load log: ', 'simple-lms-bridge' ) + err.message );
+			setLog(
+				__( 'Failed to load log:', 'simple-lms-bridge' ) + err.message
+			);
 		} finally {
 			setLoading( false );
 		}
 	};
 
 	const clearLog = async () => {
-		if ( ! window.confirm( __( 'Are you sure you want to clear the log?', 'simple-lms-bridge' ) ) ) {
+		if (
+			/* eslint-disable no-alert */
+			! window.confirm(
+				__(
+					'Are you sure you want to clear the log?',
+					'simple-lms-bridge'
+				)
+			)
+			/* eslint-enable no-alert */
+		) {
 			return;
 		}
 		try {
-			await apiFetch( { path: '/simple-lms/v1/debug-log', method: 'DELETE' } );
+			await apiFetch( {
+				path: '/simple-lms/v1/debug-log',
+				method: 'DELETE',
+			} );
 			setLog( '' );
 		} catch ( err ) {
 			// silently fail
@@ -51,22 +65,69 @@ const DebugLog = () => {
 
 	const lines = log ? log.split( '\n' ).filter( Boolean ) : [];
 
-	const filteredLines = filter === 'all'
-		? lines
-		: lines.filter( ( line ) => {
-			const upper = '[' + filter.toUpperCase() + ']';
-			return line.includes( upper );
-		} );
+	const filteredLines =
+		filter === 'all'
+			? lines
+			: lines.filter( ( line ) => {
+					const upper = '[' + filter.toUpperCase() + ']';
+					return line.includes( upper );
+			  } );
 
 	const errorCount = lines.filter( ( l ) => l.includes( '[ERROR]' ) ).length;
 	const warnCount = lines.filter( ( l ) => l.includes( '[WARN]' ) ).length;
 
 	const getLineColor = ( line ) => {
-		if ( line.includes( '[ERROR]' ) ) return 'text-red-400';
-		if ( line.includes( '[WARN]' ) ) return 'text-yellow-400';
-		if ( line.includes( '[DEBUG]' ) ) return 'text-gray-500';
+		if ( line.includes( '[ERROR]' ) ) {
+			return 'text-red-400';
+		}
+		if ( line.includes( '[WARN]' ) ) {
+			return 'text-yellow-400';
+		}
+		if ( line.includes( '[DEBUG]' ) ) {
+			return 'text-gray-500';
+		}
 		return 'text-green-400';
 	};
+
+	let logContent;
+	if ( loading ) {
+		logContent = (
+			<div className="flex justify-center p-12">
+				<Spinner />
+			</div>
+		);
+	} else if ( lines.length === 0 ) {
+		logContent = (
+			<div className="bg-gray-900 rounded-lg p-12 text-center text-gray-500 border border-gray-700">
+				<p className="text-lg font-medium">
+					{ __( 'No log entries yet.', 'simple-lms-bridge' ) }
+				</p>
+				<p className="text-sm mt-2">
+					{ __(
+						'Run a migration to generate diagnostic output.',
+						'simple-lms-bridge'
+					) }
+				</p>
+			</div>
+		);
+	} else {
+		logContent = (
+			<div
+				ref={ logRef }
+				className="bg-gray-900 rounded-lg p-4 font-mono text-xs leading-relaxed overflow-y-auto border border-gray-700"
+				style={ { maxHeight: '600px' } }
+			>
+				{ filteredLines.map( ( line, idx ) => (
+					<div
+						key={ idx }
+						className={ `py-0.5 ${ getLineColor( line ) }` }
+					>
+						{ line }
+					</div>
+				) ) }
+			</div>
+		);
+	}
 
 	return (
 		<div className="max-w-7xl mx-auto py-8">
@@ -77,7 +138,10 @@ const DebugLog = () => {
 							{ __( 'SimpleLMS Debug Log', 'simple-lms-bridge' ) }
 						</h1>
 						<p className="text-gray-600">
-							{ __( 'View migration and system diagnostic logs.', 'simple-lms-bridge' ) }
+							{ __(
+								'View migration and system diagnostic logs.',
+								'simple-lms-bridge'
+							) }
 						</p>
 					</div>
 					<div className="flex gap-3">
@@ -105,64 +169,58 @@ const DebugLog = () => {
 			{ /* Stats bar */ }
 			<div className="flex gap-4 mb-4">
 				<div className="bg-white border border-gray-200 rounded-lg px-4 py-3 shadow-sm">
-					<span className="text-sm text-gray-500">{ __( 'Total Lines', 'simple-lms-bridge' ) }</span>
-					<span className="ml-2 font-semibold text-gray-900">{ lines.length }</span>
+					<span className="text-sm text-gray-500">
+						{ __( 'Total Lines', 'simple-lms-bridge' ) }
+					</span>
+					<span className="ml-2 font-semibold text-gray-900">
+						{ lines.length }
+					</span>
 				</div>
 				{ errorCount > 0 && (
 					<div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 shadow-sm">
-						<span className="text-sm text-red-600">{ __( 'Errors', 'simple-lms-bridge' ) }</span>
-						<span className="ml-2 font-semibold text-red-700">{ errorCount }</span>
+						<span className="text-sm text-red-600">
+							{ __( 'Errors', 'simple-lms-bridge' ) }
+						</span>
+						<span className="ml-2 font-semibold text-red-700">
+							{ errorCount }
+						</span>
 					</div>
 				) }
 				{ warnCount > 0 && (
 					<div className="bg-yellow-100 border border-yellow-600 rounded-lg px-4 py-3 shadow-sm">
-						<span className="text-sm text-yellow-700">{ __( 'Warnings', 'simple-lms-bridge' ) }</span>
-						<span className="ml-2 font-semibold text-yellow-800">{ warnCount }</span>
+						<span className="text-sm text-yellow-700">
+							{ __( 'Warnings', 'simple-lms-bridge' ) }
+						</span>
+						<span className="ml-2 font-semibold text-yellow-800">
+							{ warnCount }
+						</span>
 					</div>
 				) }
 			</div>
 
 			{ /* Filter bar */ }
 			<div className="flex gap-2 mb-4">
-				{ [ 'all', 'error', 'warn', 'info', 'debug' ].map( ( level ) => (
-					<button
-						key={ level }
-						type="button"
-						onClick={ () => setFilter( level ) }
-						className={ `px-3 py-1 text-xs font-medium rounded-full border cursor-pointer transition-colors ${
-							filter === level
-								? 'bg-gray-800 text-white border-gray-800'
-								: 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
-						}` }
-					>
-						{ level.charAt( 0 ).toUpperCase() + level.slice( 1 ) }
-					</button>
-				) ) }
+				{ [ 'all', 'error', 'warn', 'info', 'debug' ].map(
+					( level ) => (
+						<button
+							key={ level }
+							type="button"
+							onClick={ () => setFilter( level ) }
+							className={ `px-3 py-1 text-xs font-medium rounded-full border cursor-pointer transition-colors ${
+								filter === level
+									? 'bg-gray-800 text-white border-gray-800'
+									: 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
+							}` }
+						>
+							{ level.charAt( 0 ).toUpperCase() +
+								level.slice( 1 ) }
+						</button>
+					)
+				) }
 			</div>
 
 			{ /* Log output */ }
-			{ loading ? (
-				<div className="flex justify-center p-12">
-					<Spinner />
-				</div>
-			) : lines.length === 0 ? (
-				<div className="bg-gray-900 rounded-lg p-12 text-center text-gray-500 border border-gray-700">
-					<p className="text-lg font-medium">{ __( 'No log entries yet.', 'simple-lms-bridge' ) }</p>
-					<p className="text-sm mt-2">{ __( 'Run a migration to generate diagnostic output.', 'simple-lms-bridge' ) }</p>
-				</div>
-			) : (
-				<div
-					ref={ logRef }
-					className="bg-gray-900 rounded-lg p-4 font-mono text-xs leading-relaxed overflow-y-auto border border-gray-700"
-					style={ { maxHeight: '600px' } }
-				>
-					{ filteredLines.map( ( line, i ) => (
-						<div key={ i } className={ `py-0.5 ${ getLineColor( line ) }` }>
-							{ line }
-						</div>
-					) ) }
-				</div>
-			) }
+			{ logContent }
 		</div>
 	);
 };

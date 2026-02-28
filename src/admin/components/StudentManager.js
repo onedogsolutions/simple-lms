@@ -6,7 +6,13 @@
  * @package
  */
 
-import { useState, useEffect, useCallback, useRef, Fragment } from '@wordpress/element';
+import {
+	useState,
+	useEffect,
+	useCallback,
+	useRef,
+	Fragment,
+} from '@wordpress/element';
 import {
 	SearchControl,
 	Button,
@@ -23,6 +29,9 @@ import apiFetch from '@wordpress/api-fetch';
 
 /**
  * Component for rendering historical certificate data.
+ * @param {Object} root0
+ * @param {number} root0.userId
+ * @return {JSX.Element} The rendered component.
  */
 const HistoryTab = ( { userId } ) => {
 	const [ history, setHistory ] = useState( [] );
@@ -50,7 +59,10 @@ const HistoryTab = ( { userId } ) => {
 	if ( history.length === 0 ) {
 		return (
 			<p className="text-gray-500 italic mt-4 p-6 bg-gray-50 rounded-xl border border-gray-200">
-				{ __( 'No completion history records found.', 'simple-lms-bridge' ) }
+				{ __(
+					'No completion history records found.',
+					'simple-lms-bridge'
+				) }
 			</p>
 		);
 	}
@@ -74,7 +86,10 @@ const HistoryTab = ( { userId } ) => {
 					</thead>
 					<tbody className="divide-y divide-gray-100">
 						{ history.map( ( entry, idx ) => (
-							<tr key={ idx } className="hover:bg-gray-50 transition-colors">
+							<tr
+								key={ idx }
+								className="hover:bg-gray-50 transition-colors"
+							>
 								<td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
 									{ new Date( entry.date ).toLocaleString() }
 								</td>
@@ -93,7 +108,7 @@ const HistoryTab = ( { userId } ) => {
 /**
  * StudentManager component.
  *
- * @return {JSX.Element}
+ * @return {JSX.Element} The rendered component.
  */
 const StudentManager = () => {
 	const [ search, setSearch ] = useState( '' );
@@ -175,7 +190,7 @@ const StudentManager = () => {
 		fetchStudents( '', 1 );
 		checkMigrationStatus();
 		fetchAvailableCourses();
-	}, [] );
+	}, [ fetchStudents, checkMigrationStatus, fetchAvailableCourses ] ); // eslint-disable-line react-hooks/exhaustive-deps
 
 	const fetchAvailableCourses = async () => {
 		try {
@@ -184,7 +199,7 @@ const StudentManager = () => {
 			} );
 			setAllAvailableCourses( res || [] );
 		} catch ( err ) {
-			console.error( 'Failed to fetch courses', err );
+			setNotice( { status: 'error', message: err.message } );
 		}
 	};
 
@@ -206,7 +221,7 @@ const StudentManager = () => {
 				}
 			}
 		} catch ( err ) {
-			console.error( 'Failed to check migration status', err );
+			setNotice( { status: 'error', message: err.message } );
 		}
 	};
 
@@ -415,12 +430,14 @@ const StudentManager = () => {
 
 	const unenrollStudent = async ( userId, courseId ) => {
 		if (
+			/* eslint-disable no-alert */
 			! window.confirm(
 				__(
 					'Are you sure you want to unenroll this student from this course? This will NOT delete their progress, but they will lose access.',
 					'simple-lms-bridge'
 				)
 			)
+			/* eslint-enable no-alert */
 		) {
 			return;
 		}
@@ -460,7 +477,9 @@ const StudentManager = () => {
 	// Filter
 	if ( courseFilter ) {
 		displayedStudents = displayedStudents.filter( ( s ) =>
-			s.courses.some( ( c ) => c.course_id === parseInt( courseFilter, 10 ) )
+			s.courses.some(
+				( c ) => c.course_id === parseInt( courseFilter, 10 )
+			)
 		);
 	}
 
@@ -478,14 +497,28 @@ const StudentManager = () => {
 			valB = b.courses.length;
 		}
 
-		if ( valA < valB ) return sortDirection === 'asc' ? -1 : 1;
-		if ( valA > valB ) return sortDirection === 'asc' ? 1 : -1;
+		if ( valA < valB ) {
+			return sortDirection === 'asc' ? -1 : 1;
+		}
+		if ( valA > valB ) {
+			return sortDirection === 'asc' ? 1 : -1;
+		}
 		return 0;
 	} );
 
 	const getSortIcon = ( column ) => {
-		if ( sortColumn !== column ) return <span className="opacity-0 group-hover:opacity-50 ml-1 text-[10px]">▼</span>;
-		return sortDirection === 'asc' ? <span className="ml-1 text-[10px] text-blue-600">▲</span> : <span className="ml-1 text-[10px] text-blue-600">▼</span>;
+		if ( sortColumn !== column ) {
+			return (
+				<span className="opacity-0 group-hover:opacity-50 ml-1 text-[10px]">
+					▼
+				</span>
+			);
+		}
+		return sortDirection === 'asc' ? (
+			<span className="ml-1 text-[10px] text-blue-600">▲</span>
+		) : (
+			<span className="ml-1 text-[10px] text-blue-600">▼</span>
+		);
 	};
 
 	return (
@@ -516,7 +549,12 @@ const StudentManager = () => {
 						</p>
 						<ProgressBar
 							value={ Math.min(
-								Math.round( ( ( migrationStatus.total - migrationStatus.pending ) / Math.max( migrationStatus.total, 1 ) ) * 100 ),
+								Math.round(
+									( ( migrationStatus.total -
+										migrationStatus.pending ) /
+										Math.max( migrationStatus.total, 1 ) ) *
+										100
+								),
 								100
 							) }
 						/>
@@ -544,13 +582,10 @@ const StudentManager = () => {
 				! migrationStatus.complete && (
 					<Notice status="warning">
 						<p>
-							{ sprintf(
-								__(
-									'There are still %d users with WP Complete data pending migration.',
-									'simple-lms-bridge'
-								),
-								migrationStatus.pending
-							) }{ ' ' }
+							/* translators: %d: pending users */ sprintf( __(
+							'There are still %d users with WP Complete data
+							pending migration.', 'simple-lms-bridge' ),
+							migrationStatus.pending ) }{ ' ' }
 							<Button
 								variant="primary"
 								onClick={ () =>
@@ -578,7 +613,10 @@ const StudentManager = () => {
 						label={ __( 'Filter by Course', 'simple-lms-bridge' ) }
 						value={ courseFilter }
 						options={ [
-							{ label: __( 'All Courses', 'simple-lms-bridge' ), value: '' },
+							{
+								label: __( 'All Courses', 'simple-lms-bridge' ),
+								value: '',
+							},
 							...allAvailableCourses.map( ( c ) => ( {
 								label: c.title,
 								value: c.id.toString(),
@@ -590,535 +628,760 @@ const StudentManager = () => {
 				</div>
 			</div>
 
-			{ loading ? (
-				<div className="flex justify-center p-12">
-					<Spinner />
-				</div>
-			) : displayedStudents.length === 0 ? (
-				<div className="bg-white p-12 text-center text-gray-500 rounded-lg shadow-sm border border-gray-200">
-					{ __(
-						'No students matching the criteria found.',
-						'simple-lms-bridge'
-					) }
-				</div>
-			) : (
-				<div className="space-y-4">
-					<table className="min-w-full divide-y divide-gray-200 shadow-sm rounded-lg overflow-hidden bg-white">
-						<thead className="bg-gray-50">
-							<tr>
-								<th
-									scope="col"
-									className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer group hover:bg-gray-100 transition-colors"
-									onClick={ () => handleSort( 'display_name' ) }
-								>
-									{ __( 'Student', 'simple-lms-bridge' ) }
-									{ getSortIcon( 'display_name' ) }
-								</th>
-								<th
-									scope="col"
-									className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer group hover:bg-gray-100 transition-colors"
-									onClick={ () => handleSort( 'email' ) }
-								>
-									{ __( 'Email', 'simple-lms-bridge' ) }
-									{ getSortIcon( 'email' ) }
-								</th>
-								<th
-									scope="col"
-									className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer group hover:bg-gray-100 transition-colors"
-									onClick={ () => handleSort( 'courses' ) }
-								>
-									{ __( 'Courses', 'simple-lms-bridge' ) }
-									{ getSortIcon( 'courses' ) }
-								</th>
-								<th
-									scope="col"
-									className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider"
-								>
-									{ __( 'Actions', 'simple-lms-bridge' ) }
-								</th>
-							</tr>
-						</thead>
-						<tbody className="bg-white divide-y divide-gray-200">
-							{ displayedStudents.map( ( student ) => (
-								<Fragment key={ student.id }>
-									<tr
-										className={
-											expandedStudent === student.id
-												? 'bg-blue-50/50 transition-colors'
-												: 'hover:bg-gray-50 transition-colors'
+			{ ( () => {
+				if ( loading ) {
+					return (
+						<div className="flex justify-center p-12">
+							<Spinner />
+						</div>
+					);
+				}
+				if ( displayedStudents.length === 0 ) {
+					return (
+						<div className="bg-white p-12 text-center text-gray-500 rounded-lg shadow-sm border border-gray-200">
+							{ __(
+								'No students matching the criteria found.',
+								'simple-lms-bridge'
+							) }
+						</div>
+					);
+				}
+				return (
+					<div className="space-y-4">
+						<table className="min-w-full divide-y divide-gray-200 shadow-sm rounded-lg overflow-hidden bg-white">
+							<thead className="bg-gray-50">
+								<tr>
+									<th
+										scope="col"
+										className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer group hover:bg-gray-100 transition-colors"
+										onClick={ () =>
+											handleSort( 'display_name' )
 										}
 									>
-										<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-											{ student.display_name }
-										</td>
-										<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-											<a href={ `mailto:${ student.email }` } className="hover:text-blue-600 transition-colors">
-												{ student.email }
-											</a>
-										</td>
-										<td className="px-6 py-4 text-sm text-gray-500 flex flex-wrap gap-2">
-											{ student.courses.map( ( c ) => (
-												<span
-													key={ c.course_id }
-													className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100"
+										{ __( 'Student', 'simple-lms-bridge' ) }
+										{ getSortIcon( 'display_name' ) }
+									</th>
+									<th
+										scope="col"
+										className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer group hover:bg-gray-100 transition-colors"
+										onClick={ () => handleSort( 'email' ) }
+									>
+										{ __( 'Email', 'simple-lms-bridge' ) }
+										{ getSortIcon( 'email' ) }
+									</th>
+									<th
+										scope="col"
+										className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer group hover:bg-gray-100 transition-colors"
+										onClick={ () =>
+											handleSort( 'courses' )
+										}
+									>
+										{ __( 'Courses', 'simple-lms-bridge' ) }
+										{ getSortIcon( 'courses' ) }
+									</th>
+									<th
+										scope="col"
+										className="px-6 py-4 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider"
+									>
+										{ __( 'Actions', 'simple-lms-bridge' ) }
+									</th>
+								</tr>
+							</thead>
+							<tbody className="bg-white divide-y divide-gray-200">
+								{ displayedStudents.map( ( student ) => (
+									<Fragment key={ student.id }>
+										<tr
+											className={
+												expandedStudent === student.id
+													? 'bg-blue-50/50 transition-colors'
+													: 'hover:bg-gray-50 transition-colors'
+											}
+										>
+											<td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+												{ student.display_name }
+											</td>
+											<td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+												<a
+													href={ `mailto:${ student.email }` }
+													className="hover:text-blue-600 transition-colors"
 												>
-													{ c.course_title }{ ' ' }
-													<span className="ml-1 opacity-75">
-														({ c.completed }/
-														{ c.total })
-													</span>
-												</span>
-											) ) }
-										</td>
-										<td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-											<Button
-												variant={ expandedStudent === student.id ? 'primary' : 'secondary' }
-												size="small"
-												onClick={ () =>
-													setExpandedStudent(
-														expandedStudent ===
-															student.id
-															? null
-															: student.id
-													)
-												}
-											>
-												{ expandedStudent === student.id
-													? __(
-															'Close',
-															'simple-lms-bridge'
-													  )
-													: __(
-															'Edit',
-															'simple-lms-bridge'
-													  ) }
-											</Button>
-										</td>
-									</tr>
-									{ expandedStudent === student.id && (
-										<tr>
-											<td
-												colSpan={ 4 }
-												className="p-0 border-b-4 border-blue-500"
-											>
-												<div className="bg-white p-6 md:px-10 border-t border-gray-100 shadow-inner">
-													<div className="flex flex-col md:flex-row md:items-center justify-between mb-6 pb-4 border-b border-gray-100">
-														<div>
-															<h3 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-																{ student.display_name }
-																<span className="text-xs font-normal px-2 py-1 bg-gray-100 text-gray-600 rounded-md">ID: { student.id }</span>
-															</h3>
-															<p className="text-sm text-gray-500 mt-1">
-																{ student.email }
-															</p>
-														</div>
-														<div className="mt-4 md:mt-0 max-w-sm w-full bg-gray-50 p-3 rounded-lg border border-gray-200">
-															<SelectControl
-																label={ __(
-																	'Enroll in New Course',
-																	'simple-lms-bridge'
-																) }
-																value=""
-																options={ [
-																	{
-																		label: __(
-																			'— Select Course —',
-																			'simple-lms-bridge'
-																		),
-																		value: '',
-																	},
-																	...allAvailableCourses
-																		.filter(
-																			(
-																				ac
-																			) =>
-																				! student.courses.some(
-																					(
-																						sc
-																					) =>
-																						sc.course_id ===
-																						ac.id
-																				)
-																		)
-																		.map(
-																			(
-																				ac
-																			) => ( {
-																				label: ac.title,
-																				value: ac.id,
-																			} )
-																		),
-																] }
-																onChange={ (
-																	val
-																) =>
-																	enrollStudent(
-																		student.id,
-																		val
-																	)
-																}
-																disabled={
-																	enrolling[
-																		student
-																			.id
-																	]
-																}
-																__nextHasNoMarginBottom={
-																	true
-																}
-															/>
-														</div>
-													</div>
-
-													<TabPanel
-														className="slms-student-tabs"
-														activeClass="is-active font-semibold text-blue-600 border-b-2 border-blue-600"
-														tabs={ [
-															{
-																name: 'progress',
-																title: __(
-																	'Progress',
-																	'simple-lms-bridge'
-																),
-																className:
-																	'slms-tab-progress pb-3 px-4 transition-colors hover:text-blue-600',
-															},
-															{
-																name: 'profile',
-																title: __(
-																	'Profile / Meta',
-																	'simple-lms-bridge'
-																),
-																className:
-																	'slms-tab-profile pb-3 px-4 transition-colors hover:text-blue-600',
-															},
-															{
-																name: 'history',
-																title: __(
-																	'Completion History',
-																	'simple-lms-bridge'
-																),
-																className:
-																	'slms-tab-history pb-3 px-4 transition-colors hover:text-blue-600',
-															},
-														] }
-													>
-														{ ( tab ) => {
-															if (
-																tab.name ===
-																'progress'
-															) {
-																return (
-																	<div className="space-y-6 mt-6">
-																		{ student.courses.map(
-																			(
-																				course
-																			) => (
-																				<div
-																					key={
-																						course.course_id
-																					}
-																					className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm"
-																				>
-																					<div className="flex justify-between items-center mb-5 border-b border-gray-100 pb-3">
-																						<div>
-																							<h4 className="font-semibold text-lg text-gray-800">
-																								{
-																									course.course_title
-																								}
-																							</h4>
-																							{ course.completed_at && (
-																								<span className="inline-flex mt-1 text-xs text-green-700 bg-green-50 border border-green-200 px-2 py-1 rounded-md font-medium">
-																									{ sprintf(
-																										__(
-																											'Course completed: %s',
-																											'simple-lms-bridge'
-																										),
-																										formatDate(
-																											course.completed_at
-																										)
-																									) }
-																								</span>
-																							) }
-																						</div>
-																						<Button
-																							variant="link"
-																							isDestructive
-																							className="text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1 rounded-md transition-colors"
-																							onClick={ () =>
-																								unenrollStudent(
-																									student.id,
-																									course.course_id
-																								)
-																							}
-																							disabled={
-																								enrolling[
-																									student
-																										.id
-																								]
-																							}
-																						>
-																							{ __(
-																								'Unenroll',
-																								'simple-lms-bridge'
-																							) }
-																						</Button>
-																					</div>
-																					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-																						{ Object.keys(
-																							course.lessons ||
-																								{}
-																						).map(
-																							(
-																								lessonId
-																							) => {
-																								const isCompleted =
-																									getLessonStatus(
-																										student.id,
-																										course.course_id,
-																										lessonId
-																									);
-																								const lessonTitle =
-																									course
-																										.lessons[
-																										lessonId
-																									]
-																										.title ||
-																									`Lesson #${ lessonId }`;
-																								const completedAt =
-																									course
-																										.lessons[
-																										lessonId
-																									]
-																										.completed_at;
-																								return (
-																									<div
-																										key={
-																											lessonId
-																										}
-																										className="flex items-center justify-between bg-gray-50 p-3 rounded-lg border border-gray-200 transition-colors hover:border-blue-300"
-																									>
-																										<div className="flex items-center space-x-3 overflow-hidden flex-grow">
-																											<CheckboxControl
-																												checked={
-																													isCompleted
-																												}
-																												onChange={ () =>
-																													toggleLocalCompletion(
-																														student.id,
-																														course.course_id,
-																														lessonId
-																													)
-																												}
-																												__nextHasNoMarginBottom={
-																													true
-																												}
-																											/>
-																											<div className="flex flex-col truncate">
-																												<span
-																													className="text-sm font-medium text-gray-700 truncate"
-																													title={
-																														lessonTitle
-																													}
-																												>
-																													{
-																														lessonTitle
-																													}
-																												</span>
-																												{ isCompleted &&
-																													completedAt && (
-																														<span className="text-xs text-gray-400 mt-0.5">
-																															{ formatDate(
-																																completedAt
-																															) }
-																														</span>
-																													) }
-																											</div>
-																										</div>
-																										<span
-																											className={ `flex-shrink-0 ml-2 px-2 py-0.5 text-[10px] uppercase font-bold rounded ${
-																												isCompleted
-																													? 'bg-green-100 text-green-700'
-																													: 'bg-gray-200 text-gray-600'
-																											}` }
-																										>
-																											{ isCompleted
-																												? __(
-																														'Done',
-																														'simple-lms-bridge'
-																												  )
-																												: __(
-																														'Pending',
-																														'simple-lms-bridge'
-																												  ) }
-																										</span>
-																									</div>
-																								);
-																							}
-																						) }
-																					</div>
-																				</div>
-																			)
-																		) }
-																	</div>
-																);
-															} else if (
-																tab.name ===
-																'profile'
-															) {
-																const sMeta =
-																	metaData[
-																		student
-																			.id
-																	] || {};
-																return (
-																	<div className="space-y-6 mt-6 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-																		<div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-																			<TextControl
-																				label={ __( 'Billing Address 1', 'simple-lms-bridge' ) }
-																				value={ sMeta.billing_address_1 || '' }
-																				onChange={ ( v ) => handleMetaChange( student.id, 'billing_address_1', v ) }
-																				__nextHasNoMarginBottom={ true }
-																			/>
-																			<TextControl
-																				label={ __( 'Billing Address 2', 'simple-lms-bridge' ) }
-																				value={ sMeta.billing_address_2 || '' }
-																				onChange={ ( v ) => handleMetaChange( student.id, 'billing_address_2', v ) }
-																				__nextHasNoMarginBottom={ true }
-																			/>
-																			<TextControl
-																				label={ __( 'City', 'simple-lms-bridge' ) }
-																				value={ sMeta.billing_city || '' }
-																				onChange={ ( v ) => handleMetaChange( student.id, 'billing_city', v ) }
-																				__nextHasNoMarginBottom={ true }
-																			/>
-																			<div className="grid grid-cols-2 gap-4">
-																				<TextControl
-																					label={ __( 'State', 'simple-lms-bridge' ) }
-																					value={ sMeta.billing_state || '' }
-																					onChange={ ( v ) => handleMetaChange( student.id, 'billing_state', v ) }
-																					__nextHasNoMarginBottom={ true }
-																				/>
-																				<TextControl
-																					label={ __( 'Postcode', 'simple-lms-bridge' ) }
-																					value={ sMeta.billing_postcode || '' }
-																					onChange={ ( v ) => handleMetaChange( student.id, 'billing_postcode', v ) }
-																					__nextHasNoMarginBottom={ true }
-																				/>
-																			</div>
-																			<TextControl
-																				label={ __( 'Phone', 'simple-lms-bridge' ) }
-																				value={ sMeta.billing_phone || '' }
-																				onChange={ ( v ) => handleMetaChange( student.id, 'billing_phone', v ) }
-																				__nextHasNoMarginBottom={ true }
-																			/>
-																			<TextControl
-																				label={ __( 'AALP Member', 'simple-lms-bridge' ) }
-																				value={ sMeta.aalp_member || '' }
-																				onChange={ ( v ) => handleMetaChange( student.id, 'aalp_member', v ) }
-																				__nextHasNoMarginBottom={ true }
-																			/>
-																			<TextControl
-																				label={ __( 'Registration Date', 'simple-lms-bridge' ) }
-																				value={ sMeta.registration_date || '' }
-																				onChange={ ( v ) => handleMetaChange( student.id, 'registration_date', v ) }
-																				__nextHasNoMarginBottom={ true }
-																			/>
-																			<TextControl
-																				label={ __( 'License Number', 'simple-lms-bridge' ) }
-																				value={ sMeta.license_number || '' }
-																				onChange={ ( v ) => handleMetaChange( student.id, 'license_number', v ) }
-																				__nextHasNoMarginBottom={ true }
-																			/>
-																			<TextControl
-																				label={ __( 'Pro Exam Date', 'simple-lms-bridge' ) }
-																				value={ sMeta.pro_exam_date || '' }
-																				onChange={ ( v ) => handleMetaChange( student.id, 'pro_exam_date', v ) }
-																				__nextHasNoMarginBottom={ true }
-																			/>
-																			<TextControl
-																				label={ __( 'Pro Exam Status', 'simple-lms-bridge' ) }
-																				value={ sMeta.pro_exam_status || '' }
-																				onChange={ ( v ) => handleMetaChange( student.id, 'pro_exam_status', v ) }
-																				__nextHasNoMarginBottom={ true }
-																			/>
-																		</div>
-																	</div>
-																);
-															} else if (
-																tab.name ===
-																'history'
-															) {
-																return <HistoryTab userId={ student.id } />;
-															}
-														} }
-													</TabPanel>
-
-													<div className="mt-8 flex justify-end">
-														<Button
-															variant="primary"
-															className="px-8 py-2 shadow-md bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
-															onClick={ () =>
-																handleUpdate(
-																	student.id
-																)
-															}
-															isBusy={ saving }
-															disabled={
-																( ! dirtyData[
-																	student.id
-																] &&
-																	! unsavedChanges ) ||
-																saving
-															}
+													{ student.email }
+												</a>
+											</td>
+											<td className="px-6 py-4 text-sm text-gray-500 flex flex-wrap gap-2">
+												{ student.courses.map(
+													( c ) => (
+														<span
+															key={ c.course_id }
+															className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100"
 														>
-															{ __(
-																'Save Changes',
+															{ c.course_title }{ ' ' }
+															<span className="ml-1 opacity-75">
+																({ c.completed }
+																/{ c.total })
+															</span>
+														</span>
+													)
+												) }
+											</td>
+											<td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+												<Button
+													variant={
+														expandedStudent ===
+														student.id
+															? 'primary'
+															: 'secondary'
+													}
+													size="small"
+													onClick={ () =>
+														setExpandedStudent(
+															expandedStudent ===
+																student.id
+																? null
+																: student.id
+														)
+													}
+												>
+													{ expandedStudent ===
+													student.id
+														? __(
+																'Close',
 																'simple-lms-bridge'
-															) }
-														</Button>
-													</div>
-												</div>
+														  )
+														: __(
+																'Edit',
+																'simple-lms-bridge'
+														  ) }
+												</Button>
 											</td>
 										</tr>
-									) }
-								</Fragment>
-							) ) }
-						</tbody>
-					</table>
+										{ expandedStudent === student.id && (
+											<tr>
+												<td
+													colSpan={ 4 }
+													className="p-0 border-b-4 border-blue-500"
+												>
+													<div className="bg-white p-6 md:px-10 border-t border-gray-100 shadow-inner">
+														<div className="flex flex-col md:flex-row md:items-center justify-between mb-6 pb-4 border-b border-gray-100">
+															<div>
+																<h3 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+																	{
+																		student.display_name
+																	}
+																	<span className="text-xs font-normal px-2 py-1 bg-gray-100 text-gray-600 rounded-md">
+																		ID:{ ' ' }
+																		{
+																			student.id
+																		}
+																	</span>
+																</h3>
+																<p className="text-sm text-gray-500 mt-1">
+																	{
+																		student.email
+																	}
+																</p>
+															</div>
+															<div className="mt-4 md:mt-0 max-w-sm w-full bg-gray-50 p-3 rounded-lg border border-gray-200">
+																<SelectControl
+																	label={ __(
+																		'Enroll in New Course',
+																		'simple-lms-bridge'
+																	) }
+																	value=""
+																	options={ [
+																		{
+																			label: __(
+																				'— Select Course —',
+																				'simple-lms-bridge'
+																			),
+																			value: '',
+																		},
+																		...allAvailableCourses
+																			.filter(
+																				(
+																					ac
+																				) =>
+																					! student.courses.some(
+																						(
+																							sc
+																						) =>
+																							sc.course_id ===
+																							ac.id
+																					)
+																			)
+																			.map(
+																				(
+																					ac
+																				) => ( {
+																					label: ac.title,
+																					value: ac.id,
+																				} )
+																			),
+																	] }
+																	onChange={ (
+																		val
+																	) =>
+																		enrollStudent(
+																			student.id,
+																			val
+																		)
+																	}
+																	disabled={
+																		enrolling[
+																			student
+																				.id
+																		]
+																	}
+																	__nextHasNoMarginBottom={
+																		true
+																	}
+																/>
+															</div>
+														</div>
 
-					{ pages > 1 && (
-						<div className="flex items-center justify-between bg-white px-6 py-4 border border-gray-200 rounded-lg shadow-sm">
-							<Button
-								variant="secondary"
-								disabled={ page <= 1 }
-								onClick={ () => setPage( page - 1 ) }
-								className="hover:bg-gray-50"
-							>
-								{ __( '← Previous', 'simple-lms-bridge' ) }
-							</Button>
-							<span className="text-sm text-gray-700">
-								{ __( 'Page', 'simple-lms-bridge' ) }{ ' ' }
-								<span className="font-semibold text-gray-900">{ page }</span>{ ' ' }
-								{ __( 'of', 'simple-lms-bridge' ) }{ ' ' }
-								<span className="font-semibold text-gray-900">{ pages }</span>{ ' ' }
-								<span className="text-gray-400 ml-2">
-									({ total }{ ' ' }
-									{ __( 'students total', 'simple-lms-bridge' ) })
+														<TabPanel
+															className="slms-student-tabs"
+															activeClass="is-active font-semibold text-blue-600 border-b-2 border-blue-600"
+															tabs={ [
+																{
+																	name: 'progress',
+																	title: __(
+																		'Progress',
+																		'simple-lms-bridge'
+																	),
+																	className:
+																		'slms-tab-progress pb-3 px-4 transition-colors hover:text-blue-600',
+																},
+																{
+																	name: 'profile',
+																	title: __(
+																		'Profile / Meta',
+																		'simple-lms-bridge'
+																	),
+																	className:
+																		'slms-tab-profile pb-3 px-4 transition-colors hover:text-blue-600',
+																},
+																{
+																	name: 'history',
+																	title: __(
+																		'Completion History',
+																		'simple-lms-bridge'
+																	),
+																	className:
+																		'slms-tab-history pb-3 px-4 transition-colors hover:text-blue-600',
+																},
+															] }
+														>
+															{ ( tab ) => {
+																if (
+																	tab.name ===
+																	'progress'
+																) {
+																	return (
+																		<div className="space-y-6 mt-6">
+																			{ student.courses.map(
+																				(
+																					course
+																				) => (
+																					<div
+																						key={
+																							course.course_id
+																						}
+																						className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm"
+																					>
+																						<div className="flex justify-between items-center mb-5 border-b border-gray-100 pb-3">
+																							<div>
+																								<h4 className="font-semibold text-lg text-gray-800">
+																									{
+																										course.course_title
+																									}
+																								</h4>
+																								{ course.completed_at && (
+																									<span className="inline-flex mt-1 text-xs text-green-700 bg-green-50 border border-green-200 px-2 py-1 rounded-md font-medium">
+																										{ sprintf(
+																											__(
+																												'Course completed: %s',
+																												'simple-lms-bridge'
+																											),
+																											formatDate(
+																												course.completed_at
+																											)
+																										) }
+																									</span>
+																								) }
+																							</div>
+																							<Button
+																								variant="link"
+																								isDestructive
+																								className="text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1 rounded-md transition-colors"
+																								onClick={ () =>
+																									unenrollStudent(
+																										student.id,
+																										course.course_id
+																									)
+																								}
+																								disabled={
+																									enrolling[
+																										student
+																											.id
+																									]
+																								}
+																							>
+																								{ __(
+																									'Unenroll',
+																									'simple-lms-bridge'
+																								) }
+																							</Button>
+																						</div>
+																						<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+																							{ Object.keys(
+																								course.lessons ||
+																									{}
+																							).map(
+																								(
+																									lessonId
+																								) => {
+																									const isCompleted =
+																										getLessonStatus(
+																											student.id,
+																											course.course_id,
+																											lessonId
+																										);
+																									const lessonTitle =
+																										course
+																											.lessons[
+																											lessonId
+																										]
+																											.title ||
+																										`Lesson #${ lessonId }`;
+																									const completedAt =
+																										course
+																											.lessons[
+																											lessonId
+																										]
+																											.completed_at;
+																									return (
+																										<div
+																											key={
+																												lessonId
+																											}
+																											className="flex items-center justify-between bg-gray-50 p-3 rounded-lg border border-gray-200 transition-colors hover:border-blue-300"
+																										>
+																											<div className="flex items-center space-x-3 overflow-hidden flex-grow">
+																												<CheckboxControl
+																													checked={
+																														isCompleted
+																													}
+																													onChange={ () =>
+																														toggleLocalCompletion(
+																															student.id,
+																															course.course_id,
+																															lessonId
+																														)
+																													}
+																													__nextHasNoMarginBottom={
+																														true
+																													}
+																												/>
+																												<div className="flex flex-col truncate">
+																													<span
+																														className="text-sm font-medium text-gray-700 truncate"
+																														title={
+																															lessonTitle
+																														}
+																													>
+																														{
+																															lessonTitle
+																														}
+																													</span>
+																													{ isCompleted &&
+																														completedAt && (
+																															<span className="text-xs text-gray-400 mt-0.5">
+																																{ formatDate(
+																																	completedAt
+																																) }
+																															</span>
+																														) }
+																												</div>
+																											</div>
+																											<span
+																												className={ `flex-shrink-0 ml-2 px-2 py-0.5 text-[10px] uppercase font-bold rounded ${
+																													isCompleted
+																														? 'bg-green-100 text-green-700'
+																														: 'bg-gray-200 text-gray-600'
+																												}` }
+																											>
+																												{ isCompleted
+																													? __(
+																															'Done',
+																															'simple-lms-bridge'
+																													  )
+																													: __(
+																															'Pending',
+																															'simple-lms-bridge'
+																													  ) }
+																											</span>
+																										</div>
+																									);
+																								}
+																							) }
+																						</div>
+																					</div>
+																				)
+																			) }
+																		</div>
+																	);
+																} else if (
+																	tab.name ===
+																	'profile'
+																) {
+																	const sMeta =
+																		metaData[
+																			student
+																				.id
+																		] || {};
+																	return (
+																		<div className="space-y-6 mt-6 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+																			<div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+																				<TextControl
+																					label={ __(
+																						'Billing Address 1',
+																						'simple-lms-bridge'
+																					) }
+																					value={
+																						sMeta.billing_address_1 ||
+																						''
+																					}
+																					onChange={ (
+																						v
+																					) =>
+																						handleMetaChange(
+																							student.id,
+																							'billing_address_1',
+																							v
+																						)
+																					}
+																					__nextHasNoMarginBottom={
+																						true
+																					}
+																				/>
+																				<TextControl
+																					label={ __(
+																						'Billing Address 2',
+																						'simple-lms-bridge'
+																					) }
+																					value={
+																						sMeta.billing_address_2 ||
+																						''
+																					}
+																					onChange={ (
+																						v
+																					) =>
+																						handleMetaChange(
+																							student.id,
+																							'billing_address_2',
+																							v
+																						)
+																					}
+																					__nextHasNoMarginBottom={
+																						true
+																					}
+																				/>
+																				<TextControl
+																					label={ __(
+																						'City',
+																						'simple-lms-bridge'
+																					) }
+																					value={
+																						sMeta.billing_city ||
+																						''
+																					}
+																					onChange={ (
+																						v
+																					) =>
+																						handleMetaChange(
+																							student.id,
+																							'billing_city',
+																							v
+																						)
+																					}
+																					__nextHasNoMarginBottom={
+																						true
+																					}
+																				/>
+																				<div className="grid grid-cols-2 gap-4">
+																					<TextControl
+																						label={ __(
+																							'State',
+																							'simple-lms-bridge'
+																						) }
+																						value={
+																							sMeta.billing_state ||
+																							''
+																						}
+																						onChange={ (
+																							v
+																						) =>
+																							handleMetaChange(
+																								student.id,
+																								'billing_state',
+																								v
+																							)
+																						}
+																						__nextHasNoMarginBottom={
+																							true
+																						}
+																					/>
+																					<TextControl
+																						label={ __(
+																							'Postcode',
+																							'simple-lms-bridge'
+																						) }
+																						value={
+																							sMeta.billing_postcode ||
+																							''
+																						}
+																						onChange={ (
+																							v
+																						) =>
+																							handleMetaChange(
+																								student.id,
+																								'billing_postcode',
+																								v
+																							)
+																						}
+																						__nextHasNoMarginBottom={
+																							true
+																						}
+																					/>
+																				</div>
+																				<TextControl
+																					label={ __(
+																						'Phone',
+																						'simple-lms-bridge'
+																					) }
+																					value={
+																						sMeta.billing_phone ||
+																						''
+																					}
+																					onChange={ (
+																						v
+																					) =>
+																						handleMetaChange(
+																							student.id,
+																							'billing_phone',
+																							v
+																						)
+																					}
+																					__nextHasNoMarginBottom={
+																						true
+																					}
+																				/>
+																				<TextControl
+																					label={ __(
+																						'AALP Member',
+																						'simple-lms-bridge'
+																					) }
+																					value={
+																						sMeta.aalp_member ||
+																						''
+																					}
+																					onChange={ (
+																						v
+																					) =>
+																						handleMetaChange(
+																							student.id,
+																							'aalp_member',
+																							v
+																						)
+																					}
+																					__nextHasNoMarginBottom={
+																						true
+																					}
+																				/>
+																				<TextControl
+																					label={ __(
+																						'Registration Date',
+																						'simple-lms-bridge'
+																					) }
+																					value={
+																						sMeta.registration_date ||
+																						''
+																					}
+																					onChange={ (
+																						v
+																					) =>
+																						handleMetaChange(
+																							student.id,
+																							'registration_date',
+																							v
+																						)
+																					}
+																					__nextHasNoMarginBottom={
+																						true
+																					}
+																				/>
+																				<TextControl
+																					label={ __(
+																						'License Number',
+																						'simple-lms-bridge'
+																					) }
+																					value={
+																						sMeta.license_number ||
+																						''
+																					}
+																					onChange={ (
+																						v
+																					) =>
+																						handleMetaChange(
+																							student.id,
+																							'license_number',
+																							v
+																						)
+																					}
+																					__nextHasNoMarginBottom={
+																						true
+																					}
+																				/>
+																				<TextControl
+																					label={ __(
+																						'Pro Exam Date',
+																						'simple-lms-bridge'
+																					) }
+																					value={
+																						sMeta.pro_exam_date ||
+																						''
+																					}
+																					onChange={ (
+																						v
+																					) =>
+																						handleMetaChange(
+																							student.id,
+																							'pro_exam_date',
+																							v
+																						)
+																					}
+																					__nextHasNoMarginBottom={
+																						true
+																					}
+																				/>
+																				<TextControl
+																					label={ __(
+																						'Pro Exam Status',
+																						'simple-lms-bridge'
+																					) }
+																					value={
+																						sMeta.pro_exam_status ||
+																						''
+																					}
+																					onChange={ (
+																						v
+																					) =>
+																						handleMetaChange(
+																							student.id,
+																							'pro_exam_status',
+																							v
+																						)
+																					}
+																					__nextHasNoMarginBottom={
+																						true
+																					}
+																				/>
+																			</div>
+																		</div>
+																	);
+																} else if (
+																	tab.name ===
+																	'history'
+																) {
+																	return (
+																		<HistoryTab
+																			userId={
+																				student.id
+																			}
+																		/>
+																	);
+																}
+															} }
+														</TabPanel>
+
+														<div className="mt-8 flex justify-end">
+															<Button
+																variant="primary"
+																className="px-8 py-2 shadow-md bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors disabled:opacity-50"
+																onClick={ () =>
+																	handleUpdate(
+																		student.id
+																	)
+																}
+																isBusy={
+																	saving
+																}
+																disabled={
+																	( ! dirtyData[
+																		student
+																			.id
+																	] &&
+																		! unsavedChanges ) ||
+																	saving
+																}
+															>
+																{ __(
+																	'Save Changes',
+																	'simple-lms-bridge'
+																) }
+															</Button>
+														</div>
+													</div>
+												</td>
+											</tr>
+										) }
+									</Fragment>
+								) ) }
+							</tbody>
+						</table>
+
+						{ pages > 1 && (
+							<div className="flex items-center justify-between bg-white px-6 py-4 border border-gray-200 rounded-lg shadow-sm">
+								<Button
+									variant="secondary"
+									disabled={ page <= 1 }
+									onClick={ () => setPage( page - 1 ) }
+									className="hover:bg-gray-50"
+								>
+									{ __( '← Previous', 'simple-lms-bridge' ) }
+								</Button>
+								<span className="text-sm text-gray-700">
+									{ __( 'Page', 'simple-lms-bridge' ) }{ ' ' }
+									<span className="font-semibold text-gray-900">
+										{ page }
+									</span>{ ' ' }
+									{ __( 'of', 'simple-lms-bridge' ) }{ ' ' }
+									<span className="font-semibold text-gray-900">
+										{ pages }
+									</span>{ ' ' }
+									<span className="text-gray-400 ml-2">
+										({ total }{ ' ' }
+										{ __(
+											'students total',
+											'simple-lms-bridge'
+										) }
+										)
+									</span>
 								</span>
-							</span>
-							<Button
-								variant="secondary"
-								disabled={ page >= pages }
-								onClick={ () => setPage( page + 1 ) }
-								className="hover:bg-gray-50"
-							>
-								{ __( 'Next →', 'simple-lms-bridge' ) }
-							</Button>
-						</div>
-					) }
-				</div>
-			) }
+								<Button
+									variant="secondary"
+									disabled={ page >= pages }
+									onClick={ () => setPage( page + 1 ) }
+									className="hover:bg-gray-50"
+								>
+									{ __( 'Next →', 'simple-lms-bridge' ) }
+								</Button>
+							</div>
+						) }
+					</div>
+				);
+			} )() }
 		</div>
 	);
 };

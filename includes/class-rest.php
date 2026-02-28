@@ -1018,7 +1018,7 @@ class REST
         }
 
         // If the name looks like a URL, try to resolve it to a post title.
-        if (filter_var($name, FILTER_VALIDATE_URL) || strpos($name, 'http') === 0 || strpos($name, '/') === 0) {
+        if (filter_var($name, FILTER_VALIDATE_URL) || strpos($name ?? '', 'http') === 0 || strpos($name ?? '', '/') === 0) {
             $post_id = \url_to_postid($name);
             if ($post_id) {
                 $post = get_post($post_id);
