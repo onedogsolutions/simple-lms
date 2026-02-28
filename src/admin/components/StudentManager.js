@@ -170,13 +170,6 @@ const StudentManager = () => {
 		}
 	}, [] );
 
-	// Initial load.
-	useEffect( () => {
-		fetchStudents( '', 1 );
-		checkMigrationStatus();
-		fetchAvailableCourses();
-	}, [] );
-
 	const fetchAvailableCourses = async () => {
 		try {
 			const res = await apiFetch( {
@@ -185,28 +178,6 @@ const StudentManager = () => {
 			setAllAvailableCourses( res || [] );
 		} catch ( err ) {
 			console.error( 'Failed to fetch courses', err );
-		}
-	};
-
-	const checkMigrationStatus = async () => {
-		try {
-			const res = await apiFetch( {
-				path: '/simple-lms/v1/migration/status',
-			} );
-			if ( res.progress && res.progress.pending > 0 ) {
-				setMigrationStatus( ( prev ) => ( {
-					...prev,
-					pending: res.progress.pending,
-					total: prev.total || res.progress.pending,
-				} ) );
-
-				const urlParams = new URLSearchParams( window.location.search );
-				if ( urlParams.get( 'migrate' ) === '1' ) {
-					startMigration( res.progress.pending );
-				}
-			}
-		} catch ( err ) {
-			console.error( 'Failed to check migration status', err );
 		}
 	};
 
@@ -255,6 +226,35 @@ const StudentManager = () => {
 			}
 		}
 	};
+
+	const checkMigrationStatus = async () => {
+		try {
+			const res = await apiFetch( {
+				path: '/simple-lms/v1/migration/status',
+			} );
+			if ( res.progress && res.progress.pending > 0 ) {
+				setMigrationStatus( ( prev ) => ( {
+					...prev,
+					pending: res.progress.pending,
+					total: prev.total || res.progress.pending,
+				} ) );
+
+				const urlParams = new URLSearchParams( window.location.search );
+				if ( urlParams.get( 'migrate' ) === '1' ) {
+					startMigration( res.progress.pending );
+				}
+			}
+		} catch ( err ) {
+			console.error( 'Failed to check migration status', err );
+		}
+	};
+
+	// Initial load.
+	useEffect( () => {
+		fetchStudents( '', 1 );
+		checkMigrationStatus();
+		fetchAvailableCourses();
+	}, [] );
 
 	// Track when search triggers a fetch so page-change effect can skip redundant call.
 	const searchTriggeredFetch = useRef( false );
