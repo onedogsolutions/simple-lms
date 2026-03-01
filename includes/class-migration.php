@@ -297,7 +297,7 @@ class Migration
     }
 
     /**
-     * Alias for Phase 2 migration to maintain compatibility with legacy calls.
+     * Alias for Phase 3 (progress) migration to maintain compatibility with legacy calls.
      */
     public static function migrate_batch($limit = 10)
     {
@@ -305,7 +305,7 @@ class Migration
     }
 
     /**
-     * Phase 2: Student Progress (WPComplete) Migration.
+     * Phase 3: Student Progress (WPComplete) Migration.
      *
      * @param int $limit Max users to migrate in this batch.
      * @return array Result summary.
@@ -313,7 +313,7 @@ class Migration
     public static function migrate_progress_batch($limit = 10)
     {
         $limit = max(1, min(absint($limit), 100));
-        self::log('Phase 2: Starting student progress migration (limit=' . $limit . ').');
+        self::log('Phase 3: Starting student progress migration (limit=' . $limit . ').');
         $start_time = microtime(true);
 
         global $wpdb;
@@ -428,7 +428,7 @@ class Migration
 
         $duration = round(microtime(true) - $start_time, 2);
         self::log(sprintf(
-            'Phase 2 complete: users=%d, mapped=%d, skipped_no_match=%d, skipped_no_course=%d, skipped_not_enrolled=%d, duration=%ss.',
+            'Phase 3 complete: users=%d, mapped=%d, skipped_no_match=%d, skipped_no_course=%d, skipped_not_enrolled=%d, duration=%ss.',
             $count, $stats['lessons_mapped'], $stats['lessons_skipped_no_match'],
             $stats['lessons_skipped_no_course'], $stats['lessons_skipped_not_enrolled'], $duration
         ));
@@ -800,7 +800,7 @@ class Migration
     {
         $limit = absint($limit);
         $offset = absint($offset);
-        self::log('Phase 3: Starting historical certificate migration (limit=' . $limit . ', offset=' . $offset . ').');
+        self::log('Phase 4: Starting historical certificate migration (limit=' . $limit . ', offset=' . $offset . ').');
         $start_time = microtime(true);
         global $wpdb;
 
@@ -950,7 +950,7 @@ class Migration
 
         $duration = round(microtime(true) - $start_time, 2);
         self::log(sprintf(
-            'Phase 3 complete: users=%d, inserted=%d, duplicates_skipped=%d, duration=%ss.',
+            'Phase 4 complete: users=%d, inserted=%d, duplicates_skipped=%d, duration=%ss.',
             $count, $inserted, $skipped_dup, $duration
         ));
 
@@ -970,7 +970,7 @@ class Migration
     }
 
     /**
-     * Renamed Phase 2 method for consistency.
+     * Alias for Phase 3 (progress) migration for consistency.
      */
     public static function migrate_student_progress_batch($limit = 10)
     {
@@ -978,106 +978,79 @@ class Migration
     }
 
     /**
-     * Phase 4: PMPro Membership Migration.
+     * Phase 2: PMPro Registration Sync.
      *
      * Reads GF Form 2 "Select Your Courses" checkbox field (ID 20) which
      * contains legacy course post IDs. Maps each old post ID → new slms_course
-     * (via _legacy_id) → PMPro level (via _lms_pmpro_levels), then enrolls
-     * the user with a 90-day access window from the original GF entry date.
+     * (via _legacy_id) → PMPro level (via _lms_pmpro_levels), then applies the
+     * 90-day rule based on the original GF entry (purchase) date:
      *
-     * PMPro levels should already exist from Phase 1 (create_pmpro_level_for_course).
+     *  - Purchase <= 90 days ago: grant an active PMPro membership with the
+     *    remaining days left.
+     *  - Purchase > 90 days ago: create a historical MemberOrder for audit
+     *    purposes only — no active access is granted.
      *
-     * @param int $limit Max entries to migrate in this batch.
-     * @return array Result summary.
+     * Pagination is caller-driven via $offset so the frontend loop stays
+     * deterministic and cannot stall.
+     *
+     * PMPro levels must already exist from Phase 1 (create_pmpro_level_for_course).
+     *
+     * @param int $limit  Max entries to fetch in this batch.
+     * @param int $offset GFAPI page offset (advanced by the caller each batch).
+     * @return array Result summary including next offset.
      */
-    public static function migrate_pmpro_batch($limit = 10)
+    public static function migrate_pmpro_batch($limit = 10, $offset = 0)
     {
-        $limit = absint($limit);
-        self::log('Phase 4: Starting PMPro membership migration (limit=' . $limit . ').');
+        $limit  = absint($limit);
+        $offset = absint($offset);
+        self::log('Phase 2: Starting PMPro registration sync (limit=' . $limit . ', offset=' . $offset . ').');
         $start_time = microtime(true);
 
         if (!class_exists('GFAPI')) {
-            self::log('GFAPI class not available — cannot run Phase 4.', 'error');
+            self::log('GFAPI class not available — cannot run Phase 2.', 'error');
             return array(
-                'processed' => 0,
-                'pending' => 0,
-                'total' => 0,
-                'duration' => 0,
-                'success' => false,
-                'log' => self::flush_log(),
+                'processed' => 0, 'pending' => 0, 'total' => 0,
+                'offset' => $offset, 'duration' => 0,
+                'success' => false, 'log' => self::flush_log(),
             );
         }
 
         if (!function_exists('pmpro_changeMembershipLevel')) {
-            self::log('PMPro not active — cannot run Phase 4.', 'error');
+            self::log('PMPro not active — cannot run Phase 2.', 'error');
             return array(
-                'processed' => 0,
-                'pending' => 0,
-                'total' => 0,
-                'duration' => 0,
-                'success' => false,
-                'log' => self::flush_log(),
+                'processed' => 0, 'pending' => 0, 'total' => 0,
+                'offset' => $offset, 'duration' => 0,
+                'success' => false, 'log' => self::flush_log(),
             );
         }
 
-        $gf_form_id = 2;
+        $gf_form_id      = 2;
         $course_field_id = 20; // Checkbox field: "Select Your Courses" with legacy post IDs as values.
 
-        // Get unmigrated entries from Form ID 2 using a self-advancing offset.
-        $search_criteria = array(
-            'status' => 'active',
-        );
-        $sorting = array('key' => 'id', 'direction' => 'ASC');
+        // Single deterministic page fetch — caller controls offset, preventing infinite scans.
+        $search_criteria = array('status' => 'active');
+        $sorting         = array('key' => 'id', 'direction' => 'ASC');
+        $paging          = array('offset' => $offset, 'page_size' => $limit);
 
-        $unmigrated = array();
-        $offset = 0;
-        $max_scans = 100;
+        $entries = \GFAPI::get_entries($gf_form_id, $search_criteria, $sorting, $paging);
 
-        while (count($unmigrated) < $limit && $max_scans > 0) {
-            $paging = array('offset' => $offset, 'page_size' => $limit);
-            $entries = \GFAPI::get_entries($gf_form_id, $search_criteria, $sorting, $paging);
-
-            if (!is_array($entries) || empty($entries)) {
-                break;
-            }
-
-            foreach ($entries as $entry) {
-                $migrated = \gform_get_meta($entry['id'], '_slms_pmpro_migrated');
-                if (!$migrated) {
-                    $unmigrated[] = $entry;
-                    if (count($unmigrated) >= $limit) {
-                        break;
-                    }
-                }
-            }
-
-            if (count($entries) < $limit) {
-                break;
-            }
-
-            $offset += $limit;
-            $max_scans--;
-        }
-
-        if (empty($unmigrated)) {
-            self::log('No unmigrated entries found in GF Form ID ' . $gf_form_id . '.');
+        if (!is_array($entries) || empty($entries)) {
+            self::log('No more entries at offset ' . $offset . ' — Phase 2 complete.');
             $pending = self::get_pending_pmpro_count();
             return array(
-                'processed' => 0,
-                'pending' => $pending,
-                'total' => $pending,
+                'processed' => 0, 'pending' => $pending,
+                'total' => $pending, 'offset' => $offset,
                 'duration' => round(microtime(true) - $start_time, 2),
-                'success' => true,
-                'status' => $pending === 0 ? 'complete' : 'processing',
+                'success' => true, 'status' => 'complete',
                 'log' => self::flush_log(),
             );
         }
 
-        self::log('Found ' . count($unmigrated) . ' unmigrated entries to process.');
+        self::log('Fetched ' . count($entries) . ' entries at offset ' . $offset . '.', 'debug');
 
         // Log the first entry's field 20 sub-fields for diagnostics.
-        if (!empty($unmigrated[0])) {
-            $sample = $unmigrated[0];
+        if (!empty($entries[0])) {
+            $sample        = $entries[0];
             $sample_fields = array();
             foreach ($sample as $key => $val) {
                 if (!empty($val) && strpos((string)$key, $course_field_id . '.') === 0) {
@@ -1091,12 +1064,25 @@ class Migration
         $legacy_map = self::build_legacy_course_map();
         self::log('Legacy course map has ' . count($legacy_map) . ' entries.', 'debug');
 
-        $count = 0;
-        $enrolled = 0;
+        $count            = 0;
+        $skipped          = 0;
+        $enrolled_active  = 0;
+        $enrolled_expired = 0;
+        $now              = current_time('timestamp');
 
-        foreach ($unmigrated as $entry) {
+        global $wpdb;
+
+        foreach ($entries as $entry) {
             $entry_id = absint($entry['id']);
-            $user_id = !empty($entry['created_by']) ? (int)$entry['created_by'] : 0;
+
+            // Skip entries already processed in a previous run.
+            $migrated = \gform_get_meta($entry_id, '_slms_pmpro_migrated');
+            if ($migrated) {
+                $skipped++;
+                continue;
+            }
+
+            $user_id    = !empty($entry['created_by']) ? (int)$entry['created_by'] : 0;
             $entry_date = $entry['date_created'] ?? '';
 
             // Resolve user by email if created_by is missing.
@@ -1113,13 +1099,13 @@ class Migration
             }
 
             if (!$user_id) {
-                self::log('Entry #' . $entry_id . ': no user found, skipping.', 'warn');
+                self::log('Entry #' . $entry_id . ': no user found, marking as migrated and skipping.', 'warn');
                 \gform_update_meta($entry_id, '_slms_pmpro_migrated', time());
                 $count++;
                 continue;
             }
 
-            $user = get_userdata($user_id);
+            $user       = get_userdata($user_id);
             $user_label = $user ? $user->user_email : 'UID:' . $user_id;
 
             // Extract legacy course post IDs from checkbox field 20.
@@ -1141,14 +1127,9 @@ class Migration
 
             self::log('Entry #' . $entry_id . ' (' . $user_label . '): found ' . count($legacy_course_ids) . ' course(s): ' . implode(', ', $legacy_course_ids) . '.');
 
-            // Calculate 90-day enddate from the GF entry date.
-            $enddate = '';
-            if (!empty($entry_date)) {
-                $entry_timestamp = strtotime($entry_date);
-                if ($entry_timestamp) {
-                    $enddate = gmdate('Y-m-d H:i:s', $entry_timestamp + (90 * DAY_IN_SECONDS));
-                }
-            }
+            // 90-day rule: measure elapsed time since the original purchase date.
+            $entry_timestamp = $entry_date ? strtotime($entry_date) : 0;
+            $days_elapsed    = $entry_timestamp ? (int)floor(($now - $entry_timestamp) / DAY_IN_SECONDS) : 91;
 
             foreach ($legacy_course_ids as $legacy_id) {
                 if (!isset($legacy_map[$legacy_id])) {
@@ -1156,58 +1137,95 @@ class Migration
                     continue;
                 }
 
-                $map_entry = $legacy_map[$legacy_id];
+                $map_entry     = $legacy_map[$legacy_id];
                 $new_course_id = $map_entry['new_course_id'];
-                $level_ids = $map_entry['level_ids'];
+                $level_ids     = $map_entry['level_ids'];
 
                 if (empty($level_ids)) {
                     self::log($user_label . ': new course ' . $new_course_id . ' (legacy ' . $legacy_id . ') has no PMPro level mapped, skipping.', 'warn');
                     continue;
                 }
 
-                // Enroll in each PMPro level mapped to this course.
                 foreach ($level_ids as $level_id) {
-                    $level_params = array(
-                        'user_id' => $user_id,
-                        'membership_id' => $level_id,
-                        'enddate' => $enddate,
-                    );
+                    if ($days_elapsed > 90) {
+                        // EXPIRED PATH — purchase is older than 90 days.
+                        // Create a historical order for audit/receipt purposes only.
+                        // Do NOT grant an active PMPro membership.
+                        $level_price = (float)$wpdb->get_var($wpdb->prepare(
+                            "SELECT initial_payment FROM {$wpdb->prefix}pmpro_membership_levels WHERE id = %d",
+                            $level_id
+                        ));
 
-                    $result = \pmpro_changeMembershipLevel($level_params, $user_id);
+                        if (class_exists('MemberOrder')) {
+                            $order                      = new \MemberOrder();
+                            $order->user_id             = $user_id;
+                            $order->membership_id       = $level_id;
+                            $order->subtotal            = $level_price;
+                            $order->total               = $level_price;
+                            $order->status              = 'success';
+                            $order->gateway             = 'free';
+                            $order->gateway_environment = 'sandbox';
+                            $order->payment_type        = 'Migration Import';
+                            $order->notes               = 'Migrated from GF entry #' . $entry_id . '. Access expired (' . $days_elapsed . ' days ago).';
+                            $order->timestamp           = $entry_timestamp;
+                            $order->saveOrder();
+                            self::log($user_label . ': historical order created for level ' . $level_id . ' (expired, ' . $days_elapsed . ' days old). No active access granted.');
+                        } else {
+                            self::log($user_label . ': MemberOrder class unavailable — skipping historical order for level ' . $level_id . '.', 'warn');
+                        }
 
-                    if ($result) {
-                        self::log($user_label . ': enrolled in PMPro level ' . $level_id . ' (legacy course ' . $legacy_id . ' -> course ' . $new_course_id . ') enddate=' . $enddate . '.', 'debug');
-                        $enrolled++;
-                    }
-                    else {
-                        self::log($user_label . ': pmpro_changeMembershipLevel failed for level ' . $level_id . '.', 'error');
+                        Relationships::enroll_user($user_id, $new_course_id, 'pmpro_migration_expired');
+                        $enrolled_expired++;
+                    } else {
+                        // ACTIVE PATH — purchase is within the 90-day window.
+                        // Grant a live membership with the days remaining.
+                        $remaining_days = 90 - $days_elapsed;
+                        $enddate        = gmdate('Y-m-d H:i:s', $now + ($remaining_days * DAY_IN_SECONDS));
+
+                        $level_params = array(
+                            'user_id'       => $user_id,
+                            'membership_id' => $level_id,
+                            'enddate'       => $enddate,
+                        );
+
+                        $result = \pmpro_changeMembershipLevel($level_params, $user_id);
+
+                        if ($result) {
+                            self::log($user_label . ': enrolled in PMPro level ' . $level_id . ' with ' . $remaining_days . ' days remaining (enddate=' . $enddate . ').');
+                            $enrolled_active++;
+                        } else {
+                            self::log($user_label . ': pmpro_changeMembershipLevel failed for level ' . $level_id . '.', 'error');
+                        }
+
+                        Relationships::enroll_user($user_id, $new_course_id, 'pmpro_migration');
                     }
                 }
-
-                // Also enroll in the SimpleLMS course directly.
-                Relationships::enroll_user($user_id, $new_course_id, 'pmpro_migration');
             }
 
             \gform_update_meta($entry_id, '_slms_pmpro_migrated', time());
             $count++;
         }
 
-        $duration = round(microtime(true) - $start_time, 2);
+        $duration    = round(microtime(true) - $start_time, 2);
+        $next_offset = $offset + count($entries);
+        $pending     = self::get_pending_pmpro_count();
+
         self::log(sprintf(
-            'Phase 4 complete: entries=%d, enrolled=%d, duration=%ss.',
-            $count, $enrolled, $duration
+            'Phase 2 batch complete: processed=%d, skipped=%d, enrolled_active=%d, enrolled_expired=%d, duration=%ss.',
+            $count, $skipped, $enrolled_active, $enrolled_expired, $duration
         ));
 
-        $pending = self::get_pending_pmpro_count();
-
         return array(
-            'processed' => $count, 'pending' => $pending,
-            'total' => $count + $pending,
-            'enrolled' => $enrolled,
-            'duration' => $duration,
-            'success' => true,
-            'status' => ($pending === 0 || $count === 0) ? 'complete' : 'processing',
-            'log' => self::flush_log(),
+            'processed' => $count,
+            'pending'   => $pending,
+            'total'     => $count + $pending,
+            'enrolled'  => $enrolled_active,
+            'expired'   => $enrolled_expired,
+            'offset'    => $next_offset,
+            'duration'  => $duration,
+            'success'   => true,
+            'status'    => ($pending === 0 || empty($entries)) ? 'complete' : 'processing',
+            'log'       => self::flush_log(),
         );
     }
 
@@ -1535,7 +1553,7 @@ class Migration
     }
 
     /**
-     * Reset Phase 4 migration meta so all GF Form 2 entries can be re-processed.
+     * Reset Phase 2 migration meta so all GF Form 2 entries can be re-processed.
      *
      * @return array Result summary.
      */
@@ -1552,7 +1570,7 @@ class Migration
             "DELETE FROM {$gf_meta_table} WHERE meta_key = '_slms_pmpro_migrated'"
         );
 
-        self::log('Phase 4 reset: removed ' . (int)$deleted . ' migration markers.', 'info');
+        self::log('Phase 2 reset: removed ' . (int)$deleted . ' migration markers.', 'info');
 
         return array(
             'deleted' => (int)$deleted,

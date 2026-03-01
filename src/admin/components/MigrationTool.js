@@ -1,10 +1,10 @@
 /**
- * MigrationTool – Three-Phase Migration UI.
+ * MigrationTool – Four-Phase Migration UI.
  *
  * Phase 1: CPT Migration (Legacy Pods -> New CPTs)
- * Phase 2: Student Progress Migration (WPComplete -> New DB)
- * Phase 3: Historical Certificate Migration (Gravity Forms)
- * Phase 4: PMPro Membership Migration (GF Form 2 -> PMPro Levels)
+ * Phase 2: PMPro Registration Sync (GF Form 2 -> PMPro Levels)
+ * Phase 3: Student Progress Migration (WPComplete -> New DB)
+ * Phase 4: Historical Certificate Migration (Gravity Forms)
  *
  * @package
  */
@@ -25,7 +25,7 @@ const MigrationTool = () => {
 	const [status, setStatus] = useState(null);
 	const [loading, setLoading] = useState(true);
 	const [migrating, setMigrating] = useState(false);
-	const [phase, setPhase] = useState(0); // 0 = idle, 1 = content, 2 = progress, 3 = history, 4 = pmpro
+	const [phase, setPhase] = useState(0); // 0 = idle, 1 = content, 2 = pmpro, 3 = progress, 4 = history
 
 	// Track total counts to allow percentage calculation
 	const [totals, setTotals] = useState({
@@ -94,11 +94,11 @@ const MigrationTool = () => {
 		}
 	};
 
-	const resetPhase4 = async () => {
+	const resetPhase2 = async () => {
 		if (
 			!window.confirm(
 				__(
-					'Reset Phase 4? This clears all migration markers so entries can be re-processed.',
+					'Reset Phase 2? This clears all PMPro sync markers so entries can be re-processed.',
 					'simple-lms-bridge'
 				)
 			)
@@ -118,7 +118,7 @@ const MigrationTool = () => {
 			setNotice(
 				sprintf(
 					__(
-						'Phase 4 reset: %d markers cleared, %d entries ready to re-process.',
+						'Phase 2 reset: %d markers cleared, %d entries ready to re-process.',
 						'simple-lms-bridge'
 					),
 					res.deleted,
@@ -142,13 +142,13 @@ const MigrationTool = () => {
 		if (type === 'content') {
 			activePhase = 1;
 		}
-		if (type === 'progress') {
+		if (type === 'pmpro') {
 			activePhase = 2;
 		}
-		if (type === 'history') {
+		if (type === 'progress') {
 			activePhase = 3;
 		}
-		if (type === 'pmpro') {
+		if (type === 'history') {
 			activePhase = 4;
 		}
 
@@ -172,12 +172,12 @@ const MigrationTool = () => {
 			let pending;
 			if (type === 'content') {
 				pending = status.content.pending;
+			} else if (type === 'pmpro') {
+				pending = status.pmpro?.pending || 0;
 			} else if (type === 'progress') {
 				pending = status.progress.pending;
-			} else if (type === 'history') {
-				pending = status.history.pending;
 			} else {
-				pending = status.pmpro?.pending || 0;
+				pending = status.history?.pending || 0;
 			}
 
 			let zeroProgressCount = 0;
@@ -264,17 +264,17 @@ const MigrationTool = () => {
 					noticeMessage =
 						'Phase 1: Content migration completed successfully.';
 				}
+				if (type === 'pmpro') {
+					noticeMessage =
+						'Phase 2: PMPro Registration Sync completed successfully.';
+				}
 				if (type === 'progress') {
 					noticeMessage =
-						'Phase 2: Student Progress migration completed successfully.';
+						'Phase 3: Student Progress migration completed successfully.';
 				}
 				if (type === 'history') {
 					noticeMessage =
-						'Phase 3: Historical Certificates migration completed successfully.';
-				}
-				if (type === 'pmpro') {
-					noticeMessage =
-						'Phase 4: PMPro Membership migration completed successfully.';
+						'Phase 4: Historical Certificates migration completed successfully.';
 				}
 
 				setNotice(__(noticeMessage, 'simple-lms-bridge'));
@@ -296,10 +296,10 @@ const MigrationTool = () => {
 		);
 	}
 
-	const contentPending = status?.content?.pending || 0;
+	const contentPending  = status?.content?.pending || 0;
+	const pmproPending    = status?.pmpro?.pending || 0;
 	const progressPending = status?.progress?.pending || 0;
-	const historyPending = status?.history?.pending || 0;
-	const pmproPending = status?.pmpro?.pending || 0;
+	const historyPending  = status?.history?.pending || 0;
 
 	// Safe Progress Calculation to prevent over 100% bugs
 	const calculateProgress = (total, pending) => {
@@ -320,14 +320,22 @@ const MigrationTool = () => {
 
 	const isPhase1Complete = contentPending === 0 && totals.content >= 0;
 
+	// Phase 2: PMPro Registration Sync — unlocks after Phase 1.
 	let isPhase2Complete = false;
-	if (isPhase1Complete && progressPending === 0 && totals.progress >= 0) {
+	if (isPhase1Complete && pmproPending === 0 && totals.pmpro >= 0) {
 		isPhase2Complete = true;
 	}
 
+	// Phase 3: Student Progress — unlocks after Phase 2.
 	let isPhase3Complete = false;
-	if (isPhase2Complete && historyPending === 0) {
+	if (isPhase2Complete && progressPending === 0 && totals.progress >= 0) {
 		isPhase3Complete = true;
+	}
+
+	// Phase 4: Historical Certificates — unlocks after Phase 3.
+	let isPhase4Complete = false;
+	if (isPhase3Complete && historyPending === 0) {
+		isPhase4Complete = true;
 	}
 
 	const filteredLog =
@@ -457,7 +465,7 @@ const MigrationTool = () => {
 					)}
 				</div>
 
-				{ /* Phase 2 */}
+				{ /* Phase 2 — PMPro Registration Sync */}
 				<div
 					className={`bg-white border ${isPhase1Complete
 						? 'border-gray-200'
@@ -469,20 +477,20 @@ const MigrationTool = () => {
 							<h2 className="text-xl font-bold text-gray-900 flex items-center gap-3">
 								<span
 									className={`${isPhase1Complete
-										? 'bg-blue-100 text-blue-800'
+										? 'bg-purple-100 text-purple-800'
 										: 'bg-gray-100 text-gray-500'
 										} rounded-full h-8 w-8 flex items-center justify-center text-sm`}
 								>
 									2
 								</span>
 								{__(
-									'WPComplete Progress Migration',
+									'PMPro Registration Sync',
 									'simple-lms-bridge'
 								)}
 							</h2>
 							<p className="text-gray-500 text-sm mt-2 ml-11">
 								{__(
-									'Migrate existing student lesson completion data. Requires Phase 1 to be finished.',
+									'Sync course purchases from GF Registration (Form 2) into PMPro membership levels. Purchases within 90 days get active access; older purchases receive a historical receipt only. Requires Phase 1.',
 									'simple-lms-bridge'
 								)}
 							</p>
@@ -502,19 +510,19 @@ const MigrationTool = () => {
 					<div className="mb-5 ml-11">
 						<div className="flex justify-between text-sm font-medium text-gray-600 mb-2">
 							<span>
-								{progressPending > 0
-									? /* translators: %d: number of users */
+								{pmproPending > 0
+									? /* translators: %d: number of entries */
 									sprintf(
 										__(
-											'%d users remaining',
+											'%d entries remaining',
 											'simple-lms-bridge'
 										),
-										progressPending
+										pmproPending
 									)
 									: (() => {
 										if (isPhase1Complete) {
 											return __(
-												'All progress synced',
+												'All registrations synced',
 												'simple-lms-bridge'
 											);
 										}
@@ -528,54 +536,61 @@ const MigrationTool = () => {
 								className={
 									isPhase2Complete
 										? 'text-green-600'
-										: 'text-blue-600'
+										: 'text-purple-600'
 								}
 							>
-								{Math.round(progressProgress)}%
+								{Math.round(pmproProgress)}%
 							</span>
 						</div>
 						<ProgressBar
-							value={progressProgress}
+							value={pmproProgress}
 							className="h-2.5 rounded-full"
 						/>
 					</div>
 
-					{progressPending > 0 && (
-						<div className="mt-4 ml-11">
+					<div className="mt-4 ml-11 flex gap-3">
+						{pmproPending > 0 && (
 							<Button
 								variant="primary"
 								isBusy={migrating && phase === 2}
 								disabled={migrating || !isPhase1Complete}
-								onClick={() => runMigration('progress')}
+								onClick={() => runMigration('pmpro')}
 								className={`${!isPhase1Complete
 									? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-									: 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
+									: 'bg-purple-600 hover:bg-purple-700 text-white shadow-sm'
 									} font-medium px-6 py-2 rounded-md transition-colors`}
 							>
 								{(() => {
 									if (!isPhase1Complete) {
-										return __(
-											'Locked',
-											'simple-lms-bridge'
-										);
+										return __('Locked', 'simple-lms-bridge');
 									}
 									if (migrating && phase === 2) {
 										return __(
-											'Syncing Data…',
+											'Syncing Registrations…',
 											'simple-lms-bridge'
 										);
 									}
 									return __(
-										'Start Progress Migration',
+										'Start Registration Sync',
 										'simple-lms-bridge'
 									);
 								})()}
 							</Button>
-						</div>
-					)}
+						)}
+						{isPhase2Complete && pmproPending === 0 && (
+							<Button
+								variant="secondary"
+								disabled={migrating}
+								onClick={resetPhase2}
+								className="font-medium px-4 py-2 rounded-md"
+							>
+								{__('Reset Phase 2', 'simple-lms-bridge')}
+							</Button>
+						)}
+					</div>
 				</div>
 
-				{ /* Phase 3 */}
+				{ /* Phase 3 — Student Progress Migration */}
 				<div
 					className={`bg-white border ${isPhase2Complete
 						? 'border-gray-200'
@@ -594,24 +609,142 @@ const MigrationTool = () => {
 									3
 								</span>
 								{__(
+									'WPComplete Progress Migration',
+									'simple-lms-bridge'
+								)}
+							</h2>
+							<p className="text-gray-500 text-sm mt-2 ml-11">
+								{__(
+									'Migrate existing student lesson completion data. Requires Phase 2 (Registration Sync) to be finished.',
+									'simple-lms-bridge'
+								)}
+							</p>
+						</div>
+						<span
+							className={`px-3 py-1 rounded-full text-xs font-semibold ${isPhase3Complete
+								? 'bg-green-100 text-green-800'
+								: 'bg-gray-100 text-gray-700'
+								}`}
+						>
+							{isPhase3Complete
+								? __('Completed', 'simple-lms-bridge')
+								: __('Pending', 'simple-lms-bridge')}
+						</span>
+					</div>
+
+					<div className="mb-5 ml-11">
+						<div className="flex justify-between text-sm font-medium text-gray-600 mb-2">
+							<span>
+								{progressPending > 0
+									? /* translators: %d: number of users */
+									sprintf(
+										__(
+											'%d users remaining',
+											'simple-lms-bridge'
+										),
+										progressPending
+									)
+									: (() => {
+										if (isPhase2Complete) {
+											return __(
+												'All progress synced',
+												'simple-lms-bridge'
+											);
+										}
+										return __(
+											'Waiting for Phase 2',
+											'simple-lms-bridge'
+										);
+									})()}
+							</span>
+							<span
+								className={
+									isPhase3Complete
+										? 'text-green-600'
+										: 'text-blue-600'
+								}
+							>
+								{Math.round(progressProgress)}%
+							</span>
+						</div>
+						<ProgressBar
+							value={progressProgress}
+							className="h-2.5 rounded-full"
+						/>
+					</div>
+
+					{progressPending > 0 && (
+						<div className="mt-4 ml-11">
+							<Button
+								variant="primary"
+								isBusy={migrating && phase === 3}
+								disabled={migrating || !isPhase2Complete}
+								onClick={() => runMigration('progress')}
+								className={`${!isPhase2Complete
+									? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+									: 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
+									} font-medium px-6 py-2 rounded-md transition-colors`}
+							>
+								{(() => {
+									if (!isPhase2Complete) {
+										return __(
+											'Locked',
+											'simple-lms-bridge'
+										);
+									}
+									if (migrating && phase === 3) {
+										return __(
+											'Syncing Data…',
+											'simple-lms-bridge'
+										);
+									}
+									return __(
+										'Start Progress Migration',
+										'simple-lms-bridge'
+									);
+								})()}
+							</Button>
+						</div>
+					)}
+				</div>
+
+				{ /* Phase 4 — Historical Certificate Sync */}
+				<div
+					className={`bg-white border ${isPhase3Complete
+						? 'border-gray-200'
+						: 'border-gray-200 opacity-60'
+						} shadow-sm rounded-lg p-6 transition-all duration-200`}
+				>
+					<div className="flex flex-col sm:flex-row justify-between items-start mb-5">
+						<div className="mb-4 sm:mb-0">
+							<h2 className="text-xl font-bold text-gray-900 flex items-center gap-3">
+								<span
+									className={`${isPhase3Complete
+										? 'bg-blue-100 text-blue-800'
+										: 'bg-gray-100 text-gray-500'
+										} rounded-full h-8 w-8 flex items-center justify-center text-sm`}
+								>
+									4
+								</span>
+								{__(
 									'Historical Certificate Sync',
 									'simple-lms-bridge'
 								)}
 							</h2>
 							<p className="text-gray-500 text-sm mt-2 ml-11">
 								{__(
-									'Sync historical certificate entries into the permanent compliance history table for 9-year retention. Requires Phase 2.',
+									'Sync historical certificate entries into the permanent compliance history table for 9-year retention. Requires Phase 3 (Student Progress) to be finished.',
 									'simple-lms-bridge'
 								)}
 							</p>
 						</div>
 						<span
-							className={`px-3 py-1 rounded-full text-xs font-semibold ${historyPending === 0 && isPhase2Complete
+							className={`px-3 py-1 rounded-full text-xs font-semibold ${isPhase4Complete
 								? 'bg-green-100 text-green-800'
 								: 'bg-gray-100 text-gray-700'
 								}`}
 						>
-							{historyPending === 0 && isPhase2Complete
+							{isPhase4Complete
 								? __('Completed', 'simple-lms-bridge')
 								: __('Pending', 'simple-lms-bridge')}
 						</span>
@@ -630,21 +763,21 @@ const MigrationTool = () => {
 										historyPending
 									)
 									: (() => {
-										if (isPhase2Complete) {
+										if (isPhase3Complete) {
 											return __(
 												'All histories synced',
 												'simple-lms-bridge'
 											);
 										}
 										return __(
-											'Waiting for Phase 2',
+											'Waiting for Phase 3',
 											'simple-lms-bridge'
 										);
 									})()}
 							</span>
 							<span
 								className={
-									historyPending === 0 && isPhase2Complete
+									isPhase4Complete
 										? 'text-green-600'
 										: 'text-blue-600'
 								}
@@ -662,22 +795,22 @@ const MigrationTool = () => {
 						<div className="mt-4 ml-11">
 							<Button
 								variant="primary"
-								isBusy={migrating && phase === 3}
-								disabled={migrating || !isPhase2Complete}
+								isBusy={migrating && phase === 4}
+								disabled={migrating || !isPhase3Complete}
 								onClick={() => runMigration('history')}
-								className={`${!isPhase2Complete
+								className={`${!isPhase3Complete
 									? 'bg-gray-300 text-gray-500 cursor-not-allowed'
 									: 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
 									} font-medium px-6 py-2 rounded-md transition-colors`}
 							>
 								{(() => {
-									if (!isPhase2Complete) {
+									if (!isPhase3Complete) {
 										return __(
 											'Locked',
 											'simple-lms-bridge'
 										);
 									}
-									if (migrating && phase === 3) {
+									if (migrating && phase === 4) {
 										return __(
 											'Querying API…',
 											'simple-lms-bridge'
@@ -691,129 +824,6 @@ const MigrationTool = () => {
 							</Button>
 						</div>
 					)}
-				</div>
-
-				{ /* Phase 4 */}
-				<div
-					className={`bg-white border ${isPhase3Complete
-						? 'border-gray-200'
-						: 'border-gray-200 opacity-60'
-						} shadow-sm rounded-lg p-6 transition-all duration-200`}
-				>
-					<div className="flex flex-col sm:flex-row justify-between items-start mb-5">
-						<div className="mb-4 sm:mb-0">
-							<h2 className="text-xl font-bold text-gray-900 flex items-center gap-3">
-								<span
-									className={`${isPhase3Complete
-										? 'bg-purple-100 text-purple-800'
-										: 'bg-gray-100 text-gray-500'
-										} rounded-full h-8 w-8 flex items-center justify-center text-sm`}
-								>
-									4
-								</span>
-								{__(
-									'PMPro Membership Migration',
-									'simple-lms-bridge'
-								)}
-							</h2>
-							<p className="text-gray-500 text-sm mt-2 ml-11">
-								{__(
-									'Migrate historical access from Gravity Forms Registration (Form ID 2) into PMPro membership levels with 90-day access windows.',
-									'simple-lms-bridge'
-								)}
-							</p>
-						</div>
-						<span
-							className={`px-3 py-1 rounded-full text-xs font-semibold ${pmproPending === 0 && isPhase3Complete
-								? 'bg-green-100 text-green-800'
-								: 'bg-gray-100 text-gray-700'
-								}`}
-						>
-							{pmproPending === 0 && isPhase3Complete
-								? __('Completed', 'simple-lms-bridge')
-								: __('Pending', 'simple-lms-bridge')}
-						</span>
-					</div>
-
-					<div className="mb-5 ml-11">
-						<div className="flex justify-between text-sm font-medium text-gray-600 mb-2">
-							<span>
-								{pmproPending > 0
-									? /* translators: %d: number of entries */
-									sprintf(
-										__(
-											'%d entries remaining',
-											'simple-lms-bridge'
-										),
-										pmproPending
-									)
-									: (() => {
-										if (isPhase3Complete) {
-											return __(
-												'All memberships synced',
-												'simple-lms-bridge'
-											);
-										}
-										return __(
-											'Waiting for Phase 3',
-											'simple-lms-bridge'
-										);
-									})()}
-							</span>
-							<span
-								className={
-									pmproPending === 0 && isPhase3Complete
-										? 'text-green-600'
-										: 'text-purple-600'
-								}
-							>
-								{Math.round(pmproProgress)}%
-							</span>
-						</div>
-						<ProgressBar
-							value={pmproProgress}
-							className="h-2.5 rounded-full"
-						/>
-					</div>
-
-					<div className="mt-4 ml-11 flex gap-3">
-						<Button
-							variant="primary"
-							isBusy={migrating && phase === 4}
-							disabled={migrating || !isPhase3Complete}
-							onClick={() => runMigration('pmpro')}
-							className={`${!isPhase3Complete
-								? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-								: 'bg-purple-600 hover:bg-purple-700 text-white shadow-sm'
-								} font-medium px-6 py-2 rounded-md transition-colors`}
-						>
-							{(() => {
-								if (!isPhase3Complete) {
-									return __('Locked', 'simple-lms-bridge');
-								}
-								if (migrating && phase === 4) {
-									return __(
-										'Migrating Memberships…',
-										'simple-lms-bridge'
-									);
-								}
-								return __(
-									'Start PMPro Migration',
-									'simple-lms-bridge'
-								);
-							})()}
-						</Button>
-						{isPhase3Complete && pmproPending === 0 && (
-							<Button
-								variant="secondary"
-								disabled={migrating}
-								onClick={resetPhase4}
-								className="font-medium px-4 py-2 rounded-md"
-							>
-								{__('Reset Phase 4', 'simple-lms-bridge')}
-							</Button>
-						)}
-					</div>
 				</div>
 
 				{ /* Migration Log Panel */}
