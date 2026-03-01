@@ -4,7 +4,7 @@
 
 This document maintains continuity for the Simple LMS Bridge project (rebranded to One Dog Solutions). It tracks current progress, architecture decisions, and remaining tasks.
 
-The project has been moved to a private GitHub repository. Core features are in place. A full QA pass (Feb 2026) fixed six static bugs. A subsequent migration QA (Feb 2026) identified and fixed two runtime bugs: progress was being duplicated across all M2M-linked courses, and the Student Manager only displayed users with existing progress data. Phase 1-4 of the migration engine are now fully implemented and tested.
+The project has been moved to a private GitHub repository. Core features are in place. A full QA pass (Feb 2026) fixed six static bugs. A subsequent migration QA (Feb 2026) identified and fixed two runtime bugs: progress was being duplicated across all M2M-linked courses, and the Student Manager only displayed users with existing progress data. Phase 1-4 of the migration engine are fully implemented and tested. A March 2026 architectural refactor moved PMPro Registration Sync to Phase 2 (immediately after course creation), shifting Student Progress to Phase 3 and Historical Certificates to Phase 4, ensuring users own their courses before progress and certificate data is migrated.
 
 ## Accomplishments (Recent)
 
@@ -90,6 +90,22 @@ The project has been moved to a private GitHub repository. Core features are in 
   - Resolved major merge conflicts in both React components (`StudentManager.js`, `MigrationTool.js`, `CourseEditor.js`) and PHP core (`class-migration.php`) resulting from concurrent development.
   - Fixed syntax errors in `StudentManager.js` (`sprintf` nesting) preventing production builds.
   - Created first production-ready test zip archive (`simple-lms-bridge.zip`) with proper file exclusions.
+- **Migration Phase Reorder (Mar 2026):**
+  - **Root cause:** PMPro sync was running as Phase 4 (after progress and certificate migration), causing ownership validation failures in Phase 2/3 because users had not yet been enrolled in PMPro levels.
+  - **New phase order:** Phase 1 → Content, **Phase 2 → PMPro Registration Sync**, Phase 3 → Student Progress, Phase 4 → Historical Certificates.
+  - **`migrate_pmpro_batch()` rewrite (`class-migration.php`):**
+    - Signature changed to `migrate_pmpro_batch($limit, $offset)` — offset is now caller-provided, eliminating the internal self-advancing scan loop that caused stalls.
+    - Single deterministic `GFAPI::get_entries()` call per batch using the supplied `$offset`; returns `'offset' => $next_offset` so the frontend loop advances correctly every iteration.
+    - **90-day rule implemented:** calculates `$days_elapsed` from the GF entry `date_created` to now.
+      - `> 90 days`: creates a `MemberOrder` historical receipt for audit purposes only — no active PMPro level granted. Enrolls with source `'pmpro_migration_expired'`.
+      - `<= 90 days`: grants an active PMPro membership via `pmpro_changeMembershipLevel()` with `$enddate` set to the remaining days. Enrolls with source `'pmpro_migration'`.
+  - **REST route (`class-rest.php`):** `/migration/pmpro` now accepts and forwards an `offset` parameter to the batch method.
+  - **React frontend (`MigrationTool.js`):**
+    - Phase number mapping updated: `pmpro=2, progress=3, history=4`.
+    - Panel gating updated: Phase 2 (PMPro) unlocks after Phase 1; Phase 3 (Progress) unlocks after Phase 2; Phase 4 (History) unlocks after Phase 3.
+    - JSX panels reordered to match new phase sequence.
+    - `resetPhase4` renamed to `resetPhase2` with updated confirm/notice text.
+    - All button labels, descriptions, busy states, and waiting messages updated.
 
 ## Technical Details
 
@@ -128,6 +144,7 @@ The project has been moved to a private GitHub repository. Core features are in 
 - [x] **Phase 4 PMPro Migration:** Full Gravity Forms → PMPro membership migration with auto-level creation, 90-day access, and certificate de-access hook.
 - [X] **Re-run Migration:** Phase 2 and 4 tested and validated with batch processing logic. Correctly handles 1300+ records.
 - [X] **Zip Archive Creation:** Automated production zip creation with exclusions for `.git`, `node_modules`, and source files.
+- [X] **Phase Reorder (Mar 2026):** PMPro Registration Sync promoted to Phase 2. Student Progress shifted to Phase 3. Historical Certificates shifted to Phase 4. Fixes ownership validation failures and migration stalls. Implements 90-day active/expired rule with `MemberOrder` audit receipts and caller-driven offset pagination.
 
 ## Migration Diagnostic Logging
 
@@ -137,10 +154,10 @@ Comprehensive logging in `class-migration.php` and `MigrationTool.js` to debug s
 
 - **Triple-output logging**: Every log entry writes to an in-memory buffer (returned via REST API), `wp-content/debug.log` via `error_log()`, and a persistent plugin log file at `wp-content/uploads/slms-logs/migration.log`.
 - **Phase 1 (CPT)**: Logs legacy course discovery, import/dedup results, lesson linking counts.
-- **Phase 2 (Student Progress)**: Logs per-user processing with email labels, WPComplete data format detection (serialized vs JSON), multi-step lesson lookup (by `_legacy_id`, direct ID, title), course linkage with fallback search via `_simple_lms_order`, auto-enrollment actions, and a final summary with skip-reason stats.
-- **Phase 3 (History)**: Logs entry counts per user, certificate form discovery, dedup stats.
-- **Phase 4 (PMPro)**: Logs GF entry processing, product field extraction, level creation/matching, PMPro enrollment results with enddate.
-- All REST migration responses include a `log` array and Phase 2 includes a `stats` object.
+- **Phase 2 (PMPro Registration Sync)**: Logs GF entry processing at each offset, days-elapsed calculation per entry, active vs expired path taken, `MemberOrder` creation for expired purchases, `pmpro_changeMembershipLevel()` results with enddate and remaining days, and a batch summary with `enrolled_active`/`enrolled_expired` counts.
+- **Phase 3 (Student Progress)**: Logs per-user processing with email labels, WPComplete data format detection (serialized vs JSON), multi-step lesson lookup (by `_legacy_id`, direct ID, title), course linkage with fallback search via `_simple_lms_order`, auto-enrollment actions, and a final summary with skip-reason stats.
+- **Phase 4 (History)**: Logs entry counts per user, certificate form discovery, dedup stats.
+- All REST migration responses include a `log` array and Phase 3 includes a `stats` object.
 
 ### React Frontend
 
