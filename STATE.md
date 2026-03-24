@@ -100,6 +100,10 @@ The project has been moved to a private GitHub repository. Core features are in 
       - `> 90 days`: creates a `MemberOrder` historical receipt for audit purposes only — no active PMPro level granted. Enrolls with source `'pmpro_migration_expired'`.
       - `<= 90 days`: grants an active PMPro membership via `pmpro_changeMembershipLevel()` with `$enddate` set to the remaining days. Enrolls with source `'pmpro_migration'`.
   - **REST route (`class-rest.php`):** `/migration/pmpro` now accepts and forwards an `offset` parameter to the batch method.
+  - **Migration Script Hardening (Mar 2026):**
+    - **Bug 1 Fix (Phase 2):** Implemented strict payment status validation in `migrate_pmpro_batch()`. Entries with `payment_amount > 0` now require a 'Paid' or 'Approved' status. Abandoned/unpaid carts are logged as warnings and marked as migrated.
+    - **Bug 2 Fix (Phase 3):** Enhanced `migrate_progress_batch()` to handle legacy WPComplete data formats (booleans, strings, integers) by normalizing them to a standard `['completed' => time()]` array. Removed destructive `delete_user_meta()` call from failure paths.
+    - Fixed markdown formatting and linting errors in project design artifacts.
   - **React frontend (`MigrationTool.js`):**
     - Phase number mapping updated: `pmpro=2, progress=3, history=4`.
     - Panel gating updated: Phase 2 (PMPro) unlocks after Phase 1; Phase 3 (Progress) unlocks after Phase 2; Phase 4 (History) unlocks after Phase 3.
