@@ -372,9 +372,15 @@ class Migration
                     $format_used = 'serialized';
                 }
 
+                // Handle WPComplete booleans/strings.
+                if (!is_array($data) && !empty($data)) {
+                    // If WPComplete just stored '1' or 'true', normalize it to an array with a timestamp.
+                    $data = array('completed' => time());
+                }
+
                 if (!is_array($data)) {
                     self::log('User ' . $user_label . ': could not parse value for key "' . $key . '" as JSON or serialized.', 'warn');
-                    delete_user_meta($user_id, $key);
+                    // Leave the database row intact so we don't destroy records during a failure.
                     continue;
                 }
 
@@ -1079,6 +1085,16 @@ class Migration
             $migrated = \gform_get_meta($entry_id, '_slms_pmpro_migrated');
             if ($migrated) {
                 $skipped++;
+                continue;
+            }
+
+            // Check for abandoned carts/unpaid entries.
+            $payment_amount = rgar($entry, 'payment_amount');
+            $payment_status = rgar($entry, 'payment_status');
+
+            if ($payment_amount > 0 && !in_array($payment_status, array('Paid', 'Approved'))) {
+                self::log('Entry #' . $entry_id . ': abandoned cart/unpaid (Status: ' . $payment_status . ', Amount: ' . $payment_amount . ').', 'warn');
+                \gform_update_meta($entry_id, '_slms_pmpro_migrated', time());
                 continue;
             }
 
