@@ -372,15 +372,18 @@ class Migration
                     $format_used = 'serialized';
                 }
 
-                // Handle WPComplete booleans/strings.
+                // Handle WPComplete booleans/strings/integers.
                 if (!is_array($data) && !empty($data)) {
-                    // If WPComplete just stored '1' or 'true', normalize it to an array with a timestamp.
-                    $data = array('completed' => time());
+                    // If it's a valid date string, use that. Otherwise, fallback to 'completed' => time().
+                    $parsed_ts = is_string($data) ? strtotime($data) : false;
+                    $data = array('completed' => ($parsed_ts ?: time()));
                 }
 
                 if (!is_array($data)) {
-                    self::log('User ' . $user_label . ': could not parse value for key "' . $key . '" as JSON or serialized.', 'warn');
-                    // Leave the database row intact so we don't destroy records during a failure.
+                    self::log('User ' . $user_label . ': could not parse value for key "' . $key . '" as JSON or serialized. Archiving and skipping.', 'warn');
+                    // Archive unparseable data to prevent infinite loops while preserving history.
+                    update_user_meta($user_id, '_failed_migration_' . $key, $value);
+                    delete_user_meta($user_id, $key);
                     continue;
                 }
 

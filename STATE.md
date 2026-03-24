@@ -101,8 +101,8 @@ The project has been moved to a private GitHub repository. Core features are in 
       - `<= 90 days`: grants an active PMPro membership via `pmpro_changeMembershipLevel()` with `$enddate` set to the remaining days. Enrolls with source `'pmpro_migration'`.
   - **REST route (`class-rest.php`):** `/migration/pmpro` now accepts and forwards an `offset` parameter to the batch method.
   - **Migration Script Hardening (Mar 2026):**
-    - **Bug 1 Fix (Phase 2):** Implemented strict payment status validation in `migrate_pmpro_batch()`. Entries with `payment_amount > 0` now require a 'Paid' or 'Approved' status. Abandoned/unpaid carts are logged as warnings and marked as migrated.
-    - **Bug 2 Fix (Phase 3):** Enhanced `migrate_progress_batch()` to handle legacy WPComplete data formats (booleans, strings, integers) by normalizing them to a standard `['completed' => time()]` array. Removed destructive `delete_user_meta()` call from failure paths.
+    - **Phase 2 Payment Validation:** Added strict payment status checks (`Paid` or `Approved`) to `migrate_pmpro_batch()` to prevent abandoned Gravity Forms checkouts from granting active PMPro memberships.
+    - **Phase 3 Infinite Loop & Parser Fix:** Updated WPComplete data parser to handle legacy boolean/string formats. Added a fallback archiver that renames genuinely unparseable meta keys to `_failed_migration_[key]` to preserve historical data while preventing batch stalls.
     - Fixed markdown formatting and linting errors in project design artifacts.
   - **React frontend (`MigrationTool.js`):**
     - Phase number mapping updated: `pmpro=2, progress=3, history=4`.
