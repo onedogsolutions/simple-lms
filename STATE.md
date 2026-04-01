@@ -179,9 +179,13 @@ The project has been moved to a private GitHub repository. Core features are in 
   - Root cause: when the `class_exists('MemberOrder')` wrapper was removed during the `MemberOrder::get_orders()` refactor, its matching `else`/`endif` block ("Paid Memberships Pro is not active.") was left behind, producing a dangling `else` with no opening `if`.
   - Fixed by removing the orphaned `else` and `endif` from the Purchase History tab in `slms-student-dashboard/includes/frontend.php`.
 - **JS Execution & CSS Centering Fixes (Apr 2026):**
-  - **Tab switching and password toggle were non-functional** — BB enqueues `includes/frontend.js` in the footer after `DOMContentLoaded` has already fired, so the `document.addEventListener('DOMContentLoaded', ...)` callback never ran.
-  - Fixed in both `lms-account-dashboard` and `slms-student-dashboard` `frontend.js`: extracted logic into an `init()` function and replaced the event listener with a `readyState` guard — calls `init()` immediately if `document.readyState !== 'loading'`, otherwise falls back to the `DOMContentLoaded` listener.
+  - **Tab switching and password toggle were non-functional** — BB reads `js/frontend.js` via `file_get_contents` into the layout cache file; `includes/frontend.js` is never loaded. Additionally, BB injects the cached JS at `wp_footer` priority `PHP_INT_MAX`, after `DOMContentLoaded` has already fired, so event listeners never ran.
+  - Fixed in both modules by moving all JS inline into `includes/frontend.php` (bottom of file, inside an IIFE). Uses `document.currentScript.previousElementSibling` to scope to the current module instance — executes immediately with no timing issues.
   - **Profile form not centered** — `.slms-profile-form` had `max-width: 800px` but no `margin: 0 auto`. Added `margin: 0 auto` to `css/frontend.css` in both modules.
+- **GravityPDF URL Fix (Apr 2026):**
+  - Certificates tab was generating invalid PDF links using `/?gf_pdf=1&fid={form_id}&lid={entry_id}` (wrong query parameter names).
+  - Fixed in both `lms-account-dashboard` and `slms-student-dashboard` `includes/frontend.php`: replaced `$form_id` / `GFAPI` lookup entirely with `GPDFAPI::get_entry_pdfs($gf_entry_id)`; constructs URL as `/?gpdf=1&pid={hash_id}&lid={entry_id}&action=download` from the first PDF config returned. Falls back to "N/A" if GravityPDF is not active or no PDF template is configured for the entry.
+- **Deployment Note (Apr 2026):** After any JS or CSS change to BB modules, the Beaver Builder cache must be manually cleared (WP Admin → Settings → Beaver Builder → Tools → Clear Cache) to force BB to re-enqueue updated module assets. Hard-refresh (`Cmd+Shift+R`) also required to bypass browser cache.
 
 ## Technical Details
 
@@ -313,8 +317,8 @@ includes/bb-modules/
 ### Core Features
 
 - **Tab 1 (Profile)**: Native `wp_update_user()` + `update_user_meta()` form. No shortcode or third-party dependency.
-- **Tab 2 (Purchase History)**: Direct `MemberOrder::getMemberOrders()` call. Headers: `ID | Purchase Date | Course Purchases | Total`.
-- **Tab 3 (Certificates Earned)**: Direct `$wpdb` query against `wp_slms_course_history`. Headers: `Name | Course | Completion Date | Certificate PDF`. GravityPDF link: `/?gf_pdf=1&fid={form_id}&lid={gf_entry_id}`; form_id resolved from row or via `GFAPI::get_entry()` fallback.
+- **Tab 2 (Purchase History)**: `MemberOrder::get_orders(['user_id' => $user_id])`. Headers: `ID | Purchase Date | Course Purchases | Total`.
+- **Tab 3 (Certificates Earned)**: `CourseHistory::get_for_user($user_id)`. Headers: `Name | Course | Completion Date | Certificate PDF`. GravityPDF link built via `GPDFAPI::get_entry_pdfs($gf_entry_id)` → `/?gpdf=1&pid={hash}&lid={entry_id}&action=download`.
 - **Styling**: Structural CSS in `css/frontend.css`; all colors, typography, spacing, and borders driven by BB settings panel via `includes/frontend.css.php`.
 
 ## Continuity Notes

@@ -295,15 +295,14 @@ $saved_state = get_user_meta( $current_user->ID, 'billing_state', true );
 								$course      = get_post( $row->course_id );
 								$course_name = $course ? $course->post_title : __( 'Unknown Course', 'simple-lms' );
 
-								// GF entry & form IDs
+								// GF entry ID and GravityPDF URL
 								$gf_entry_id = isset( $row->gf_entry_id ) ? absint( $row->gf_entry_id ) : 0;
-								$form_id     = isset( $row->form_id )     ? absint( $row->form_id )     : 0;
-
-								// Resolve form_id from the GF entry when not stored on the row
-								if ( ! $form_id && $gf_entry_id && class_exists( 'GFAPI' ) ) {
-									$entry = GFAPI::get_entry( $gf_entry_id );
-									if ( ! is_wp_error( $entry ) && isset( $entry['form_id'] ) ) {
-										$form_id = absint( $entry['form_id'] );
+								$pdf_url     = '';
+								if ( $gf_entry_id && class_exists( 'GPDFAPI' ) ) {
+									$pdfs = GPDFAPI::get_entry_pdfs( $gf_entry_id );
+									if ( ! is_wp_error( $pdfs ) && ! empty( $pdfs ) ) {
+										$pdf     = reset( $pdfs );
+										$pdf_url = home_url( '/?gpdf=1&pid=' . rawurlencode( $pdf['id'] ) . '&lid=' . $gf_entry_id . '&action=download' );
 									}
 								}
 
@@ -319,8 +318,8 @@ $saved_state = get_user_meta( $current_user->ID, 'billing_state', true );
 									<td><?php echo esc_html( $course_name ); ?></td>
 									<td><?php echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( $row->completed_date ) ) ); ?></td>
 									<td>
-										<?php if ( $gf_entry_id && $form_id ) : ?>
-											<a href="<?php echo esc_url( home_url( '/?gf_pdf=1&fid=' . $form_id . '&lid=' . $gf_entry_id ) ); ?>"
+										<?php if ( $pdf_url ) : ?>
+											<a href="<?php echo esc_url( $pdf_url ); ?>"
 												class="slms-pdf-link" target="_blank" rel="noopener noreferrer">
 												<?php esc_html_e( 'Download PDF', 'simple-lms' ); ?>
 											</a>
@@ -341,3 +340,55 @@ $saved_state = get_user_meta( $current_user->ID, 'billing_state', true );
 	</div><!-- .slms-tabs-content -->
 
 </div><!-- .slms-student-dashboard -->
+
+<script>
+( function () {
+	var dashboard = document.currentScript.previousElementSibling;
+	if ( ! dashboard ) { return; }
+
+	// ── Tab Switching ────────────────────────────────────────────────────────
+	var tabLinks = dashboard.querySelectorAll( '.slms-tab-link' );
+	var tabPanes = dashboard.querySelectorAll( '.slms-tab-pane' );
+
+	tabLinks.forEach( function ( link ) {
+		link.addEventListener( 'click', function () {
+			var targetId = 'slms-tab-' + this.getAttribute( 'data-tab' );
+
+			tabLinks.forEach( function ( l ) {
+				l.classList.remove( 'active' );
+				l.setAttribute( 'aria-selected', 'false' );
+			} );
+			tabPanes.forEach( function ( p ) {
+				p.classList.remove( 'active' );
+			} );
+
+			this.classList.add( 'active' );
+			this.setAttribute( 'aria-selected', 'true' );
+
+			var targetPane = dashboard.querySelector( '#' + targetId );
+			if ( targetPane ) {
+				targetPane.classList.add( 'active' );
+			}
+		} );
+	} );
+
+	// ── Password Toggle ──────────────────────────────────────────────────────
+	var passwordCheckbox = dashboard.querySelector( '#slms_update_password' );
+	var passwordFields   = dashboard.querySelector( '#slms-password-fields' );
+
+	if ( passwordCheckbox && passwordFields ) {
+		passwordCheckbox.addEventListener( 'change', function () {
+			if ( this.checked ) {
+				passwordFields.classList.remove( 'slms-hidden' );
+				passwordFields.setAttribute( 'aria-hidden', 'false' );
+			} else {
+				passwordFields.classList.add( 'slms-hidden' );
+				passwordFields.setAttribute( 'aria-hidden', 'true' );
+				passwordFields.querySelectorAll( 'input[type="password"]' ).forEach( function ( i ) {
+					i.value = '';
+				} );
+			}
+		} );
+	}
+}() );
+</script>
