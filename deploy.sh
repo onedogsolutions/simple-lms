@@ -14,7 +14,7 @@ fi
 
 # 2. Create the zip archive in the parent directory
 echo "🗜️  Zipping plugin to parent directory..."
-zip -r ../simple-lms-bridge.zip . -x "*.git*" "*node_modules*" "*src*" "*.DS_Store*" "deploy.sh"
+zip -r simple-lms-bridge.zip . -x "*.git*" "*node_modules*" "*src*" "*.DS_Store*" "deploy.sh"
 
 # 3. Stage changes to Git
 echo "➕ Staging files to Git..."

@@ -83,8 +83,16 @@ $url = remove_query_arg( 'dash_tab' );
                 <h3><?php echo esc_html( $tab_label_history ); ?></h3>
                 <?php
                 if ( class_exists( 'MemberOrder' ) ) {
-                    $order_obj = new \MemberOrder();
-                    $orders    = $order_obj->getOrders( array( 'user_id' => $user_id ) );
+                    $orders = array();
+                    if ( function_exists( 'pmpro_getOrders' ) ) {
+                        $orders = pmpro_getOrders( array( 'user_id' => $user_id ) );
+                    } else {
+                        global $wpdb;
+                        // Use direct DB query if the helper function isn't loaded for some reason.
+                        if ( isset( $wpdb->pmpro_membership_orders ) ) {
+                            $orders = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->pmpro_membership_orders} WHERE user_id = %d ORDER BY timestamp DESC", $user_id ) );
+                        }
+                    }
                     
                     if ( ! empty( $orders ) ) : ?>
                         <table class="slms-dash-table">
