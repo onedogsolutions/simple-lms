@@ -114,14 +114,21 @@ The project has been moved to a private GitHub repository. Core features are in 
     - Removed `pmpro_migration_expired` auto-enrollment for memberships older than 90 days in Phase 2.
     - Added retroactive active-enrollment cleanup in Phase 4; finding a historical certificate now triggers immediate removal from the active student enrollment table.
 - **Student Dashboard BB Module (Apr 2026):**
-  - Developed a single, highly optimized native Beaver Builder module `slms-student-dashboard` to replace PowerPack Advanced Tabs, PowerPack Gravity Forms, and Gravity Perks Entry Blocks.
-  - **File 1: `slms-student-dashboard.php`**: Implemented `FLBuilderModule` with comprehensive styling controls for Tabs (Background, Active, Text, Typography, Padding) and Forms (Input styles, Button normal/hover states, Typography).
-  - **File 2: `includes/frontend.php`**:
-    - Built a secure Profile update form with nonce verification, updating `wp_update_user` and `update_user_meta` for custom fields (phone, license, billing address).
-    - Integrated "Purchase History" tab using Paid Memberships Pro `MemberOrder` class to display a detailed table of user orders.
-    - Integrated "Certificates Earned" tab querying the custom `wp_slms_course_history` table with dynamic GravityPDF download links.
-  - **File 3: `includes/frontend.css.php`**: Mapped all Beaver Builder module settings to dynamic CSS using `FLBuilderCSS` rules for pixel-perfect customization.
-  - **File 4: `includes/frontend.js`**: Authored a lightweight, vanilla JavaScript tab-switching engine (zero dependencies) to handle dashboard navigation.
+  - Developed a single, production-ready native Beaver Builder module `slms-student-dashboard` to replace PowerPack Advanced Tabs, PowerPack Gravity Forms, and Gravity Perks Entry Blocks.
+  - **File 1: `slms-student-dashboard.php`**: Full `FLBuilderModule` class + `FLBuilder::register_module()` with two style tabs:
+    - **Tabs Style:** Tab Colors (bg, active bg, text, active text, hover bg, hover text), Typography, Padding & Margin (dimension fields), and Border (inactive + active border groups).
+    - **Form Style:** Input Fields (bg, text, label color, padding, typography), Input Focus State (focus bg, focus border color, focus text color — collapsed), Input Border & Shadow (border group — collapsed), Button (bg, hover bg, text color, hover text color, padding, border group, typography — collapsed).
+  - **File 2: `includes/frontend.php`** — Complete rewrite:
+    - Nonce-verified POST handler: `wp_update_user()` for first_name, last_name, user_email; `update_user_meta()` for phone, license_number, billing_address_1/2, billing_city, billing_state, billing_postcode; conditional `user_pass` update when "Update Password" checkbox is checked and passwords match.
+    - **Tab 1 (User Profile):** First + Last name side-by-side (`.slms-two-col`); Email; Phone; full "Senior or Professional Laser Hair Removal License Number" label; "Update Password" checkbox (before address section); password fields hidden by default (JS-toggled); Street Address, Address Line 2; City/State/ZIP three-column row with a full 50-state + DC `<select>` dropdown for State.
+    - **Tab 2 (Purchase History):** PMPro `MemberOrder::getMemberOrders()` loop; table headers: `ID | Purchase Date | Course Purchases | Total`.
+    - **Tab 3 (Certificates Earned):** `$wpdb` query against `wp_slms_course_history` for current user; table headers: `Name | Course | Completion Date | Certificate PDF`; Name column = student full name (first+last, falls back to `display_name`); PDF link format: `/?gf_pdf=1&fid={form_id}&lid={gf_entry_id}`; form_id resolved from stored row column or via `GFAPI::get_entry()` fallback.
+  - **File 3: `includes/frontend.css.php`** — Complete rewrite:
+    - Local `slms_color()` helper safely prepends `#` to plain hex strings and passes rgba() values through unchanged (replaces missing `FLBuilderColor::hex_or_rgb()` dependency).
+    - Maps all settings: tab bg/active bg/text/active text/hover states via inline CSS blocks; `FLBuilderCSS::typography_field_rule()` for tab + input + button typography; `FLBuilderCSS::dimension_field_rule()` for tab padding, tab margin, input padding, button padding; `FLBuilderCSS::border_field_rule()` for tab, active tab, input, and button border groups; input focus state (bg, border-color, text color); label color.
+  - **File 4: `includes/frontend.js`** — Vanilla JS, zero dependencies:
+    - Tab switching: scoped per `.slms-student-dashboard` instance, manages `active` class and `aria-selected` on both `.slms-tab-link` and `.slms-tab-pane`.
+    - Password toggle: `#slms_update_password` checkbox reveals/hides `#slms-password-fields`; clears password inputs on hide; manages `aria-hidden`.
 - **Migration & Deployment Upgrades (Apr 2026):**
   - **Fuzzy Title Matching:** Implemented fallback fuzzy logic in Phase 4 (`migrate_history_batch`) to resolve `slms_course` IDs when Gravity Forms certificate names contain slight typos or variations.
   - **Active De-enrollment:** Enforced explicit removal of students from `wp_slms_user_course` once a certificate is successfully migrated or verified.
@@ -202,18 +209,41 @@ Comprehensive logging in `class-migration.php` and `MigrationTool.js` to debug s
 
 ```text
 includes/bb-modules/slms-student-dashboard/
-├── slms-student-dashboard.php   # Module class + register_module()
+├── slms-student-dashboard.php   # FLBuilderModule class + FLBuilder::register_module()
 └── includes/
-    ├── frontend.php             # Tab shell + per-tab render (Profile, History, Certs)
-    └── frontend.css.php         # Dynamic CSS via FLBuilderCSS::rule()
+    ├── frontend.php             # Form processor + three-tab HTML template
+    ├── frontend.css.php         # Dynamic CSS via FLBuilderCSS helpers + slms_color()
+    └── frontend.js              # Tab switching + password toggle (vanilla JS)
 ```
+
+### HTML Class Reference
+
+| Element | Class / ID |
+|---|---|
+| Module wrapper | `.slms-student-dashboard` |
+| Tab nav list | `.slms-tabs-nav` |
+| Tab button | `.slms-tab-link` (active state: `.active`) |
+| Tab pane | `.slms-tab-pane` (active state: `.active`) |
+| Profile pane | `#slms-tab-profile` |
+| History pane | `#slms-tab-history` |
+| Certificates pane | `#slms-tab-certificates` |
+| Profile form | `.slms-profile-form` |
+| All inputs + selects | `.slms-input` |
+| Field labels | `.slms-field-label` |
+| Submit button | `.slms-submit-btn` |
+| Password fields wrapper | `#slms-password-fields` (`.slms-hidden` when inactive) |
+| Two-column row | `.slms-field-row.slms-two-col` |
+| Three-column row | `.slms-field-row.slms-three-col` |
+| Data tables | `.slms-table` |
+| PDF download link | `.slms-pdf-link` |
+| Success / error banners | `.slms-alert.slms-alert-success` / `.slms-alert-error` |
 
 ### Core Features
 
-- **Tab 1 (Profile)**: Uses internal SLMS profile form via `AccountDashboard::render_profile()`.
-- **Tab 2 (History)**: Wraps PMPro `[pmpro_account]` shortcode with native fallbacks.
-- **Tab 3 (Certificates)**: Queries certificate API for entries created by current user.
-- **Styling**: Fully stylable via BB settings (Colors, Typography, Card-style tabs).
+- **Tab 1 (Profile)**: Native `wp_update_user()` + `update_user_meta()` form. No shortcode or third-party dependency.
+- **Tab 2 (History)**: Direct `MemberOrder::getMemberOrders()` call. No shortcode wrapper.
+- **Tab 3 (Certificates)**: Direct `$wpdb` query against `wp_slms_course_history`. GravityPDF link built from stored `form_id`/`gf_entry_id` with `GFAPI::get_entry()` fallback.
+- **Styling**: Fully stylable via BB panel — no inline styles baked into markup.
 
 ## Continuity Notes
 
