@@ -113,6 +113,15 @@ The project has been moved to a private GitHub repository. Core features are in 
   - **Ghost Enrollment Fix (Mar 2026):**
     - Removed `pmpro_migration_expired` auto-enrollment for memberships older than 90 days in Phase 2.
     - Added retroactive active-enrollment cleanup in Phase 4; finding a historical certificate now triggers immediate removal from the active student enrollment table.
+- **Student Dashboard BB Module (Apr 2026):**
+  - Developed a single, highly optimized native Beaver Builder module `slms-student-dashboard` to replace PowerPack Advanced Tabs, PowerPack Gravity Forms, and Gravity Perks Entry Blocks.
+  - **File 1: `slms-student-dashboard.php`**: Implemented `FLBuilderModule` with comprehensive styling controls for Tabs (Background, Active, Text, Typography, Padding) and Forms (Input styles, Button normal/hover states, Typography).
+  - **File 2: `includes/frontend.php`**:
+    - Built a secure Profile update form with nonce verification, updating `wp_update_user` and `update_user_meta` for custom fields (phone, license, billing address).
+    - Integrated "Purchase History" tab using Paid Memberships Pro `MemberOrder` class to display a detailed table of user orders.
+    - Integrated "Certificates Earned" tab querying the custom `wp_slms_course_history` table with dynamic GravityPDF download links.
+  - **File 3: `includes/frontend.css.php`**: Mapped all Beaver Builder module settings to dynamic CSS using `FLBuilderCSS` rules for pixel-perfect customization.
+  - **File 4: `includes/frontend.js`**: Authored a lightweight, vanilla JavaScript tab-switching engine (zero dependencies) to handle dashboard navigation.
 - **Migration & Deployment Upgrades (Apr 2026):**
   - **Fuzzy Title Matching:** Implemented fallback fuzzy logic in Phase 4 (`migrate_history_batch`) to resolve `slms_course` IDs when Gravity Forms certificate names contain slight typos or variations.
   - **Active De-enrollment:** Enforced explicit removal of students from `wp_slms_user_course` once a certificate is successfully migrated or verified.

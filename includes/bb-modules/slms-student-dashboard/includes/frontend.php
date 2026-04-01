@@ -1,262 +1,219 @@
 <?php
-/**
- * Frontend HTML for the SLMS Student Dashboard module.
- *
- * @package SimpleLMS
- */
+// Verify Nonce and Process Form
+$current_user = wp_get_current_user();
+$update_success = false;
+$update_error = false;
 
-if ( ! defined( 'ABSPATH' ) ) {
-    exit;
+if ( isset( $_POST['slms_profile_nonce'] ) && wp_verify_nonce( $_POST['slms_profile_nonce'], 'slms_update_profile_nonce' ) ) {
+    $user_data = array(
+        'ID'         => $current_user->ID,
+        'first_name' => sanitize_text_field( $_POST['first_name'] ),
+        'last_name'  => sanitize_text_field( $_POST['last_name'] ),
+        'user_email' => sanitize_email( $_POST['user_email'] ),
+    );
+
+    if ( isset( $_POST['update_password'] ) && $_POST['update_password'] == '1' && !empty( $_POST['user_pass'] ) ) {
+        if ( $_POST['user_pass'] === $_POST['user_pass_confirm'] ) {
+            $user_data['user_pass'] = $_POST['user_pass'];
+        } else {
+            $update_error = __( 'Passwords do not match.', 'simple-lms' );
+        }
+    }
+
+    if ( !$update_error ) {
+        $user_id = wp_update_user( $user_data );
+        if ( is_wp_error( $user_id ) ) {
+            $update_error = $user_id->get_error_message();
+        } else {
+            // Update Meta
+            $meta_fields = array( 'phone', 'license_number', 'billing_address_1', 'billing_address_2', 'billing_city', 'billing_state', 'billing_postcode' );
+            foreach ( $meta_fields as $meta_key ) {
+                if ( isset( $_POST[ $meta_key ] ) ) {
+                    update_user_meta( $user_id, $meta_key, sanitize_text_field( $_POST[ $meta_key ] ) );
+                }
+            }
+            $update_success = __( 'Profile updated successfully.', 'simple-lms' );
+            $current_user = wp_get_current_user(); // Refresh data
+        }
+    }
 }
-
-/** @var object $settings */
-/** @var string $id */
-
-$user_id = get_current_user_id();
-
-if ( ! $user_id ) {
-    echo '<p>' . __( 'Please log in to view your dashboard.', 'simple-lms-bridge' ) . '</p>';
-    return;
-}
-
-// Map settings to variables.
-$cert_data_source  = isset( $settings->cert_data_source ) ? $settings->cert_data_source : 'history_table';
-$cert_form_id      = isset( $settings->cert_form_id ) ? $settings->cert_form_id : '';
-$tab_label_profile = isset( $settings->tab_label_profile ) ? $settings->tab_label_profile : __( 'User Profile', 'simple-lms-bridge' );
-$tab_label_history = isset( $settings->tab_label_history ) ? $settings->tab_label_history : __( 'Purchase History', 'simple-lms-bridge' );
-$tab_label_certs   = isset( $settings->tab_label_certs ) ? $settings->tab_label_certs : __( 'Certificates Earned', 'simple-lms-bridge' );
-
-$current_tab = isset( $_GET['dash_tab'] ) ? sanitize_key( $_GET['dash_tab'] ) : 'profile';
-if ( \FLBuilderModel::is_builder_active() ) {
-    $current_tab = 'profile'; // default to profile in builder
-}
-$url = remove_query_arg( 'dash_tab' );
-
 ?>
-<div class="slms-dashboard-wrapper">
-    <!-- Tab Navigation -->
-    <ul class="slms-dash-tabs">
-        <li class="<?php echo ( 'profile' === $current_tab ) ? 'active' : ''; ?>">
-            <a href="<?php echo esc_url( add_query_arg( 'dash_tab', 'profile', $url ) ); ?>">
-                <span class="slms-dash-icon dashicons dashicons-admin-users"></span>
-                <div class="slms-dash-label-group">
-                    <strong><?php echo esc_html( $tab_label_profile ); ?></strong>
-                    <span><?php _e( 'Update your account information.', 'simple-lms-bridge' ); ?></span>
-                </div>
-            </a>
-        </li>
-        <li class="<?php echo ( 'history' === $current_tab ) ? 'active' : ''; ?>">
-            <a href="<?php echo esc_url( add_query_arg( 'dash_tab', 'history', $url ) ); ?>">
-                <span class="slms-dash-icon dashicons dashicons-cart"></span>
-                <div class="slms-dash-label-group">
-                    <strong><?php echo esc_html( $tab_label_history ); ?></strong>
-                    <span><?php _e( 'View your course purchases.', 'simple-lms-bridge' ); ?></span>
-                </div>
-            </a>
-        </li>
-        <li class="<?php echo ( 'certificates' === $current_tab ) ? 'active' : ''; ?>">
-            <a href="<?php echo esc_url( add_query_arg( 'dash_tab', 'certificates', $url ) ); ?>">
-                <span class="slms-dash-icon dashicons dashicons-awards"></span>
-                <div class="slms-dash-label-group">
-                    <strong><?php echo esc_html( $tab_label_certs ); ?></strong>
-                    <span><?php _e( 'Download your certificates.', 'simple-lms-bridge' ); ?></span>
-                </div>
-            </a>
-        </li>
+
+<div class="slms-student-dashboard">
+    <?php if ( $update_success ) : ?>
+        <div class="slms-alert slms-alert-success"><?php echo esc_html( $update_success ); ?></div>
+    <?php endif; ?>
+    <?php if ( $update_error ) : ?>
+        <div class="slms-alert slms-alert-error"><?php echo esc_html( $update_error ); ?></div>
+    <?php endif; ?>
+
+    <ul class="slms-tabs-nav">
+        <li class="slms-tab-link active" data-tab="profile"><?php esc_html_e( 'Profile', 'simple-lms' ); ?></li>
+        <li class="slms-tab-link" data-tab="history"><?php esc_html_e( 'Purchase History', 'simple-lms' ); ?></li>
+        <li class="slms-tab-link" data-tab="certificates"><?php esc_html_e( 'Certificates', 'simple-lms' ); ?></li>
     </ul>
 
-    <!-- Tab Content -->
-    <div class="slms-dash-content">
-        <?php if ( 'profile' === $current_tab ) : ?>
-            <div class="slms-dash-panel" id="slms-dash-profile">
-                <?php
-                if ( class_exists( 'SimpleLMS\AccountDashboard' ) ) {
-                    \SimpleLMS\AccountDashboard::render_profile( $user_id );
-                } else {
-                    echo '<p>' . __( 'Profile system not available.', 'simple-lms-bridge' ) . '</p>';
-                }
-                ?>
-            </div>
-
-        <?php elseif ( 'history' === $current_tab ) : ?>
-            <div class="slms-dash-panel" id="slms-dash-history">
-                <h3><?php echo esc_html( $tab_label_history ); ?></h3>
-                <?php
-                if ( class_exists( 'MemberOrder' ) ) {
-                    $orders = array();
-                    if ( function_exists( 'pmpro_getOrders' ) ) {
-                        $orders = pmpro_getOrders( array( 'user_id' => $user_id ) );
-                    } else {
-                        global $wpdb;
-                        // Use direct DB query if the helper function isn't loaded for some reason.
-                        if ( isset( $wpdb->pmpro_membership_orders ) ) {
-                            $orders = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->pmpro_membership_orders} WHERE user_id = %d ORDER BY timestamp DESC", $user_id ) );
-                        }
-                    }
-                    
-                    if ( ! empty( $orders ) ) : ?>
-                        <table class="slms-dash-table">
-                            <thead>
-                                <tr>
-                                    <th><?php _e( 'Date', 'simple-lms-bridge' ); ?></th>
-                                    <th><?php _e( 'Order #', 'simple-lms-bridge' ); ?></th>
-                                    <th><?php _e( 'Membership Level', 'simple-lms-bridge' ); ?></th>
-                                    <th><?php _e( 'Total', 'simple-lms-bridge' ); ?></th>
-                                    <th><?php _e( 'Status', 'simple-lms-bridge' ); ?></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ( $orders as $order ) : ?>
-                                    <?php 
-                                    $level_name = __( 'Unknown', 'simple-lms-bridge' );
-                                    if ( ! empty( $order->membership_id ) && function_exists( 'pmpro_getLevel' ) ) {
-                                        $level = pmpro_getLevel( $order->membership_id );
-                                        if ( $level ) {
-                                            $level_name = $level->name;
-                                        }
-                                    } elseif ( isset( $order->membership_level ) ) {
-                                        $level_name = $order->membership_level->name;
-                                    }
-                                    ?>
-                                    <tr>
-                                        <td><?php echo date_i18n( get_option( 'date_format' ), $order->timestamp ); ?></td>
-                                        <td><?php echo esc_html( $order->code ); ?></td>
-                                        <td><?php echo esc_html( $level_name ); ?></td>
-                                        <td><?php echo function_exists( 'pmpro_formatPrice' ) ? pmpro_formatPrice( $order->total ) : esc_html( $order->total ); ?></td>
-                                        <td><?php echo esc_html( $order->status ); ?></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    <?php else : ?>
-                        <p><?php _e( 'No purchase history found.', 'simple-lms-bridge' ); ?></p>
-                    <?php endif;
-                } else {
-                    echo '<div class="slms-notice warning"><p>' . __( 'Purchase history requires Paid Memberships Pro to be active.', 'simple-lms-bridge' ) . '</p></div>';
-                }
-                ?>
-            </div>
-
-        <?php elseif ( 'certificates' === $current_tab ) : ?>
-            <div class="slms-dash-panel" id="slms-dash-certificates">
-                <h3><?php echo esc_html( $tab_label_certs ); ?></h3>
+    <div class="slms-tabs-content">
+        <!-- Profile Tab -->
+        <div id="slms-tab-profile" class="slms-tab-pane active">
+            <form method="post" action="" class="slms-profile-form gform_wrapper">
+                <?php wp_nonce_field( 'slms_update_profile_nonce', 'slms_profile_nonce' ); ?>
                 
-                <?php if ( 'history_table' === $cert_data_source ) : ?>
-                    <?php
-                    // Source: wp_slms_course_history
-                    if ( class_exists( 'SimpleLMS\CourseHistory' ) ) {
-                        $records = \SimpleLMS\CourseHistory::get_for_user( $user_id );
-                        
-                        if ( ! empty( $records ) ) : ?>
-                            <table class="slms-dash-table">
-                                <thead>
-                                    <tr>
-                                        <th><?php _e( 'Class', 'simple-lms-bridge' ); ?></th>
-                                        <th><?php _e( 'Completion Date', 'simple-lms-bridge' ); ?></th>
-                                        <th><?php _e( 'Certificate', 'simple-lms-bridge' ); ?></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ( $records as $record ) : ?>
-                                        <tr>
-                                            <td><?php echo esc_html( $record->course_name ); ?></td>
-                                            <td><?php echo date_i18n( get_option( 'date_format' ), strtotime( $record->completed_date ) ); ?></td>
-                                            <td>
-                                                <?php if ( ! empty( $record->gf_entry_id ) && ! empty( $cert_form_id ) ) : 
-                                                    $pdf_url = home_url( "/?gf_pdf=1&fid=" . intval( $cert_form_id ) . "&lid=" . intval( $record->gf_entry_id ) );
-                                                ?>
-                                                    <a href="<?php echo esc_url( $pdf_url ); ?>" class="slms-dash-btn" target="_blank">
-                                                        <?php _e( 'Download PDF', 'simple-lms-bridge' ); ?>
-                                                    </a>
-                                                <?php else : ?>
-                                                    -
-                                                <?php endif; ?>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        <?php else : ?>
-                            <p><?php _e( 'No certificates found.', 'simple-lms-bridge' ); ?></p>
-                        <?php endif;
-                    } else {
-                        echo '<p>' . __( 'Course History component is not available.', 'simple-lms-bridge' ) . '</p>';
-                    }
-                    ?>
+                <div class="gfield">
+                    <label class="gfield_label"><?php esc_html_e( 'First Name', 'simple-lms' ); ?></label>
+                    <input type="text" name="first_name" value="<?php echo esc_attr( $current_user->first_name ); ?>" required />
+                </div>
                 
-                <?php else : ?>
-                    <?php
-                    // Source: Gravity Forms Entries (Legacy)
-                    if ( $cert_form_id && class_exists( 'GFAPI' ) ) {
-                        $search_criteria = array(
-                            'status'        => 'active',
-                            'field_filters' => array(
-                                array(
-                                    'key'   => 'created_by',
-                                    'value' => $user_id,
-                                ),
-                            ),
-                        );
-                        $entries = \GFAPI::get_entries( (int) $cert_form_id, $search_criteria );
+                <div class="gfield">
+                    <label class="gfield_label"><?php esc_html_e( 'Last Name', 'simple-lms' ); ?></label>
+                    <input type="text" name="last_name" value="<?php echo esc_attr( $current_user->last_name ); ?>" required />
+                </div>
+                
+                <div class="gfield">
+                    <label class="gfield_label"><?php esc_html_e( 'Email', 'simple-lms' ); ?></label>
+                    <input type="email" name="user_email" value="<?php echo esc_attr( $current_user->user_email ); ?>" required />
+                </div>
+                
+                <div class="gfield">
+                    <label class="gfield_label"><?php esc_html_e( 'Phone', 'simple-lms' ); ?></label>
+                    <input type="text" name="phone" value="<?php echo esc_attr( get_user_meta( $current_user->ID, 'phone', true ) ); ?>" />
+                </div>
 
-                        if ( ! is_wp_error( $entries ) && ! empty( $entries ) ) : ?>
-                            <table class="slms-dash-table">
-                                <thead>
-                                    <tr>
-                                        <th><?php _e( 'Name', 'simple-lms-bridge' ); ?></th>
-                                        <th><?php _e( 'Course', 'simple-lms-bridge' ); ?></th>
-                                        <th><?php _e( 'Completion Date', 'simple-lms-bridge' ); ?></th>
-                                        <th><?php _e( 'Certificate PDF', 'simple-lms-bridge' ); ?></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php foreach ( $entries as $entry ) : ?>
-                                        <tr>
-                                            <td><?php echo esc_html( rgar( $entry, $settings->cert_field_name ) ); ?></td>
-                                            <td><?php echo esc_html( rgar( $entry, $settings->cert_field_course ) ); ?></td>
-                                            <td>
-                                                <?php 
-                                                $date_val = rgar( $entry, $settings->cert_field_date );
-                                                echo ! empty( $date_val ) ? esc_html( date_i18n( get_option( 'date_format' ), strtotime( $date_val ) ) ) : '-';
-                                                ?>
-                                            </td>
-                                            <td>
-                                                <?php
-                                                $pdf_url = rgar( $entry, $settings->cert_field_pdf );
-                                                if ( $pdf_url ) : ?>
-                                                    <a href="<?php echo esc_url( $pdf_url ); ?>" class="slms-dash-btn" target="_blank">
-                                                        <?php _e( 'Download PDF', 'simple-lms-bridge' ); ?>
-                                                    </a>
-                                                <?php else : ?>
-                                                    -
-                                                <?php endif; ?>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        <?php else : ?>
-                            <p><?php _e( 'No certificates found.', 'simple-lms-bridge' ); ?></p>
-                        <?php endif;
-                    } else {
-                        echo '<p>' . __( 'Certificate form not configured or Gravity Forms not active.', 'simple-lms-bridge' ) . '</p>';
-                    }
-                    ?>
-                <?php endif; ?>
-            </div>
-        <?php endif; ?>
+                <div class="gfield">
+                    <label class="gfield_label"><?php esc_html_e( 'License Number', 'simple-lms' ); ?></label>
+                    <input type="text" name="license_number" value="<?php echo esc_attr( get_user_meta( $current_user->ID, 'license_number', true ) ); ?>" />
+                </div>
+
+                <h4><?php esc_html_e( 'Billing Address', 'simple-lms' ); ?></h4>
+                <div class="gfield">
+                    <label class="gfield_label"><?php esc_html_e( 'Address Line 1', 'simple-lms' ); ?></label>
+                    <input type="text" name="billing_address_1" value="<?php echo esc_attr( get_user_meta( $current_user->ID, 'billing_address_1', true ) ); ?>" />
+                </div>
+                <div class="gfield">
+                    <label class="gfield_label"><?php esc_html_e( 'Address Line 2', 'simple-lms' ); ?></label>
+                    <input type="text" name="billing_address_2" value="<?php echo esc_attr( get_user_meta( $current_user->ID, 'billing_address_2', true ) ); ?>" />
+                </div>
+                <div class="gfield">
+                    <label class="gfield_label"><?php esc_html_e( 'City', 'simple-lms' ); ?></label>
+                    <input type="text" name="billing_city" value="<?php echo esc_attr( get_user_meta( $current_user->ID, 'billing_city', true ) ); ?>" />
+                </div>
+                <div class="gfield">
+                    <label class="gfield_label"><?php esc_html_e( 'State', 'simple-lms' ); ?></label>
+                    <input type="text" name="billing_state" value="<?php echo esc_attr( get_user_meta( $current_user->ID, 'billing_state', true ) ); ?>" />
+                </div>
+                <div class="gfield">
+                    <label class="gfield_label"><?php esc_html_e( 'Zip Code', 'simple-lms' ); ?></label>
+                    <input type="text" name="billing_postcode" value="<?php echo esc_attr( get_user_meta( $current_user->ID, 'billing_postcode', true ) ); ?>" />
+                </div>
+
+                <h4><?php esc_html_e( 'Change Password', 'simple-lms' ); ?></h4>
+                <div class="gfield">
+                    <label><input type="checkbox" name="update_password" value="1" /> <?php esc_html_e( 'Update Password', 'simple-lms' ); ?></label>
+                </div>
+                <div class="gfield">
+                    <label class="gfield_label"><?php esc_html_e( 'New Password', 'simple-lms' ); ?></label>
+                    <input type="password" name="user_pass" value="" />
+                </div>
+                <div class="gfield">
+                    <label class="gfield_label"><?php esc_html_e( 'Confirm Password', 'simple-lms' ); ?></label>
+                    <input type="password" name="user_pass_confirm" value="" />
+                </div>
+
+                <div class="gfield gform_footer">
+                    <button type="submit" class="gform_button button"><?php esc_html_e( 'Update Profile', 'simple-lms' ); ?></button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Purchase History Tab -->
+        <div id="slms-tab-history" class="slms-tab-pane">
+            <?php 
+            if ( class_exists( 'MemberOrder' ) ) : 
+                $orders = MemberOrder::getMemberOrders( $current_user->ID );
+                if ( !empty( $orders ) ) :
+            ?>
+                <table class="slms-table">
+                    <thead>
+                        <tr>
+                            <th><?php esc_html_e( 'Order ID', 'simple-lms' ); ?></th>
+                            <th><?php esc_html_e( 'Date', 'simple-lms' ); ?></th>
+                            <th><?php esc_html_e( 'Level / Course', 'simple-lms' ); ?></th>
+                            <th><?php esc_html_e( 'Total', 'simple-lms' ); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ( $orders as $order ) : ?>
+                            <tr>
+                                <td><?php echo esc_html( $order->code ); ?></td>
+                                <td><?php echo esc_html( date_i18n( get_option( 'date_format' ), $order->timestamp ) ); ?></td>
+                                <td><?php echo esc_html( pmpro_getLevel( $order->membership_id )->name ?? __( 'Unknown', 'simple-lms' ) ); ?></td>
+                                <td><?php echo esc_html( pmpro_formatPrice( $order->total ) ); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php else: ?>
+                <p><?php esc_html_e( 'No purchase history found.', 'simple-lms' ); ?></p>
+            <?php endif; ?>
+            <?php else: ?>
+                <p><?php esc_html_e( 'Paid Memberships Pro is not active.', 'simple-lms' ); ?></p>
+            <?php endif; ?>
+        </div>
+
+        <!-- Certificates Tab -->
+        <div id="slms-tab-certificates" class="slms-tab-pane">
+            <?php 
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'slms_course_history';
+            // Verify table exists
+            if ( $wpdb->get_var( "SHOW TABLES LIKE '$table_name'" ) === $table_name ) :
+                $history = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table_name} WHERE user_id = %d", $current_user->ID ) );
+                
+                if ( !empty( $history ) ) :
+            ?>
+                <table class="slms-table">
+                    <thead>
+                        <tr>
+                            <th><?php esc_html_e( 'Course', 'simple-lms' ); ?></th>
+                            <th><?php esc_html_e( 'Completion Date', 'simple-lms' ); ?></th>
+                            <th><?php esc_html_e( 'Certificate', 'simple-lms' ); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ( $history as $row ) : 
+                            $course = get_post( $row->course_id );
+                            $course_name = $course ? $course->post_title : __( 'Unknown Course', 'simple-lms' );
+                            $gf_entry_id = $row->gf_entry_id ?? 0;
+                            $form_id = 1; // Assuming a fallback form ID if not dynamically available
+                            
+                            // Find GF Form ID by entry ID
+                            if ( class_exists( 'GFAPI' ) && $gf_entry_id ) {
+                                $entry = GFAPI::get_entry( $gf_entry_id );
+                                if ( !is_wp_error($entry) && isset( $entry['form_id'] ) ) {
+                                    $form_id = $entry['form_id'];
+                                }
+                            }
+                        ?>
+                            <tr>
+                                <td><?php echo esc_html( $course_name ); ?></td>
+                                <td><?php echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( $row->completed_date ) ) ); ?></td>
+                                <td>
+                                    <?php if ( $gf_entry_id ) : ?>
+                                        <a href="<?php echo esc_url( home_url( "/?gf_pdf=1&fid={$form_id}&lid={$gf_entry_id}" ) ); ?>" class="button" target="_blank"><?php esc_html_e( 'Download PDF', 'simple-lms' ); ?></a>
+                                    <?php else : ?>
+                                        <span><?php esc_html_e( 'N/A', 'simple-lms' ); ?></span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            <?php else: ?>
+                <p><?php esc_html_e( 'No certificates found.', 'simple-lms' ); ?></p>
+            <?php endif; ?>
+            <?php else: ?>
+                <p><?php esc_html_e( 'Course history table is not available.', 'simple-lms' ); ?></p>
+            <?php endif; ?>
+        </div>
     </div>
 </div>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        var tabs = document.querySelectorAll('.fl-node-<?php echo esc_js( $id ); ?> .slms-dash-tabs a');
-        tabs.forEach(function (tab) {
-            tab.addEventListener('click', function (e) {
-                if (document.body.classList.contains('fl-builder-active')) {
-                    e.preventDefault();
-                }
-            });
-        });
-    });
-</script>
