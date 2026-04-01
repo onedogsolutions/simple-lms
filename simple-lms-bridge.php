@@ -37,7 +37,10 @@ require_once SLMS_PLUGIN_DIR . 'includes/class-certificates.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-migration.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-user-meta.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-relationships.php';
-require_once SLMS_PLUGIN_DIR . 'includes/class-account-dashboard.php';
+// class-account-dashboard.php intentionally not loaded.
+// The [simple_lms_account] shortcode has been replaced by the native
+// lms-account-dashboard Beaver Builder module. Shortcode-based rendering
+// of BB module content is no longer used.
 
 
 /* ─── Boot ───────────────────────────────────────────────────────────── */
@@ -65,7 +68,6 @@ function slms_init()
     }
 
     UserMeta::init();
-    AccountDashboard::init();
 
     // Admin Menus
     add_action('admin_menu', __NAMESPACE__ . '\\slms_admin_menu');

@@ -113,6 +113,16 @@ The project has been moved to a private GitHub repository. Core features are in 
   - **Ghost Enrollment Fix (Mar 2026):**
     - Removed `pmpro_migration_expired` auto-enrollment for memberships older than 90 days in Phase 2.
     - Added retroactive active-enrollment cleanup in Phase 4; finding a historical certificate now triggers immediate removal from the active student enrollment table.
+- **Account Dashboard Module — Native BB Rewrite (Apr 2026):**
+  - The live My Account page used the older `lms-account-dashboard` BB module, which called `do_shortcode('[simple_lms_account]')` → `AccountDashboard::render_shortcode()` → a URL-param-based tab nav rendering all admin UserMeta fields (AALP Member, Pro Exam Status, etc.).
+  - **Rule established:** BB modules must never be rendered via shortcode, and must never delegate rendering via cross-module PHP `include()`. Each module must be fully self-contained with its own native template files. BB's engine injects `$settings`, `$id`, and `$module` directly into `includes/frontend.php` and `includes/frontend.css.php` — no intermediary needed.
+  - Both `lms-account-dashboard` and `slms-student-dashboard` were fully rebuilt as self-contained native BB modules. Each now owns:
+    - `includes/frontend.php` — complete HTML template; rendered directly by BB; `$settings`/`$id` injected by the engine
+    - `includes/frontend.css.php` — complete dynamic CSS using `FLBuilderCSS` helpers and a local `slms_color()` helper for safe hex/rgba output
+    - `includes/frontend.js` — vanilla JS for tab switching and password toggle; BB auto-loads from the module's `includes/` dir
+    - `css/frontend.css` — structural/layout CSS (tabs, grid, inputs, table, alerts, button base); BB enqueues once per page
+  - `AccountDashboard` PHP shortcode class deregistered: removed `require_once class-account-dashboard.php` and `AccountDashboard::init()` from `simple-lms-bridge.php`.
+  - `lms-account-dashboard` module settings replaced entirely: old `btn_bg_color` / `ro_bg_color` / `ro_text_color` fields removed; full schema added matching `slms-student-dashboard` field names (tab colors, active/hover states, typography, padding, margin, border groups, input focus state, button styles).
 - **Student Dashboard BB Module (Apr 2026):**
   - Developed a single, production-ready native Beaver Builder module `slms-student-dashboard` to replace PowerPack Advanced Tabs, PowerPack Gravity Forms, and Gravity Perks Entry Blocks.
   - **File 1: `slms-student-dashboard.php`**: Full `FLBuilderModule` class + `FLBuilder::register_module()` with two style tabs:
@@ -135,6 +145,12 @@ The project has been moved to a private GitHub repository. Core features are in 
   - **Retroactive Graduation Cleanup:** Created `slms_retroactive_graduation_cleanup()` to identify and graduate "stuck" students whose lesson progress is 100% complete and who possess a valid history record.
   - **Automated Deployment Pipeline:** Created `deploy.sh` to automate building assets, packaging the plugin zip (excluding source/dev files), and pushing updates to GitHub.
 - **UI Cleanup:** Permanent removal of the legacy global admin migration nag banner in favor of the dedicated React Migration Tool UI.
+- **Student Manager Migration Nag Removed (Apr 2026):**
+  - Removed the inline "There are still N users with WP Complete data pending migration" warning banner, progress bar, and "Migration complete!" notice from `StudentManager.js`.
+  - Removed the `migrationStatus` state, `startMigration()` function, and `checkMigrationStatus()` function entirely from the component.
+  - Removed the `checkMigrationStatus()` call from the initial `useEffect` load sequence.
+  - Removed unused `ProgressBar` from the `@wordpress/components` import.
+  - All migration functionality now lives exclusively in the dedicated Migration Tool page (`MigrationTool.js`).
 
 ## Technical Details
 
@@ -201,19 +217,44 @@ Comprehensive logging in `class-migration.php` and `MigrationTool.js` to debug s
 4. Navigate to SimpleLMS > Debug Log for the persistent log viewer.
 5. For deeper analysis, check `wp-content/debug.log` for `[SimpleLMS]` prefixed entries.
 
-## Student Dashboard Module Architecture
+## BB Module Architecture
 
-**Module:** `slms-student-dashboard` (BB module under `includes/bb-modules/`)
+### Rule
+Every Beaver Builder module must be fully self-contained. Rendering must never be delegated through a WordPress shortcode or a PHP `include()` referencing another module's files. BB's engine injects `$settings`, `$id`, and `$module` directly into each module's own template files.
 
-### Directory Layout
+### Required File Structure (per module)
 
 ```text
-includes/bb-modules/slms-student-dashboard/
-├── slms-student-dashboard.php   # FLBuilderModule class + FLBuilder::register_module()
+{module-slug}/
+├── {module-slug}.php         # FLBuilderModule class + FLBuilder::register_module()
+├── css/
+│   └── frontend.css          # Structural/layout CSS — BB enqueues once per page
 └── includes/
-    ├── frontend.php             # Form processor + three-tab HTML template
-    ├── frontend.css.php         # Dynamic CSS via FLBuilderCSS helpers + slms_color()
-    └── frontend.js              # Tab switching + password toggle (vanilla JS)
+    ├── frontend.php           # HTML template — BB renders per instance; $settings/$id injected
+    ├── frontend.css.php       # Dynamic settings-driven CSS — rendered per instance
+    └── frontend.js            # Behaviour — BB enqueues per instance
+```
+
+### Active Dashboard Modules
+
+Both modules below are fully self-contained and render identically. `lms-account-dashboard` is placed on the live My Account page; `slms-student-dashboard` is available as an alternative drop-in.
+
+```text
+includes/bb-modules/
+├── lms-account-dashboard/          # Live module — placed on /my-account/ BB page
+│   ├── lms-account-dashboard.php
+│   ├── css/frontend.css
+│   └── includes/
+│       ├── frontend.php
+│       ├── frontend.css.php
+│       └── frontend.js
+└── slms-student-dashboard/         # Equivalent module — available in BB panel
+    ├── slms-student-dashboard.php
+    ├── css/frontend.css
+    └── includes/
+        ├── frontend.php
+        ├── frontend.css.php
+        └── frontend.js
 ```
 
 ### HTML Class Reference
@@ -222,8 +263,8 @@ includes/bb-modules/slms-student-dashboard/
 |---|---|
 | Module wrapper | `.slms-student-dashboard` |
 | Tab nav list | `.slms-tabs-nav` |
-| Tab button | `.slms-tab-link` (active state: `.active`) |
-| Tab pane | `.slms-tab-pane` (active state: `.active`) |
+| Tab button | `.slms-tab-link` (active: `.active`) |
+| Tab pane | `.slms-tab-pane` (active: `.active`) |
 | Profile pane | `#slms-tab-profile` |
 | History pane | `#slms-tab-history` |
 | Certificates pane | `#slms-tab-certificates` |
@@ -241,9 +282,9 @@ includes/bb-modules/slms-student-dashboard/
 ### Core Features
 
 - **Tab 1 (Profile)**: Native `wp_update_user()` + `update_user_meta()` form. No shortcode or third-party dependency.
-- **Tab 2 (History)**: Direct `MemberOrder::getMemberOrders()` call. No shortcode wrapper.
-- **Tab 3 (Certificates)**: Direct `$wpdb` query against `wp_slms_course_history`. GravityPDF link built from stored `form_id`/`gf_entry_id` with `GFAPI::get_entry()` fallback.
-- **Styling**: Fully stylable via BB panel — no inline styles baked into markup.
+- **Tab 2 (Purchase History)**: Direct `MemberOrder::getMemberOrders()` call. Headers: `ID | Purchase Date | Course Purchases | Total`.
+- **Tab 3 (Certificates Earned)**: Direct `$wpdb` query against `wp_slms_course_history`. Headers: `Name | Course | Completion Date | Certificate PDF`. GravityPDF link: `/?gf_pdf=1&fid={form_id}&lid={gf_entry_id}`; form_id resolved from row or via `GFAPI::get_entry()` fallback.
+- **Styling**: Structural CSS in `css/frontend.css`; all colors, typography, spacing, and borders driven by BB settings panel via `includes/frontend.css.php`.
 
 ## Continuity Notes
 

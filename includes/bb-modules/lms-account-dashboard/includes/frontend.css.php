@@ -1,60 +1,209 @@
 <?php
 /**
- * Dynamic CSS for the LMS Account Dashboard module.
+ * LMS Account Dashboard – Dynamic CSS
+ *
+ * Maps every BB settings field to its HTML selector.
+ * $settings and $id are injected by Beaver Builder's template engine.
  *
  * @package SimpleLMS
  */
 
-// Tabs Style
-/**
- * @var object $settings
- * @var string $id
- */
-FLBuilderCSS::rule( array(
-	'selector' => ".fl-node-$id .slms-tabs-nav li",
-	'props'    => array(
-		'background-color' => $settings->tab_bg_color,
+// ── Safe color output ─────────────────────────────────────────────────────
+// BB stores hex values without `#`; show_alpha stores rgba() strings.
+if ( ! function_exists( 'slms_color' ) ) {
+	function slms_color( $value ) {
+		if ( empty( $value ) ) {
+			return '';
+		}
+		if ( false !== strpos( $value, '(' ) || false !== strpos( $value, '#' ) ) {
+			return $value;
+		}
+		return '#' . ltrim( $value, '#' );
+	}
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// TABS STYLE
+// ════════════════════════════════════════════════════════════════════════════
+
+FLBuilderCSS::typography_field_rule( array(
+	'settings'     => $settings,
+	'setting_name' => 'tab_typography',
+	'selector'     => ".fl-node-$id .slms-tabs-nav .slms-tab-link",
+) );
+
+FLBuilderCSS::dimension_field_rule( array(
+	'settings'     => $settings,
+	'setting_name' => 'tab_padding',
+	'selector'     => ".fl-node-$id .slms-tabs-nav .slms-tab-link",
+	'unit'         => 'px',
+	'props'        => array(
+		'padding-top'    => 'tab_padding_top',
+		'padding-right'  => 'tab_padding_right',
+		'padding-bottom' => 'tab_padding_bottom',
+		'padding-left'   => 'tab_padding_left',
 	),
 ) );
 
-FLBuilderCSS::rule( array(
-	'selector' => ".fl-node-$id .slms-tabs-nav li.active",
-	'props'    => array(
-		'background-color' => $settings->tab_active_bg_color,
+FLBuilderCSS::dimension_field_rule( array(
+	'settings'     => $settings,
+	'setting_name' => 'tab_margin',
+	'selector'     => ".fl-node-$id .slms-tabs-nav .slms-tab-link",
+	'unit'         => 'px',
+	'props'        => array(
+		'margin-top'    => 'tab_margin_top',
+		'margin-right'  => 'tab_margin_right',
+		'margin-bottom' => 'tab_margin_bottom',
+		'margin-left'   => 'tab_margin_left',
 	),
 ) );
 
-FLBuilderCSS::rule( array(
-	'selector' => ".fl-node-$id .slms-tabs-nav li a",
-	'props'    => array(
-		'color' => $settings->tab_text_color,
+FLBuilderCSS::border_field_rule( array(
+	'settings'     => $settings,
+	'setting_name' => 'tab_border_group',
+	'selector'     => ".fl-node-$id .slms-tabs-nav .slms-tab-link",
+) );
+
+FLBuilderCSS::border_field_rule( array(
+	'settings'     => $settings,
+	'setting_name' => 'tab_active_border_group',
+	'selector'     => ".fl-node-$id .slms-tabs-nav .slms-tab-link.active",
+) );
+?>
+
+.fl-node-<?php echo $id; ?> .slms-tabs-nav .slms-tab-link {
+	<?php if ( ! empty( $settings->tab_bg_color ) ) : ?>
+	background-color: <?php echo slms_color( $settings->tab_bg_color ); ?>;
+	<?php endif; ?>
+	<?php if ( ! empty( $settings->tab_text_color ) ) : ?>
+	color: <?php echo slms_color( $settings->tab_text_color ); ?>;
+	<?php endif; ?>
+}
+
+.fl-node-<?php echo $id; ?> .slms-tabs-nav .slms-tab-link.active,
+.fl-node-<?php echo $id; ?> .slms-tabs-nav .slms-tab-link.active:hover {
+	<?php if ( ! empty( $settings->tab_active_bg_color ) ) : ?>
+	background-color: <?php echo slms_color( $settings->tab_active_bg_color ); ?>;
+	<?php endif; ?>
+	<?php if ( ! empty( $settings->tab_active_text_color ) ) : ?>
+	color: <?php echo slms_color( $settings->tab_active_text_color ); ?>;
+	<?php endif; ?>
+}
+
+.fl-node-<?php echo $id; ?> .slms-tabs-nav .slms-tab-link:hover {
+	<?php if ( ! empty( $settings->tab_hover_bg_color ) ) : ?>
+	background-color: <?php echo slms_color( $settings->tab_hover_bg_color ); ?>;
+	<?php endif; ?>
+	<?php if ( ! empty( $settings->tab_hover_text_color ) ) : ?>
+	color: <?php echo slms_color( $settings->tab_hover_text_color ); ?>;
+	<?php endif; ?>
+}
+
+<?php
+// ════════════════════════════════════════════════════════════════════════════
+// FORM STYLE: INPUTS
+// ════════════════════════════════════════════════════════════════════════════
+
+FLBuilderCSS::typography_field_rule( array(
+	'settings'     => $settings,
+	'setting_name' => 'input_typography',
+	'selector'     => ".fl-node-$id .slms-profile-form .slms-input",
+) );
+
+FLBuilderCSS::dimension_field_rule( array(
+	'settings'     => $settings,
+	'setting_name' => 'input_padding',
+	'selector'     => ".fl-node-$id .slms-profile-form .slms-input",
+	'unit'         => 'px',
+	'props'        => array(
+		'padding-top'    => 'input_padding_top',
+		'padding-right'  => 'input_padding_right',
+		'padding-bottom' => 'input_padding_bottom',
+		'padding-left'   => 'input_padding_left',
 	),
 ) );
 
-// Form Fields Style
-FLBuilderCSS::rule( array(
-	'selector' => ".fl-node-$id .slms-tab-content input[type='text'], .fl-node-$id .slms-tab-content select, .fl-node-$id .slms-tab-content input[type='date']",
-	'props'    => array(
-		'background-color' => $settings->input_bg_color,
-		'color'            => $settings->input_text_color,
-		'border-color'     => '#ddd', // Default border, could be made dynamic
+FLBuilderCSS::border_field_rule( array(
+	'settings'     => $settings,
+	'setting_name' => 'input_border_group',
+	'selector'     => ".fl-node-$id .slms-profile-form .slms-input",
+) );
+?>
+
+.fl-node-<?php echo $id; ?> .slms-profile-form .slms-input {
+	<?php if ( ! empty( $settings->input_bg_color ) ) : ?>
+	background-color: <?php echo slms_color( $settings->input_bg_color ); ?>;
+	<?php endif; ?>
+	<?php if ( ! empty( $settings->input_text_color ) ) : ?>
+	color: <?php echo slms_color( $settings->input_text_color ); ?>;
+	<?php endif; ?>
+}
+
+.fl-node-<?php echo $id; ?> .slms-profile-form .slms-field-label {
+	<?php if ( ! empty( $settings->input_label_color ) ) : ?>
+	color: <?php echo slms_color( $settings->input_label_color ); ?>;
+	<?php endif; ?>
+}
+
+.fl-node-<?php echo $id; ?> .slms-profile-form .slms-input:focus {
+	outline: none;
+	<?php if ( ! empty( $settings->input_focus_bg_color ) ) : ?>
+	background-color: <?php echo slms_color( $settings->input_focus_bg_color ); ?>;
+	<?php endif; ?>
+	<?php if ( ! empty( $settings->input_focus_border_color ) ) : ?>
+	border-color: <?php echo slms_color( $settings->input_focus_border_color ); ?>;
+	<?php endif; ?>
+	<?php if ( ! empty( $settings->input_focus_text_color ) ) : ?>
+	color: <?php echo slms_color( $settings->input_focus_text_color ); ?>;
+	<?php endif; ?>
+}
+
+<?php
+// ════════════════════════════════════════════════════════════════════════════
+// FORM STYLE: BUTTON
+// ════════════════════════════════════════════════════════════════════════════
+
+FLBuilderCSS::typography_field_rule( array(
+	'settings'     => $settings,
+	'setting_name' => 'button_typography',
+	'selector'     => ".fl-node-$id .slms-profile-form .slms-submit-btn",
+) );
+
+FLBuilderCSS::dimension_field_rule( array(
+	'settings'     => $settings,
+	'setting_name' => 'button_padding',
+	'selector'     => ".fl-node-$id .slms-profile-form .slms-submit-btn",
+	'unit'         => 'px',
+	'props'        => array(
+		'padding-top'    => 'button_padding_top',
+		'padding-right'  => 'button_padding_right',
+		'padding-bottom' => 'button_padding_bottom',
+		'padding-left'   => 'button_padding_left',
 	),
 ) );
 
-// Read-Only Fields Style
-FLBuilderCSS::rule( array(
-	'selector' => ".fl-node-$id .slms-read-only-value",
-	'props'    => array(
-		'background-color' => $settings->ro_bg_color,
-		'color'            => $settings->ro_text_color,
-	),
+FLBuilderCSS::border_field_rule( array(
+	'settings'     => $settings,
+	'setting_name' => 'button_border_group',
+	'selector'     => ".fl-node-$id .slms-profile-form .slms-submit-btn",
 ) );
+?>
 
-// Buttons Style
-FLBuilderCSS::rule( array(
-	'selector' => ".fl-node-$id .slms-tab-content input[type='submit']",
-	'props'    => array(
-		'background-color' => $settings->btn_bg_color,
-		'color'            => $settings->btn_text_color,
-	),
-) );
+.fl-node-<?php echo $id; ?> .slms-profile-form .slms-submit-btn {
+	<?php if ( ! empty( $settings->button_bg_color ) ) : ?>
+	background-color: <?php echo slms_color( $settings->button_bg_color ); ?>;
+	<?php endif; ?>
+	<?php if ( ! empty( $settings->button_text_color ) ) : ?>
+	color: <?php echo slms_color( $settings->button_text_color ); ?>;
+	<?php endif; ?>
+}
+
+.fl-node-<?php echo $id; ?> .slms-profile-form .slms-submit-btn:hover,
+.fl-node-<?php echo $id; ?> .slms-profile-form .slms-submit-btn:focus {
+	<?php if ( ! empty( $settings->button_hover_bg_color ) ) : ?>
+	background-color: <?php echo slms_color( $settings->button_hover_bg_color ); ?>;
+	<?php endif; ?>
+	<?php if ( ! empty( $settings->button_hover_text_color ) ) : ?>
+	color: <?php echo slms_color( $settings->button_hover_text_color ); ?>;
+	<?php endif; ?>
+}

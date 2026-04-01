@@ -19,7 +19,6 @@ import {
 	Spinner,
 	Notice,
 	CheckboxControl,
-	ProgressBar,
 	SelectControl,
 	TabPanel,
 	TextControl,
@@ -133,14 +132,6 @@ const StudentManager = () => {
 	const [unsavedChanges, setUnsavedChanges] = useState(false);
 	const [saving, setSaving] = useState(false);
 
-	// Migration state
-	const [migrationStatus, setMigrationStatus] = useState({
-		pending: 0,
-		total: 0,
-		active: false,
-		complete: false,
-	});
-
 	// Handle beforeunload for unsaved changes
 	useEffect(() => {
 		const handleBeforeUnload = (e) => {
@@ -198,78 +189,9 @@ const StudentManager = () => {
 	};
 
 
-	const startMigration = async (initialPending) => {
-		setMigrationStatus((prev) => ({
-			...prev,
-			active: true,
-			total: initialPending,
-			pending: initialPending,
-		}));
-
-		let currentPending = initialPending;
-
-		while (currentPending > 0) {
-			try {
-				const res = await apiFetch({
-					path: '/simple-lms/v1/migration/progress',
-					method: 'POST',
-				});
-				currentPending = res.pending;
-				setMigrationStatus((prev) => ({
-					...prev,
-					pending: currentPending,
-				}));
-
-				if (currentPending === 0) {
-					setMigrationStatus((prev) => ({
-						...prev,
-						active: false,
-						complete: true,
-					}));
-					fetchStudents(search, page);
-				}
-			} catch (err) {
-				setNotice({
-					status: 'error',
-					message:
-						__('Migration failed:', 'simple-lms-bridge') +
-						err.message,
-				});
-				setMigrationStatus((prev) => ({
-					...prev,
-					active: false,
-				}));
-				break;
-			}
-		}
-	};
-
-	const checkMigrationStatus = async () => {
-		try {
-			const res = await apiFetch({
-				path: '/simple-lms/v1/migration/status',
-			});
-			if (res.progress && res.progress.pending > 0) {
-				setMigrationStatus((prev) => ({
-					...prev,
-					pending: res.progress.pending,
-					total: prev.total || res.progress.pending,
-				}));
-
-				const urlParams = new URLSearchParams(window.location.search);
-				if (urlParams.get('migrate') === '1') {
-					startMigration(res.progress.pending);
-				}
-			}
-		} catch (err) {
-			console.error('Failed to check migration status', err);
-		}
-	};
-
 	// Initial load.
 	useEffect(() => {
 		fetchStudents('', 1);
-		checkMigrationStatus();
 		fetchAvailableCourses();
 	}, []);
 
@@ -534,75 +456,6 @@ const StudentManager = () => {
 					{notice.message}
 				</Notice>
 			)}
-
-			{migrationStatus.active && (
-				<Notice status="info" __nextHasNoMargin>
-					<div className="slms-migration-progress">
-						<p>
-							{__(
-								'Migrating WP Complete data…',
-								'simple-lms-bridge'
-							)}{' '}
-							<strong>
-								{migrationStatus.total -
-									migrationStatus.pending}{' '}
-								/ {migrationStatus.total}
-							</strong>
-						</p>
-						<ProgressBar
-							value={Math.min(
-								Math.round(
-									((migrationStatus.total -
-										migrationStatus.pending) /
-										Math.max(migrationStatus.total, 1)) *
-									100
-								),
-								100
-							)}
-						/>
-					</div>
-				</Notice>
-			)}
-
-			{migrationStatus.complete && (
-				<Notice
-					status="success"
-					isDismissible
-					onDismiss={() =>
-						setMigrationStatus((prev) => ({
-							...prev,
-							complete: false,
-						}))
-					}
-				>
-					{__('Migration complete!', 'simple-lms-bridge')}
-				</Notice>
-			)}
-
-			{!migrationStatus.active &&
-				migrationStatus.pending > 0 &&
-				!migrationStatus.complete && (
-					<Notice status="warning">
-						<p>
-							{sprintf(
-								/* translators: %d: pending users */
-								__(
-									'There are still %d users with WP Complete data pending migration.',
-									'simple-lms-bridge'
-								),
-								migrationStatus.pending
-							)}{' '}
-							<Button
-								variant="primary"
-								onClick={() =>
-									startMigration(migrationStatus.pending)
-								}
-							>
-								{__('Start Migration', 'simple-lms-bridge')}
-							</Button>
-						</p>
-					</Notice>
-				)}
 
 			<div className="mb-6 bg-white p-5 shadow-sm rounded-lg border border-gray-200 flex flex-col md:flex-row gap-4">
 				<div className="flex-grow">
