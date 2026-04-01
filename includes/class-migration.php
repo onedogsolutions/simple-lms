@@ -39,7 +39,6 @@ class Migration
         add_action('admin_post_slms_migrate_wpc', array(__CLASS__, 'run_wpc_migration'));
 
         // Add admin notice if migration is needed.
-        add_action('admin_notices', array(__CLASS__, 'migration_notice'));
     }
 
     /**
@@ -140,11 +139,6 @@ class Migration
      *
      * @return void
      */
-    public static function migration_notice()
-    {
-        if (!current_user_can('manage_options')) {
-            return;
-        }
 
         // Check if we have users with 'wpcomplete' meta.
         $count = self::get_pending_migration_count();

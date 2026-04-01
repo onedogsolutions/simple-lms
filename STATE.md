@@ -8,6 +8,7 @@ The project has been moved to a private GitHub repository. Core features are in 
 
 ## Accomplishments (Recent)
 
+- **UI Cleanup:** Removed the legacy global admin migration nag banner in favor of the dedicated React Migration Tool UI.
 - **Rebranding:** Renamed plugin to "One Dog Solutions".
 - **API Migration:** Moved from jQuery AJAX to WP REST API.
 - **Frontend Modernization:** Updated CSS to use Flexbox and modern typography.
