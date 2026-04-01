@@ -41,6 +41,7 @@
 /* ── Profile Form ───────────────────────────── */
 .slms-profile-form {
 	max-width: 800px;
+	margin: 0 auto;
 }
 
 .slms-field-row {

@@ -178,6 +178,10 @@ The project has been moved to a private GitHub repository. Core features are in 
   - `PHP Parse error: syntax error, unexpected token "else"` on line 272 of `slms-student-dashboard/includes/frontend.php`.
   - Root cause: when the `class_exists('MemberOrder')` wrapper was removed during the `MemberOrder::get_orders()` refactor, its matching `else`/`endif` block ("Paid Memberships Pro is not active.") was left behind, producing a dangling `else` with no opening `if`.
   - Fixed by removing the orphaned `else` and `endif` from the Purchase History tab in `slms-student-dashboard/includes/frontend.php`.
+- **JS Execution & CSS Centering Fixes (Apr 2026):**
+  - **Tab switching and password toggle were non-functional** — BB enqueues `includes/frontend.js` in the footer after `DOMContentLoaded` has already fired, so the `document.addEventListener('DOMContentLoaded', ...)` callback never ran.
+  - Fixed in both `lms-account-dashboard` and `slms-student-dashboard` `frontend.js`: extracted logic into an `init()` function and replaced the event listener with a `readyState` guard — calls `init()` immediately if `document.readyState !== 'loading'`, otherwise falls back to the `DOMContentLoaded` listener.
+  - **Profile form not centered** — `.slms-profile-form` had `max-width: 800px` but no `margin: 0 auto`. Added `margin: 0 auto` to `css/frontend.css` in both modules.
 
 ## Technical Details
 

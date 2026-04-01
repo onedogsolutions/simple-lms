@@ -8,11 +8,13 @@
  *      New Password / Confirm Password fields.
  *
  * Vanilla JS only – no jQuery dependency.
+ * Uses readyState check so the script works whether BB loads it before or
+ * after DOMContentLoaded has fired.
  */
 ( function () {
 	'use strict';
 
-	document.addEventListener( 'DOMContentLoaded', function () {
+	function init() {
 
 		var dashboards = document.querySelectorAll( '.slms-student-dashboard' );
 
@@ -78,6 +80,12 @@
 
 		} ); // end dashboards.forEach
 
-	} ); // end DOMContentLoaded
+	} // end init()
+
+	if ( document.readyState === 'loading' ) {
+		document.addEventListener( 'DOMContentLoaded', init );
+	} else {
+		init();
+	}
 
 }() );
