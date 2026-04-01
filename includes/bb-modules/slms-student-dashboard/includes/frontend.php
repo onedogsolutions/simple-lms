@@ -227,9 +227,11 @@ $saved_state = get_user_meta( $current_user->ID, 'billing_state', true );
 		 * ────────────────────────────────────────────────────────────── */ ?>
 		<div id="slms-tab-history" class="slms-tab-pane" role="tabpanel">
 
-			<?php if ( class_exists( 'MemberOrder' ) ) : ?>
-
-				<?php $orders = MemberOrder::getMemberOrders( $current_user->ID ); ?>
+			<?php
+				$orders = class_exists( 'MemberOrder' )
+					? MemberOrder::get_orders( array( 'user_id' => $current_user->ID ) )
+					: array();
+			?>
 
 				<?php if ( ! empty( $orders ) ) : ?>
 					<table class="slms-table">
@@ -245,7 +247,7 @@ $saved_state = get_user_meta( $current_user->ID, 'billing_state', true );
 							<?php foreach ( $orders as $order ) : ?>
 								<tr>
 									<td><?php echo esc_html( $order->code ); ?></td>
-									<td><?php echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( $order->datetime ) ) ); ?></td>
+									<td><?php echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( $order->timestamp ) ) ); ?></td>
 									<td>
 										<?php
 										$level = function_exists( 'pmpro_getLevel' ) ? pmpro_getLevel( $order->membership_id ) : null;
@@ -278,22 +280,7 @@ $saved_state = get_user_meta( $current_user->ID, 'billing_state', true );
 		 * ────────────────────────────────────────────────────────────── */ ?>
 		<div id="slms-tab-certificates" class="slms-tab-pane" role="tabpanel">
 
-			<?php
-			global $wpdb;
-			$table_name   = $wpdb->prefix . 'slms_course_history';
-			$table_exists = ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table_name ) ) === $table_name );
-			?>
-
-			<?php if ( $table_exists ) : ?>
-
-				<?php
-				$history = $wpdb->get_results(
-					$wpdb->prepare(
-						"SELECT * FROM {$table_name} WHERE user_id = %d ORDER BY completed_date DESC",
-						$current_user->ID
-					)
-				);
-				?>
+			<?php $history = \SimpleLMS\CourseHistory::get_for_user( $current_user->ID ); ?>
 
 				<?php if ( ! empty( $history ) ) : ?>
 					<table class="slms-table">
@@ -352,10 +339,6 @@ $saved_state = get_user_meta( $current_user->ID, 'billing_state', true );
 				<?php else : ?>
 					<p class="slms-empty-message"><?php esc_html_e( 'No certificates found.', 'simple-lms' ); ?></p>
 				<?php endif; ?>
-
-			<?php else : ?>
-				<p class="slms-empty-message"><?php esc_html_e( 'Course history table is not available.', 'simple-lms' ); ?></p>
-			<?php endif; ?>
 
 		</div><!-- #slms-tab-certificates -->
 

@@ -921,8 +921,6 @@ class REST
      */
     public static function get_student_history($request)
     {
-        global $wpdb;
-
         $user_id = $request->get_param('id');
         $user = get_userdata($user_id);
 
@@ -931,11 +929,7 @@ class REST
         }
 
         // 1. Query the permanent compliance table first.
-        $history_table = $wpdb->prefix . 'slms_course_history';
-        $records = $wpdb->get_results($wpdb->prepare(
-            "SELECT id, course_name, completed_date AS date, gf_entry_id FROM {$history_table} WHERE user_id = %d ORDER BY completed_date DESC",
-            $user_id
-        ));
+        $records = CourseHistory::get_for_user( $user_id );
 
         if (!empty($records)) {
             $history = array();
@@ -943,7 +937,7 @@ class REST
                 $history[] = array(
                     'id' => (int)$row->id,
                     'course_name' => self::resolve_course_name($row->course_name),
-                    'date' => $row->date,
+                    'date' => $row->completed_date,
                     'gf_entry_id' => (int)$row->gf_entry_id,
                 );
             }

@@ -1180,10 +1180,8 @@ class Migration
                         // EXPIRED PATH — purchase is older than 90 days.
                         // Create a historical order for audit/receipt purposes only.
                         // Do NOT grant an active PMPro membership.
-                        $level_price = (float)$wpdb->get_var($wpdb->prepare(
-                            "SELECT initial_payment FROM {$wpdb->prefix}pmpro_membership_levels WHERE id = %d",
-                            $level_id
-                        ));
+                        $pmpro_level = function_exists( 'pmpro_getLevel' ) ? pmpro_getLevel( $level_id ) : null;
+                        $level_price = $pmpro_level ? (float) $pmpro_level->initial_payment : 0.0;
 
                         if (class_exists('MemberOrder')) {
                             $order                      = new \MemberOrder();

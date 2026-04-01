@@ -162,6 +162,18 @@ The project has been moved to a private GitHub repository. Core features are in 
   - Removed the `'group'` key from both dashboard modules; changed `'category'` to `__('SimpleLMS', 'simple-lms')` to match `lms-complete-button`, `lms-content`, and `lms-outline` — all five SimpleLMS modules now appear together in the BB builder panel.
   - Updated `dir`/`url` in both dashboard modules to use `SLMS_PLUGIN_DIR`/`SLMS_PLUGIN_URL` constants (consistent with other modules).
   - Text domain standardised to `'simple-lms'` across all `__()` calls in both module registration files.
+- **Purchase History API Fix (Apr 2026):**
+  - Fatal error: `MemberOrder::getMemberOrders()` does not exist in the installed PMPro version.
+  - Replaced with `MemberOrder::get_orders(['user_id' => $user_id])` — the correct static PMPro API per official developer docs.
+  - Also fixed `$order->datetime` → `$order->timestamp` (actual column name in `pmpro_membership_orders`).
+  - Applied to both `slms-student-dashboard` and `lms-account-dashboard` `frontend.php`.
+- **`$wpdb` Audit & Cleanup (Apr 2026):**
+  - Audited all `$wpdb` usage across the plugin. Replaced every call that had a proper API equivalent; left only calls against custom plugin tables (`slms_course_lesson`, `slms_user_course`, `slms_course_history`) and bulk migration operations where no API exists.
+  - **Both dashboard `frontend.php` (certificates tab):** Replaced raw `$wpdb` query + `SHOW TABLES LIKE` existence check with `\SimpleLMS\CourseHistory::get_for_user($user_id)`.
+  - **`lms-complete-button/frontend.php`:** Replaced `$wpdb` postmeta `LIKE` search for parent course with `\SimpleLMS\Relationships::get_courses_for_lesson($lesson_id)`.
+  - **`lms-outline/frontend.php`:** Same replacement as complete-button.
+  - **`class-rest.php` `get_student_history()`:** Replaced `$wpdb` query on `slms_course_history` with `CourseHistory::get_for_user()`; fixed `$row->date` → `$row->completed_date` to match the actual column name; removed unused `global $wpdb`.
+  - **`class-migration.php` PMPro price lookup:** Replaced `$wpdb` query on `pmpro_membership_levels` for `initial_payment` with `pmpro_getLevel($level_id)->initial_payment`.
 
 ## Technical Details
 

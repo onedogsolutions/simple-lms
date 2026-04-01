@@ -29,12 +29,9 @@ if (!$post || !in_array($post->post_type, array('slms_course', 'slms_lesson'), t
 // Find the course ID.
 $course_id = $post->ID;
 if ('slms_lesson' === $post->post_type) {
-    // We need to find the parent course.
-    global $wpdb;
-    $course_id = (int)$wpdb->get_var($wpdb->prepare(
-        "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_simple_lms_order' AND meta_value LIKE %s",
-        '%' . $wpdb->esc_like(sprintf('i:%d;', $post->ID)) . '%'
-    ));
+    // Find the parent course via the M2M relationship table.
+    $courses   = \SimpleLMS\Relationships::get_courses_for_lesson( $post->ID );
+    $course_id = ! empty( $courses ) ? (int) $courses[0]->id : 0;
 }
 
 if (!$course_id) {
