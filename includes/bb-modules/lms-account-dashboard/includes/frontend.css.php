@@ -1,15 +1,17 @@
 <?php
 /**
- * LMS Account Dashboard – Dynamic CSS
+ * Student Dashboard – Dynamic CSS
  *
- * Maps every BB settings field to its HTML selector.
- * $settings and $id are injected by Beaver Builder's template engine.
+ * Maps every BB settings field to its corresponding HTML selector.
  *
- * @package SimpleLMS
+ * Available helpers (standard Beaver Builder API):
+ *   FLBuilderCSS::rule()                  – generic property/value rule
+ *   FLBuilderCSS::border_field_rule()     – border group (style/width/color/radius/shadow)
+ *   FLBuilderCSS::typography_field_rule() – typography group
+ *   FLBuilderCSS::dimension_field_rule()  – dimension group (padding/margin)
  */
 
-// ── Safe color output ─────────────────────────────────────────────────────
-// BB stores hex values without `#`; show_alpha stores rgba() strings.
+// ── Helper: safe hex output (handles plain hex or rgba strings) ────────────
 if ( ! function_exists( 'slms_color' ) ) {
 	function slms_color( $value ) {
 		if ( empty( $value ) ) {
@@ -22,10 +24,7 @@ if ( ! function_exists( 'slms_color' ) ) {
 	}
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-// TABS STYLE
-// ════════════════════════════════════════════════════════════════════════════
-
+// SECTION 1 – TABS STYLE
 FLBuilderCSS::typography_field_rule( array(
 	'settings'     => $settings,
 	'setting_name' => 'tab_typography',
@@ -80,8 +79,7 @@ FLBuilderCSS::border_field_rule( array(
 	<?php endif; ?>
 }
 
-.fl-node-<?php echo $id; ?> .slms-tabs-nav .slms-tab-link.active,
-.fl-node-<?php echo $id; ?> .slms-tabs-nav .slms-tab-link.active:hover {
+.fl-node-<?php echo $id; ?> .slms-tabs-nav .slms-tab-link.active {
 	<?php if ( ! empty( $settings->tab_active_bg_color ) ) : ?>
 	background-color: <?php echo slms_color( $settings->tab_active_bg_color ); ?>;
 	<?php endif; ?>
@@ -100,10 +98,7 @@ FLBuilderCSS::border_field_rule( array(
 }
 
 <?php
-// ════════════════════════════════════════════════════════════════════════════
-// FORM STYLE: INPUTS
-// ════════════════════════════════════════════════════════════════════════════
-
+// SECTION 2 – FORM STYLE
 FLBuilderCSS::typography_field_rule( array(
 	'settings'     => $settings,
 	'setting_name' => 'input_typography',
@@ -159,10 +154,7 @@ FLBuilderCSS::border_field_rule( array(
 }
 
 <?php
-// ════════════════════════════════════════════════════════════════════════════
-// FORM STYLE: BUTTON
-// ════════════════════════════════════════════════════════════════════════════
-
+// SECTION 3 – BUTTON STYLE
 FLBuilderCSS::typography_field_rule( array(
 	'settings'     => $settings,
 	'setting_name' => 'button_typography',
@@ -198,8 +190,7 @@ FLBuilderCSS::border_field_rule( array(
 	<?php endif; ?>
 }
 
-.fl-node-<?php echo $id; ?> .slms-profile-form .slms-submit-btn:hover,
-.fl-node-<?php echo $id; ?> .slms-profile-form .slms-submit-btn:focus {
+.fl-node-<?php echo $id; ?> .slms-profile-form .slms-submit-btn:hover {
 	<?php if ( ! empty( $settings->button_hover_bg_color ) ) : ?>
 	background-color: <?php echo slms_color( $settings->button_hover_bg_color ); ?>;
 	<?php endif; ?>

@@ -15,25 +15,20 @@
  * @package SimpleLMS
  */
 
-namespace SimpleLMS;
-
-if ( ! defined( 'ABSPATH' ) ) {
-	exit;
-}
-
 /**
- * Class LMSAccountDashboardModule
+ * @class LMSAccountDashboardModule
  */
-class LMSAccountDashboardModule extends \FLBuilderModule {
+class LMSAccountDashboardModule extends FLBuilderModule {
 
 	public function __construct() {
 		parent::__construct(
 			array(
-				'name'            => __( 'LMS Account Dashboard', 'simple-lms-bridge' ),
-				'description'     => __( 'Displays the student profile, purchase history, and certificates.', 'simple-lms-bridge' ),
-				'category'        => __( 'SimpleLMS', 'simple-lms-bridge' ),
-				'dir'             => SLMS_PLUGIN_DIR . 'includes/bb-modules/lms-account-dashboard/',
-				'url'             => SLMS_PLUGIN_URL . 'includes/bb-modules/lms-account-dashboard/',
+				'name'            => __( 'LMS Account Dashboard', 'simple-lms' ),
+				'description'     => __( 'Displays the student profile, purchase history, and certificates.', 'simple-lms' ),
+				'group'           => __( 'Simple LMS', 'simple-lms' ),
+				'category'        => __( 'LMS Components', 'simple-lms' ),
+				'dir'             => plugin_dir_path( __FILE__ ),
+				'url'             => plugin_dir_url( __FILE__ ),
 				'editor_export'   => true,
 				'enabled'         => true,
 				'partial_refresh' => true,
