@@ -20,15 +20,21 @@ import MigrationTool from './components/MigrationTool';
 import DebugLog from './components/DebugLog';
 
 const mount = () => {
-	const root = document.getElementById( 'slms-admin-root' );
+	const postId = window.slmsAdmin?.postId;
+	const postType = window.slmsAdmin?.postType;
+	const page = window.slmsAdmin?.page;
+
+	let rootId = 'slms-admin-root';
+	if ( page === 'slms-migration' ) {
+		rootId = 'slms-migration-root';
+	}
+	
+	const root = document.getElementById( rootId ) || document.getElementById( 'slms-admin-root' );
 	if ( ! root ) {
 		return;
 	}
 
 	let App;
-	const postId = window.slmsAdmin?.postId;
-	const postType = window.slmsAdmin?.postType;
-	const page = window.slmsAdmin?.page;
 
 	if ( postType === 'slms_course' ) {
 		App = <CourseEditor postId={ postId } />;
