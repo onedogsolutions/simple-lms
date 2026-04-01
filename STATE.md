@@ -155,6 +155,13 @@ The project has been moved to a private GitHub repository. Core features are in 
   - Consolidated both `lms-account-dashboard` and `slms-student-dashboard` into a self-contained architecture.
   - Verified React admin UI builds cleanly with Tailwind v4.
   - Generated production-ready `simple-lms-bridge.zip` for deployment.
+- **BB Module Critical Error Fix & Panel Grouping (Apr 2026):**
+  - Fixed a critical PHP fatal error in `lms-account-dashboard`: the `namespace SimpleLMS;` declaration had been removed but `\FLBuilder::register_module()` still referenced `'SimpleLMS\LMSAccountDashboardModule'` — class was in global scope so BB could not find it. Namespace restored.
+  - Added `namespace SimpleLMS;` to `slms-student-dashboard.php` and updated its `register_module()` call to `'SimpleLMS\SLMSStudentDashboardModule'` for consistency.
+  - Both modules now extend `\FLBuilderModule` (backslash-qualified from within the namespace).
+  - Removed the `'group'` key from both dashboard modules; changed `'category'` to `__('SimpleLMS', 'simple-lms')` to match `lms-complete-button`, `lms-content`, and `lms-outline` — all five SimpleLMS modules now appear together in the BB builder panel.
+  - Updated `dir`/`url` in both dashboard modules to use `SLMS_PLUGIN_DIR`/`SLMS_PLUGIN_URL` constants (consistent with other modules).
+  - Text domain standardised to `'simple-lms'` across all `__()` calls in both module registration files.
 
 ## Technical Details
 

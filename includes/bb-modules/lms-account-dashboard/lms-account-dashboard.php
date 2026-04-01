@@ -2,33 +2,28 @@
 /**
  * LMS Account Dashboard – Beaver Builder Module
  *
- * This module was the original account dashboard. It has been upgraded
- * in-place to render the new slms-student-dashboard UI (tabbed profile,
- * purchase history, and certificates) so existing Beaver Builder page
- * layouts continue working without a manual module swap.
- *
- * All rendering is delegated to:
- *   includes/bb-modules/slms-student-dashboard/includes/frontend.php
- *   includes/bb-modules/slms-student-dashboard/includes/frontend.css.php
- *   includes/bb-modules/slms-student-dashboard/includes/frontend.js
+ * Original account dashboard module, upgraded in-place to the native tabbed
+ * UI (profile, purchase history, certificates) so existing BB page layouts
+ * continue working without a manual module swap.
  *
  * @package SimpleLMS
  */
 
+namespace SimpleLMS;
+
 /**
  * @class LMSAccountDashboardModule
  */
-class LMSAccountDashboardModule extends FLBuilderModule {
+class LMSAccountDashboardModule extends \FLBuilderModule {
 
 	public function __construct() {
 		parent::__construct(
 			array(
 				'name'            => __( 'LMS Account Dashboard', 'simple-lms' ),
 				'description'     => __( 'Displays the student profile, purchase history, and certificates.', 'simple-lms' ),
-				'group'           => __( 'Simple LMS', 'simple-lms' ),
-				'category'        => __( 'LMS Components', 'simple-lms' ),
-				'dir'             => plugin_dir_path( __FILE__ ),
-				'url'             => plugin_dir_url( __FILE__ ),
+				'category'        => __( 'SimpleLMS', 'simple-lms' ),
+				'dir'             => SLMS_PLUGIN_DIR . 'includes/bb-modules/lms-account-dashboard/',
+				'url'             => SLMS_PLUGIN_URL . 'includes/bb-modules/lms-account-dashboard/',
 				'editor_export'   => true,
 				'enabled'         => true,
 				'partial_refresh' => true,
@@ -45,16 +40,16 @@ class LMSAccountDashboardModule extends FLBuilderModule {
 		// TAB: Tabs Style
 		// ─────────────────────────────────────────────────────────────
 		'tabs_style' => array(
-			'title'    => __( 'Tabs Style', 'simple-lms-bridge' ),
+			'title'    => __( 'Tabs Style', 'simple-lms' ),
 			'sections' => array(
 
 				'tab_colors' => array(
-					'title'  => __( 'Tab Colors', 'simple-lms-bridge' ),
+					'title'  => __( 'Tab Colors', 'simple-lms' ),
 					'fields' => array(
 
 						'tab_bg_color' => array(
 							'type'        => 'color',
-							'label'       => __( 'Tab Background', 'simple-lms-bridge' ),
+							'label'       => __( 'Tab Background', 'simple-lms' ),
 							'default'     => 'f5f5f5',
 							'show_reset'  => true,
 							'show_alpha'  => true,
@@ -68,7 +63,7 @@ class LMSAccountDashboardModule extends FLBuilderModule {
 
 						'tab_active_bg_color' => array(
 							'type'        => 'color',
-							'label'       => __( 'Active Tab Background', 'simple-lms-bridge' ),
+							'label'       => __( 'Active Tab Background', 'simple-lms' ),
 							'default'     => 'ffffff',
 							'show_reset'  => true,
 							'show_alpha'  => true,
@@ -82,7 +77,7 @@ class LMSAccountDashboardModule extends FLBuilderModule {
 
 						'tab_text_color' => array(
 							'type'        => 'color',
-							'label'       => __( 'Tab Text Color', 'simple-lms-bridge' ),
+							'label'       => __( 'Tab Text Color', 'simple-lms' ),
 							'default'     => '333333',
 							'show_reset'  => true,
 							'connections' => array( 'color' ),
@@ -95,7 +90,7 @@ class LMSAccountDashboardModule extends FLBuilderModule {
 
 						'tab_active_text_color' => array(
 							'type'        => 'color',
-							'label'       => __( 'Active Tab Text Color', 'simple-lms-bridge' ),
+							'label'       => __( 'Active Tab Text Color', 'simple-lms' ),
 							'default'     => '000000',
 							'show_reset'  => true,
 							'connections' => array( 'color' ),
@@ -108,7 +103,7 @@ class LMSAccountDashboardModule extends FLBuilderModule {
 
 						'tab_hover_bg_color' => array(
 							'type'        => 'color',
-							'label'       => __( 'Tab Hover Background', 'simple-lms-bridge' ),
+							'label'       => __( 'Tab Hover Background', 'simple-lms' ),
 							'default'     => '',
 							'show_reset'  => true,
 							'show_alpha'  => true,
@@ -117,7 +112,7 @@ class LMSAccountDashboardModule extends FLBuilderModule {
 
 						'tab_hover_text_color' => array(
 							'type'        => 'color',
-							'label'       => __( 'Tab Hover Text Color', 'simple-lms-bridge' ),
+							'label'       => __( 'Tab Hover Text Color', 'simple-lms' ),
 							'default'     => '',
 							'show_reset'  => true,
 							'connections' => array( 'color' ),
@@ -127,13 +122,13 @@ class LMSAccountDashboardModule extends FLBuilderModule {
 				),
 
 				'tab_typography_section' => array(
-					'title'     => __( 'Typography', 'simple-lms-bridge' ),
+					'title'     => __( 'Typography', 'simple-lms' ),
 					'collapsed' => true,
 					'fields'    => array(
 
 						'tab_typography' => array(
 							'type'       => 'typography',
-							'label'      => __( 'Tab Typography', 'simple-lms-bridge' ),
+							'label'      => __( 'Tab Typography', 'simple-lms' ),
 							'responsive' => true,
 						),
 
@@ -141,13 +136,13 @@ class LMSAccountDashboardModule extends FLBuilderModule {
 				),
 
 				'tab_spacing_section' => array(
-					'title'     => __( 'Padding & Margin', 'simple-lms-bridge' ),
+					'title'     => __( 'Padding & Margin', 'simple-lms' ),
 					'collapsed' => true,
 					'fields'    => array(
 
 						'tab_padding' => array(
 							'type'       => 'dimension',
-							'label'      => __( 'Tab Padding', 'simple-lms-bridge' ),
+							'label'      => __( 'Tab Padding', 'simple-lms' ),
 							'responsive' => true,
 							'units'      => array( 'px', 'em', '%' ),
 							'slider'     => true,
@@ -155,7 +150,7 @@ class LMSAccountDashboardModule extends FLBuilderModule {
 
 						'tab_margin' => array(
 							'type'       => 'dimension',
-							'label'      => __( 'Tab Margin', 'simple-lms-bridge' ),
+							'label'      => __( 'Tab Margin', 'simple-lms' ),
 							'responsive' => true,
 							'units'      => array( 'px', 'em', '%' ),
 							'slider'     => true,
@@ -165,19 +160,19 @@ class LMSAccountDashboardModule extends FLBuilderModule {
 				),
 
 				'tab_border_section' => array(
-					'title'     => __( 'Border', 'simple-lms-bridge' ),
+					'title'     => __( 'Border', 'simple-lms' ),
 					'collapsed' => true,
 					'fields'    => array(
 
 						'tab_border_group' => array(
 							'type'       => 'border',
-							'label'      => __( 'Tab Border', 'simple-lms-bridge' ),
+							'label'      => __( 'Tab Border', 'simple-lms' ),
 							'responsive' => true,
 						),
 
 						'tab_active_border_group' => array(
 							'type'       => 'border',
-							'label'      => __( 'Active Tab Border', 'simple-lms-bridge' ),
+							'label'      => __( 'Active Tab Border', 'simple-lms' ),
 							'responsive' => true,
 						),
 
@@ -191,16 +186,16 @@ class LMSAccountDashboardModule extends FLBuilderModule {
 		// TAB: Form Style
 		// ─────────────────────────────────────────────────────────────
 		'form_style' => array(
-			'title'    => __( 'Form Style', 'simple-lms-bridge' ),
+			'title'    => __( 'Form Style', 'simple-lms' ),
 			'sections' => array(
 
 				'input_general' => array(
-					'title'  => __( 'Input Fields', 'simple-lms-bridge' ),
+					'title'  => __( 'Input Fields', 'simple-lms' ),
 					'fields' => array(
 
 						'input_bg_color' => array(
 							'type'        => 'color',
-							'label'       => __( 'Input Background', 'simple-lms-bridge' ),
+							'label'       => __( 'Input Background', 'simple-lms' ),
 							'default'     => 'ffffff',
 							'show_reset'  => true,
 							'show_alpha'  => true,
@@ -209,7 +204,7 @@ class LMSAccountDashboardModule extends FLBuilderModule {
 
 						'input_text_color' => array(
 							'type'        => 'color',
-							'label'       => __( 'Input Text Color', 'simple-lms-bridge' ),
+							'label'       => __( 'Input Text Color', 'simple-lms' ),
 							'default'     => '333333',
 							'show_reset'  => true,
 							'connections' => array( 'color' ),
@@ -217,7 +212,7 @@ class LMSAccountDashboardModule extends FLBuilderModule {
 
 						'input_label_color' => array(
 							'type'        => 'color',
-							'label'       => __( 'Label Color', 'simple-lms-bridge' ),
+							'label'       => __( 'Label Color', 'simple-lms' ),
 							'default'     => '555555',
 							'show_reset'  => true,
 							'connections' => array( 'color' ),
@@ -225,7 +220,7 @@ class LMSAccountDashboardModule extends FLBuilderModule {
 
 						'input_padding' => array(
 							'type'       => 'dimension',
-							'label'      => __( 'Input Padding', 'simple-lms-bridge' ),
+							'label'      => __( 'Input Padding', 'simple-lms' ),
 							'responsive' => true,
 							'units'      => array( 'px', 'em' ),
 							'slider'     => true,
@@ -233,7 +228,7 @@ class LMSAccountDashboardModule extends FLBuilderModule {
 
 						'input_typography' => array(
 							'type'       => 'typography',
-							'label'      => __( 'Input Typography', 'simple-lms-bridge' ),
+							'label'      => __( 'Input Typography', 'simple-lms' ),
 							'responsive' => true,
 						),
 
@@ -241,13 +236,13 @@ class LMSAccountDashboardModule extends FLBuilderModule {
 				),
 
 				'input_focus' => array(
-					'title'     => __( 'Input Focus State', 'simple-lms-bridge' ),
+					'title'     => __( 'Input Focus State', 'simple-lms' ),
 					'collapsed' => true,
 					'fields'    => array(
 
 						'input_focus_bg_color' => array(
 							'type'        => 'color',
-							'label'       => __( 'Focus Background Color', 'simple-lms-bridge' ),
+							'label'       => __( 'Focus Background Color', 'simple-lms' ),
 							'default'     => '',
 							'show_reset'  => true,
 							'show_alpha'  => true,
@@ -256,7 +251,7 @@ class LMSAccountDashboardModule extends FLBuilderModule {
 
 						'input_focus_border_color' => array(
 							'type'        => 'color',
-							'label'       => __( 'Focus Border Color', 'simple-lms-bridge' ),
+							'label'       => __( 'Focus Border Color', 'simple-lms' ),
 							'default'     => '719ece',
 							'show_reset'  => true,
 							'connections' => array( 'color' ),
@@ -264,7 +259,7 @@ class LMSAccountDashboardModule extends FLBuilderModule {
 
 						'input_focus_text_color' => array(
 							'type'        => 'color',
-							'label'       => __( 'Focus Text Color', 'simple-lms-bridge' ),
+							'label'       => __( 'Focus Text Color', 'simple-lms' ),
 							'default'     => '',
 							'show_reset'  => true,
 							'connections' => array( 'color' ),
@@ -274,13 +269,13 @@ class LMSAccountDashboardModule extends FLBuilderModule {
 				),
 
 				'input_border' => array(
-					'title'     => __( 'Input Border & Shadow', 'simple-lms-bridge' ),
+					'title'     => __( 'Input Border & Shadow', 'simple-lms' ),
 					'collapsed' => true,
 					'fields'    => array(
 
 						'input_border_group' => array(
 							'type'       => 'border',
-							'label'      => __( 'Border', 'simple-lms-bridge' ),
+							'label'      => __( 'Border', 'simple-lms' ),
 							'responsive' => true,
 						),
 
@@ -288,13 +283,13 @@ class LMSAccountDashboardModule extends FLBuilderModule {
 				),
 
 				'button_style' => array(
-					'title'     => __( 'Button', 'simple-lms-bridge' ),
+					'title'     => __( 'Button', 'simple-lms' ),
 					'collapsed' => true,
 					'fields'    => array(
 
 						'button_bg_color' => array(
 							'type'        => 'color',
-							'label'       => __( 'Background Color', 'simple-lms-bridge' ),
+							'label'       => __( 'Background Color', 'simple-lms' ),
 							'default'     => '0073aa',
 							'show_reset'  => true,
 							'show_alpha'  => true,
@@ -303,7 +298,7 @@ class LMSAccountDashboardModule extends FLBuilderModule {
 
 						'button_hover_bg_color' => array(
 							'type'        => 'color',
-							'label'       => __( 'Background Hover Color', 'simple-lms-bridge' ),
+							'label'       => __( 'Background Hover Color', 'simple-lms' ),
 							'default'     => '005177',
 							'show_reset'  => true,
 							'show_alpha'  => true,
@@ -312,7 +307,7 @@ class LMSAccountDashboardModule extends FLBuilderModule {
 
 						'button_text_color' => array(
 							'type'        => 'color',
-							'label'       => __( 'Text Color', 'simple-lms-bridge' ),
+							'label'       => __( 'Text Color', 'simple-lms' ),
 							'default'     => 'ffffff',
 							'show_reset'  => true,
 							'connections' => array( 'color' ),
@@ -320,7 +315,7 @@ class LMSAccountDashboardModule extends FLBuilderModule {
 
 						'button_hover_text_color' => array(
 							'type'        => 'color',
-							'label'       => __( 'Text Hover Color', 'simple-lms-bridge' ),
+							'label'       => __( 'Text Hover Color', 'simple-lms' ),
 							'default'     => '',
 							'show_reset'  => true,
 							'connections' => array( 'color' ),
@@ -328,7 +323,7 @@ class LMSAccountDashboardModule extends FLBuilderModule {
 
 						'button_padding' => array(
 							'type'       => 'dimension',
-							'label'      => __( 'Button Padding', 'simple-lms-bridge' ),
+							'label'      => __( 'Button Padding', 'simple-lms' ),
 							'responsive' => true,
 							'units'      => array( 'px', 'em' ),
 							'slider'     => true,
@@ -336,13 +331,13 @@ class LMSAccountDashboardModule extends FLBuilderModule {
 
 						'button_border_group' => array(
 							'type'       => 'border',
-							'label'      => __( 'Button Border', 'simple-lms-bridge' ),
+							'label'      => __( 'Button Border', 'simple-lms' ),
 							'responsive' => true,
 						),
 
 						'button_typography' => array(
 							'type'       => 'typography',
-							'label'      => __( 'Button Typography', 'simple-lms-bridge' ),
+							'label'      => __( 'Button Typography', 'simple-lms' ),
 							'responsive' => true,
 						),
 

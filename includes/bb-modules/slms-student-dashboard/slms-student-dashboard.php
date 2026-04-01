@@ -1,5 +1,7 @@
 <?php
 
+namespace SimpleLMS;
+
 /**
  * @class SLMSStudentDashboardModule
  *
@@ -8,16 +10,15 @@
  *   - PowerPack Gravity Form
  *   - Gravity Perks Entry Blocks
  */
-class SLMSStudentDashboardModule extends FLBuilderModule {
+class SLMSStudentDashboardModule extends \FLBuilderModule {
 
 	public function __construct() {
 		parent::__construct( array(
 			'name'            => __( 'Student Dashboard', 'simple-lms' ),
 			'description'     => __( 'Consolidated student profile, purchase history, and certificates.', 'simple-lms' ),
-			'group'           => __( 'Simple LMS', 'simple-lms' ),
-			'category'        => __( 'LMS Components', 'simple-lms' ),
-			'dir'             => plugin_dir_path( __FILE__ ),
-			'url'             => plugin_dir_url( __FILE__ ),
+			'category'        => __( 'SimpleLMS', 'simple-lms' ),
+			'dir'             => SLMS_PLUGIN_DIR . 'includes/bb-modules/slms-student-dashboard/',
+			'url'             => SLMS_PLUGIN_URL . 'includes/bb-modules/slms-student-dashboard/',
 			'editor_export'   => true,
 			'enabled'         => true,
 			'partial_refresh' => true,
@@ -25,7 +26,7 @@ class SLMSStudentDashboardModule extends FLBuilderModule {
 	}
 }
 
-FLBuilder::register_module( 'SLMSStudentDashboardModule', array(
+\FLBuilder::register_module( 'SimpleLMS\SLMSStudentDashboardModule', array(
 
 	// ─────────────────────────────────────────────────────────────
 	// TAB: Tabs Style
