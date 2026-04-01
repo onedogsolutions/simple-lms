@@ -118,6 +118,7 @@ The project has been moved to a private GitHub repository. Core features are in 
   - **Active De-enrollment:** Enforced explicit removal of students from `wp_slms_user_course` once a certificate is successfully migrated or verified.
   - **Retroactive Graduation Cleanup:** Created `slms_retroactive_graduation_cleanup()` to identify and graduate "stuck" students whose lesson progress is 100% complete and who possess a valid history record.
   - **Automated Deployment Pipeline:** Created `deploy.sh` to automate building assets, packaging the plugin zip (excluding source/dev files), and pushing updates to GitHub.
+- **UI Cleanup:** Permanent removal of the legacy global admin migration nag banner in favor of the dedicated React Migration Tool UI.
 
 ## Technical Details
 

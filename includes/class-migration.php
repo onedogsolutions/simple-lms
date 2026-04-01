@@ -37,8 +37,6 @@ class Migration
     {
         // Add migration action handler.
         add_action('admin_post_slms_migrate_wpc', array(__CLASS__, 'run_wpc_migration'));
-
-        // Add admin notice if migration is needed.
     }
 
     /**
@@ -134,26 +132,6 @@ class Migration
         return $entries;
     }
 
-    /**
-     * Display a notice if WP Complete data is found but not migrated.
-     *
-     * @return void
-     */
-
-        // Check if we have users with 'wpcomplete' meta.
-        $count = self::get_pending_migration_count();
-
-        if ($count > 0) {
-            $migration_url = admin_url('admin.php?page=slms-students&migrate=1');
-            echo '<div class="notice notice-info is-dismissible"><p>';
-            printf(
-                __('SimpleLMS detected WP Complete data for %d users. <a href="%s" class="button button-primary">Migrate Progress to SimpleLMS</a>', 'simple-lms-bridge'),
-                $count,
-                esc_url($migration_url)
-            );
-            echo '</p></div>';
-        }
-    }
 
     /**
      * Run the student progress migration from WP Complete.
