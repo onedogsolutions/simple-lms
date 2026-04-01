@@ -174,6 +174,10 @@ The project has been moved to a private GitHub repository. Core features are in 
   - **`lms-outline/frontend.php`:** Same replacement as complete-button.
   - **`class-rest.php` `get_student_history()`:** Replaced `$wpdb` query on `slms_course_history` with `CourseHistory::get_for_user()`; fixed `$row->date` → `$row->completed_date` to match the actual column name; removed unused `global $wpdb`.
   - **`class-migration.php` PMPro price lookup:** Replaced `$wpdb` query on `pmpro_membership_levels` for `initial_payment` with `pmpro_getLevel($level_id)->initial_payment`.
+- **Parse Error Fix — Orphaned `else` in Purchase History tab (Apr 2026):**
+  - `PHP Parse error: syntax error, unexpected token "else"` on line 272 of `slms-student-dashboard/includes/frontend.php`.
+  - Root cause: when the `class_exists('MemberOrder')` wrapper was removed during the `MemberOrder::get_orders()` refactor, its matching `else`/`endif` block ("Paid Memberships Pro is not active.") was left behind, producing a dangling `else` with no opening `if`.
+  - Fixed by removing the orphaned `else` and `endif` from the Purchase History tab in `slms-student-dashboard/includes/frontend.php`.
 
 ## Technical Details
 

@@ -269,10 +269,6 @@ $saved_state = get_user_meta( $current_user->ID, 'billing_state', true );
 					<p class="slms-empty-message"><?php esc_html_e( 'No purchase history found.', 'simple-lms' ); ?></p>
 				<?php endif; ?>
 
-			<?php else : ?>
-				<p class="slms-empty-message"><?php esc_html_e( 'Paid Memberships Pro is not active.', 'simple-lms' ); ?></p>
-			<?php endif; ?>
-
 		</div><!-- #slms-tab-history -->
 
 		<?php /* ──────────────────────────────────────────────────────────────
