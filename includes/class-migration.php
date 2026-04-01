@@ -940,6 +940,22 @@ class Migration
                 ),
                     array('%d', '%s', '%s', '%d')
                 );
+                
+                // After successfully inserting a certificate, proactively remove that $user_id from the wp_slms_user_course table.
+                $new_course_id = $wpdb->get_var($wpdb->prepare(
+                    "SELECT ID FROM {$wpdb->posts} WHERE post_title = %s AND post_type = 'slms_course' LIMIT 1",
+                    $course_name
+                ));
+
+                if ($new_course_id) {
+                    $wpdb->delete(
+                        $wpdb->prefix . 'slms_user_course',
+                        array('user_id' => $user_id, 'course_id' => $new_course_id),
+                        array('%d', '%d')
+                    );
+                    self::log($user_label . ': retroactive enrollment cleanup for course "' . $course_name . '" (ID: ' . $new_course_id . ').', 'debug');
+                }
+                
                 $inserted++;
             }
 
@@ -1193,7 +1209,7 @@ class Migration
                             self::log($user_label . ': MemberOrder class unavailable — skipping historical order for level ' . $level_id . '.', 'warn');
                         }
 
-                        Relationships::enroll_user($user_id, $new_course_id, 'pmpro_migration_expired');
+                        // Relationships::enroll_user($user_id, $new_course_id, 'pmpro_migration_expired');
                         $enrolled_expired++;
                     } else {
                         // ACTIVE PATH — purchase is within the 90-day window.

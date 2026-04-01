@@ -109,7 +109,9 @@ The project has been moved to a private GitHub repository. Core features are in 
     - Panel gating updated: Phase 2 (PMPro) unlocks after Phase 1; Phase 3 (Progress) unlocks after Phase 2; Phase 4 (History) unlocks after Phase 3.
     - JSX panels reordered to match new phase sequence.
     - `resetPhase4` renamed to `resetPhase2` with updated confirm/notice text.
-    - All button labels, descriptions, busy states, and waiting messages updated.
+  - **Ghost Enrollment Fix (Mar 2026):**
+    - Removed `pmpro_migration_expired` auto-enrollment for memberships older than 90 days in Phase 2.
+    - Added retroactive active-enrollment cleanup in Phase 4; finding a historical certificate now triggers immediate removal from the active student enrollment table.
 
 ## Technical Details
 
