@@ -137,7 +137,7 @@ The project has been moved to a private GitHub repository. Core features are in 
 - [x] **Beaver Builder Integration:** Implement modules for course/lesson display.
 - [x] **Certificate Automation:** Ensure certificates are generated and access is revoked automatically.
 - [x] **Migration Utility:** Build tool to migrate data from WP Complete.
-- [x] **Student Dashboard BB Module:** New 3-tab BB module (profile, purchase history, certificates).
+- [x] **Student Dashboard BB Module:** Rebuilt `slms-student-dashboard` from scratch to natively replace PowerPack Advanced Tabs, PowerPack Gravity Forms, and Gravity Perks Entry Blocks. Uses direct `MemberOrder` querying and `wp_slms_course_history` table for fully styleable PMPro history and Certificates tables via BB settings.
 - [x] **Admin Menu Hierarchy:** Fix disconnected menus and group under SimpleLMS hub.
 - [x] **Student Manager UI:** Modernize with Tailwind CSS and detailed progress views.
 - [x] **Migration Logging:** Added structured diagnostic logging across all migration phases.
