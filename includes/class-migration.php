@@ -941,19 +941,41 @@ class Migration
                     array('%d', '%s', '%s', '%d')
                 );
                 
-                // After successfully inserting a certificate, proactively remove that $user_id from the wp_slms_user_course table.
+                // 1. Resolve Course ID: Try exact match first, fallback to fuzzy LIKE match.
                 $new_course_id = $wpdb->get_var($wpdb->prepare(
                     "SELECT ID FROM {$wpdb->posts} WHERE post_title = %s AND post_type = 'slms_course' LIMIT 1",
                     $course_name
                 ));
 
+                if (!$new_course_id) {
+                    // Fuzzy match fallback: strip common words and punctuation.
+                    $fuzzy_name = preg_replace('/[^a-zA-Z0-9\s]/', '', $course_name);
+                    $fuzzy_name = str_ireplace(array('Course', 'Hr', 'Hrs', 'Hour', 'Hours'), '', $fuzzy_name);
+                    $fuzzy_name = trim(preg_replace('/\s+/', ' ', $fuzzy_name));
+
+                    if (!empty($fuzzy_name)) {
+                        $new_course_id = $wpdb->get_var($wpdb->prepare(
+                            "SELECT ID FROM {$wpdb->posts} WHERE post_title LIKE %s AND post_type = 'slms_course' LIMIT 1",
+                            '%' . $wpdb->esc_like($fuzzy_name) . '%'
+                        ));
+
+                        if ($new_course_id) {
+                            self::log($user_label . ': Fuzzy match success for "' . $course_name . '" -> resolved to course ID ' . $new_course_id . ' using search string "' . $fuzzy_name . '".', 'info');
+                        }
+                    }
+                }
+
+                // 2. Active Enrollment Cleanup: If a certificate exists/was just logged, remove active enrollment.
                 if ($new_course_id) {
-                    $wpdb->delete(
+                    $deleted = $wpdb->delete(
                         $wpdb->prefix . 'slms_user_course',
                         array('user_id' => $user_id, 'course_id' => $new_course_id),
                         array('%d', '%d')
                     );
-                    self::log($user_label . ': retroactive enrollment cleanup for course "' . $course_name . '" (ID: ' . $new_course_id . ').', 'debug');
+                    
+                    if ($deleted) {
+                        self::log($user_label . ': retroactive enrollment cleanup for course "' . $course_name . '" (ID: ' . $new_course_id . ').', 'debug');
+                    }
                 }
                 
                 $inserted++;
@@ -1633,4 +1655,84 @@ class Migration
         ));
         return $query->found_posts;
     }
-} 
+
+    /**
+     * Task 2: Retroactive Graduation Cleanup.
+     * Identifies students who have completed all lessons but are still in the active enrollment table.
+     *
+     * @return void
+     */
+    public static function slms_retroactive_graduation_cleanup()
+    {
+        self::log('Starting retroactive graduation cleanup script.');
+        global $wpdb;
+
+        $user_course_table = $wpdb->prefix . 'slms_user_course';
+        $course_history_table = $wpdb->prefix . 'slms_course_history';
+        $course_lesson_table = $wpdb->prefix . 'slms_course_lesson';
+
+        // 1. Get all users with progress data.
+        $user_ids = $wpdb->get_col("SELECT user_id FROM {$wpdb->usermeta} WHERE meta_key = '_lms_progress'");
+
+        if (empty($user_ids)) {
+            self::log('No users with progress metadata found.', 'info');
+            return;
+        }
+
+        $graduated_count = 0;
+
+        foreach ($user_ids as $user_id) {
+            $user_id = (int)$user_id;
+            $progress = \get_user_meta($user_id, '_lms_progress', true);
+            
+            if (!is_array($progress)) {
+                continue;
+            }
+
+            foreach ($progress as $course_id => $lessons_done) {
+                $course_id = (int)$course_id;
+                
+                // 2. Determine total lessons assigned to this course.
+                $total_lessons = (int)$wpdb->get_var($wpdb->prepare(
+                    "SELECT COUNT(*) FROM {$course_lesson_table} WHERE course_id = %d",
+                    $course_id
+                ));
+
+                if ($total_lessons === 0) {
+                    continue; // Course has no lessons or doesn't exist.
+                }
+
+                $completed_count = is_array($lessons_done) ? count($lessons_done) : 0;
+
+                // 3. If progress matches total, check history.
+                if ($completed_count >= $total_lessons) {
+                    // Look for corresponding history record.
+                    $history_exists = $wpdb->get_var($wpdb->prepare(
+                        "SELECT id FROM {$course_history_table} WHERE user_id = %d AND 
+                         (course_name = (SELECT post_title FROM {$wpdb->posts} WHERE ID = %d) OR 
+                          course_name LIKE (SELECT CONCAT('%', post_title, '%') FROM {$wpdb->posts} WHERE ID = %d))",
+                        $user_id, $course_id, $course_id
+                    ));
+
+                    if ($history_exists) {
+                        // 4. Actively delete from user_course (active enrollment).
+                        $deleted = $wpdb->delete(
+                            $user_course_table,
+                            array('user_id' => $user_id, 'course_id' => $course_id),
+                            array('%d', '%d')
+                        );
+
+                        if ($deleted) {
+                            $user = \get_userdata($user_id);
+                            $user_label = $user ? $user->user_email : 'UID:' . $user_id;
+                            self::log('Retroactive Graduation: De-enrolled ' . $user_label . ' from course ID ' . $course_id . ' (Progress: ' . $completed_count . '/' . $total_lessons . ').', 'info');
+                            $graduated_count++;
+                        }
+                    }
+                }
+            }
+        }
+
+        self::log('Retroactive graduation cleanup complete. Total students graduated: ' . $graduated_count);
+    }
+}

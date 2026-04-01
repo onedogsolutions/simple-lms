@@ -1,22 +1,31 @@
 #!/bin/bash
 
-# Simple LMS Bridge Deployment Script
-# Steps: Build assets, Zip plugin, Git Commit, Git Push
+# Deployment Pipeline for One Dog Solutions LMS
 
-echo "Step 1: Running npm run build..."
+echo "🚀 Starting build and deployment process..."
+
+# 1. Compile React components and Tailwind CSS v4
+echo "📦 Building assets..."
 npm run build
+if [ $? -ne 0 ]; then
+    echo "❌ Build failed. Aborting deployment."
+    exit 1
+fi
 
-echo "Step 2: Creating plugin zip archive..."
-# Exclude .git, node_modules, src, and .DS_Store
-zip -r ../simple-lms-bridge.zip . -x "*.git*" "node_modules/*" "src/*" "*.DS_Store*"
+# 2. Create the zip archive in the parent directory
+echo "🗜️  Zipping plugin to parent directory..."
+zip -r ../simple-lms-bridge.zip . -x "*.git*" "*node_modules*" "*src*" "*.DS_Store*" "deploy.sh"
 
-echo "Step 3: Staging changes for Git..."
+# 3. Stage changes to Git
+echo "➕ Staging files to Git..."
 git add .
 
-echo "Step 4: Committing changes..."
-git commit -m "Fix: Prevent active enrollment for expired PMPro migrations and add retroactive certificate de-access."
+# 4. Commit changes
+echo "💾 Committing changes..."
+git commit -m "Fix: Implement fuzzy certificate matching, retroactive graduation cleanup, and automated deployment."
 
-echo "Step 5: Pushing to main..."
+# 5. Push to remote
+echo "☁️  Pushing to GitHub..."
 git push origin main
 
-echo "Deployment complete!"
+echo "✅ Deployment pipeline complete!"
