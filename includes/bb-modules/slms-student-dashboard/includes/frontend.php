@@ -247,11 +247,31 @@ $saved_state = get_user_meta( $current_user->ID, 'billing_state', true );
 							<?php foreach ( $orders as $order ) : ?>
 								<tr>
 									<td><?php echo esc_html( $order->code ); ?></td>
-									<td><?php echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( $order->timestamp ) ) ); ?></td>
+									<td><?php
+										// Handle both MySQL DATETIME strings and UNIX integer timestamps.
+										$ts_raw   = ! empty( $order->timestamp ) ? $order->timestamp : ( ! empty( $order->datetime ) ? $order->datetime : '' );
+										$order_ts = $ts_raw ? ( is_numeric( $ts_raw ) ? (int) $ts_raw : strtotime( $ts_raw ) ) : false;
+										echo esc_html( $order_ts ? date_i18n( 'F j, Y', $order_ts ) : '—' );
+									?></td>
 									<td>
 										<?php
-										$level = function_exists( 'pmpro_getLevel' ) ? pmpro_getLevel( $order->membership_id ) : null;
-										echo esc_html( $level ? $level->name : __( 'Unknown', 'simple-lms' ) );
+										$level      = function_exists( 'pmpro_getLevel' ) ? pmpro_getLevel( $order->membership_id ) : null;
+										$level_name = $level ? $level->name : '';
+										// Resolve PMPro level name to an slms_course permalink.
+										global $wpdb;
+										$course_post_id = $level_name ? (int) $wpdb->get_var( $wpdb->prepare(
+											"SELECT ID FROM {$wpdb->posts} WHERE post_title = %s AND post_type = 'slms_course' AND post_status = 'publish' LIMIT 1",
+											$level_name
+										) ) : 0;
+										if ( $course_post_id ) {
+											printf(
+												'<a href="%s">%s</a>',
+												esc_url( get_permalink( $course_post_id ) ),
+												esc_html( get_the_title( $course_post_id ) )
+											);
+										} else {
+											echo esc_html( $level_name ?: __( 'Unknown', 'simple-lms' ) );
+										}
 										?>
 									</td>
 									<td>
@@ -291,10 +311,68 @@ $saved_state = get_user_meta( $current_user->ID, 'billing_state', true );
 						<tbody>
 							<?php foreach ( $history as $row ) :
 
-								// Course title
-								$course_name = ! empty( $row->course_name )
-									? $row->course_name
-									: __( 'Unknown Course', 'simple-lms' );
+								// ── Course Resolution ────────────────────────────────────────────────
+								// course_name may be a legacy Pods URL, a plain string, or empty.
+								$raw_course_name = isset( $row->course_name ) ? $row->course_name : '';
+								$course_name     = '';
+								$course_link     = '';
+
+								if ( filter_var( $raw_course_name, FILTER_VALIDATE_URL ) ) {
+
+									// Step A: Try url_to_postid() for exact WP post resolution.
+									$post_id = url_to_postid( $raw_course_name );
+									if ( $post_id ) {
+										$post_type = get_post_type( $post_id );
+										if ( 'slms_lesson' === $post_type ) {
+											// Lesson URL → walk up to parent course.
+											$courses   = class_exists( '\\SimpleLMS\\Relationships' )
+												? \SimpleLMS\Relationships::get_courses_for_lesson( $post_id )
+												: array();
+											$course_id = ! empty( $courses ) ? (int) reset( $courses )->ID : 0;
+										} else {
+											$course_id = ( 'slms_course' === $post_type ) ? $post_id : 0;
+										}
+										if ( $course_id ) {
+											$course_name = get_the_title( $course_id );
+											$course_link = get_permalink( $course_id );
+										}
+									}
+
+									// Step B/C: Pods slug fallback — parse URL path and match slms_course by post_name.
+									if ( ! $course_name ) {
+										$path     = (string) parse_url( $raw_course_name, PHP_URL_PATH );
+										$segments = array_values( array_filter( explode( '/', trim( $path, '/' ) ) ) );
+										// Extract the segment immediately after the 'course' directory.
+										$course_key = array_search( 'course', $segments, true );
+										$slug       = ( false !== $course_key && isset( $segments[ $course_key + 1 ] ) )
+														? $segments[ $course_key + 1 ]
+														: ( ! empty( $segments ) ? end( $segments ) : '' );
+										if ( $slug ) {
+											$matched = get_posts( array(
+												'name'           => sanitize_title( $slug ),
+												'post_type'      => 'slms_course',
+												'posts_per_page' => 1,
+												'post_status'    => array( 'publish', 'private' ),
+											) );
+											if ( ! empty( $matched ) ) {
+												$course_name = $matched[0]->post_title;
+												$course_link = get_permalink( $matched[0]->ID );
+											}
+										}
+									}
+
+									// Step E: Format slug as readable plain text — last resort.
+									if ( ! $course_name ) {
+										$path        = (string) parse_url( $raw_course_name, PHP_URL_PATH );
+										$segments    = array_values( array_filter( explode( '/', trim( $path, '/' ) ) ) );
+										$last_slug   = ! empty( $segments ) ? end( $segments ) : $raw_course_name;
+										$course_name = ucwords( str_replace( '-', ' ', $last_slug ) );
+									}
+
+								} else {
+									// Plain string (post-migration data) — use directly.
+									$course_name = ! empty( $raw_course_name ) ? $raw_course_name : __( 'Unknown Course', 'simple-lms' );
+								}
 
 								// GF entry ID and GravityPDF URL
 								$gf_entry_id = isset( $row->gf_entry_id ) ? absint( $row->gf_entry_id ) : 0;
@@ -316,7 +394,13 @@ $saved_state = get_user_meta( $current_user->ID, 'billing_state', true );
 							?>
 								<tr>
 									<td><?php echo esc_html( $student_name ); ?></td>
-									<td><?php echo esc_html( $course_name ); ?></td>
+									<td><?php
+										if ( $course_link ) {
+											printf( '<a href="%s">%s</a>', esc_url( $course_link ), esc_html( $course_name ) );
+										} else {
+											echo esc_html( $course_name );
+										}
+									?></td>
 									<td><?php echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( $row->completed_date ) ) ); ?></td>
 									<td>
 										<?php if ( $pdf_url ) : ?>
