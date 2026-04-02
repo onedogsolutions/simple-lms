@@ -374,14 +374,36 @@ $saved_state = get_user_meta( $current_user->ID, 'billing_state', true );
 									$course_name = ! empty( $raw_course_name ) ? $raw_course_name : __( 'Unknown Course', 'simple-lms' );
 								}
 
-								// GF entry ID and GravityPDF URL
-								$gf_entry_id = isset( $row->gf_entry_id ) ? absint( $row->gf_entry_id ) : 0;
-								$pdf_url     = '';
-								if ( $gf_entry_id && class_exists( 'GPDFAPI' ) ) {
-									$pdfs = GPDFAPI::get_entry_pdfs( $gf_entry_id );
-									if ( ! is_wp_error( $pdfs ) && ! empty( $pdfs ) ) {
-										$pdf     = reset( $pdfs );
-										$pdf_url = home_url( '/?gpdf=1&pid=' . rawurlencode( $pdf['id'] ) . '&lid=' . $gf_entry_id . '&action=download' );
+								// ── GravityPDF Link Generation ──────────────────────────────────
+								$gf_entry_id  = isset( $row->gf_entry_id ) ? absint( $row->gf_entry_id ) : 0;
+								$pdf_shortcode = '';
+
+								if ( $gf_entry_id && class_exists( 'GFAPI' ) && class_exists( 'GPDFAPI' ) ) {
+
+									// Step 1: Verify the GF entry exists and extract form_id.
+									$entry = GFAPI::get_entry( $gf_entry_id );
+
+									if ( ! is_wp_error( $entry ) && is_array( $entry ) && ! empty( $entry['form_id'] ) ) {
+										$form_id = (int) $entry['form_id'];
+
+										// Step 2: Get form-level PDF configs (bypasses conditional logic that
+										// entry-level get_entry_pdfs() applies, which was causing the empty result).
+										$pdfs = GPDFAPI::get_form_pdfs( $form_id );
+
+										if ( ! is_wp_error( $pdfs ) && ! empty( $pdfs ) ) {
+											// Take the first active PDF config.
+											$pdf_hash_id = array_key_first( $pdfs );
+
+											// Step 3: Build the GravityPDF download URL programmatically.
+											// Using the direct URL format keeps us out of the shortcode renderer,
+											// which is unsafe inside a BB cached template loop.
+											$pdf_url      = home_url( '/?gpdf=1&pid=' . rawurlencode( $pdf_hash_id ) . '&lid=' . $gf_entry_id . '&action=download' );
+											$pdf_shortcode = sprintf(
+												'<a href="%s" class="slms-pdf-link" target="_blank" rel="noopener noreferrer">%s</a>',
+												esc_url( $pdf_url ),
+												esc_html__( 'Download PDF', 'simple-lms' )
+											);
+										}
 									}
 								}
 
@@ -403,11 +425,8 @@ $saved_state = get_user_meta( $current_user->ID, 'billing_state', true );
 									?></td>
 									<td><?php echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( $row->completed_date ) ) ); ?></td>
 									<td>
-										<?php if ( $pdf_url ) : ?>
-											<a href="<?php echo esc_url( $pdf_url ); ?>"
-												class="slms-pdf-link" target="_blank" rel="noopener noreferrer">
-												<?php esc_html_e( 'Download PDF', 'simple-lms' ); ?>
-											</a>
+										<?php if ( $pdf_shortcode ) : ?>
+											<?php echo $pdf_shortcode; // pre-escaped via esc_url + esc_html__ above ?>
 										<?php else : ?>
 											<span class="slms-na"><?php esc_html_e( 'N/A', 'simple-lms' ); ?></span>
 										<?php endif; ?>
