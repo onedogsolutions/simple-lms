@@ -830,8 +830,14 @@ class Migration
                 }
             }
 
-            $form_ids = !empty($cert_form_ids) ? $cert_form_ids : 0;
-            self::log($user_label . ': searching ' . (is_array($form_ids) ? count($form_ids) : 'all') . ' certificate form(s).', 'debug');
+            if (empty($cert_form_ids)) {
+                self::log($user_label . ': no certificate forms found — skipping history migration.', 'warn');
+                update_user_meta($user_id, '_lms_history_migrated', time());
+                $count++;
+                continue;
+            }
+            $form_ids = $cert_form_ids;
+            self::log($user_label . ': searching ' . count($form_ids) . ' certificate form(s) (IDs: ' . implode(', ', $form_ids) . ').', 'debug');
 
             // Search by user ID.
             $search_criteria = array(
@@ -867,6 +873,12 @@ class Migration
             // Insert each entry into the compliance history table.
             foreach ($unique_entries as $entry) {
                 $gf_entry_id = absint($entry['id']);
+
+                // Guard: only process entries from known certificate forms.
+                if (!in_array((int)$entry['form_id'], $cert_form_ids, true)) {
+                    self::log($user_label . ': skipping entry ' . $gf_entry_id . ' — form_id ' . $entry['form_id'] . ' is not a certificate form.', 'warn');
+                    continue;
+                }
 
                 $course_name = __('Unknown Course', 'simple-lms-bridge');
                 $form = \GFAPI::get_form($entry['form_id']);
