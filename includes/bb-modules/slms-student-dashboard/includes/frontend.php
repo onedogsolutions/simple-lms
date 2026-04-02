@@ -394,15 +394,9 @@ $saved_state = get_user_meta( $current_user->ID, 'billing_state', true );
 											// Take the first active PDF config.
 											$pdf_hash_id = array_key_first( $pdfs );
 
-											// Step 3: Build the GravityPDF download URL programmatically.
-											// Using the direct URL format keeps us out of the shortcode renderer,
-											// which is unsafe inside a BB cached template loop.
-											$pdf_url      = home_url( '/?gpdf=1&pid=' . rawurlencode( $pdf_hash_id ) . '&lid=' . $gf_entry_id . '&action=download' );
-											$pdf_shortcode = sprintf(
-												'<a href="%s" class="slms-pdf-link" target="_blank" rel="noopener noreferrer">%s</a>',
-												esc_url( $pdf_url ),
-												esc_html__( 'Download PDF', 'simple-lms' )
-											);
+											// Step 3: Build the GravityPDF download link using the native shortcode,
+											// which natively handles URL signing and permissions.
+											$pdf_shortcode = do_shortcode( '[gravitypdf id="' . $pdf_hash_id . '" entry="' . $gf_entry_id . '" text="' . esc_attr__( 'Download PDF', 'simple-lms' ) . '"]' );
 										}
 									}
 								}

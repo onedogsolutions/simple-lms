@@ -310,8 +310,8 @@ includes/bb-modules/
 ### Core Features
 
 - **Tab 1 (Profile)**: Native `wp_update_user()` + `update_user_meta()` form. No shortcode or third-party dependency.
-- **Tab 2 (Purchase History)**: `MemberOrder::get_orders(['user_id' => $user_id])`. Headers: `ID | Purchase Date | Course Purchases | Total`.
-- **Tab 3 (Certificates Earned)**: `CourseHistory::get_for_user($user_id)`. Headers: `Name | Course | Completion Date | Certificate PDF`. GravityPDF link built via `GPDFAPI::get_entry_pdfs($gf_entry_id)` → `/?gpdf=1&pid={hash}&lid={entry_id}&action=download`.
+- **Tab 2 (Purchase History)**: `MemberOrder::get_orders(['user_id' => $user_id])`. Headers: `ID | Purchase Date | Course Purchases | Total`. Date formatting handles both UNIX integer and MySQL `DATETIME` strings. Course Purchases column resolves PMPro level name directly to `slms_course` permalink via `$wpdb` precise title string matching.
+- **Tab 3 (Certificates Earned)**: `CourseHistory::get_for_user($user_id)`. Headers: `Name | Course | Completion Date | Certificate PDF`. Course name resolves legacy Pods URLs recursively (trying `url_to_postid`, lesson-to-course resolution, and URL path-to-slug fallbacks) to output clickable permalinks. GravityPDF link generated securely by extracting `$form_id` from the entry, retrieving `$pdfs = GPDFAPI::get_form_pdfs( $form_id )`, and routing via the native `[gravitypdf]` shortcode to bypass entry-level conditional logic while strictly enforcing native URL signing workflows.
 - **Styling**: Structural CSS in `css/frontend.css`; all colors, typography, spacing, and borders driven by BB settings panel via `includes/frontend.css.php`.
 
 ## Continuity Notes
