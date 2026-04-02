@@ -292,8 +292,9 @@ $saved_state = get_user_meta( $current_user->ID, 'billing_state', true );
 							<?php foreach ( $history as $row ) :
 
 								// Course title
-								$course      = get_post( $row->course_id );
-								$course_name = $course ? $course->post_title : __( 'Unknown Course', 'simple-lms' );
+								$course_name = ! empty( $row->course_name )
+									? $row->course_name
+									: __( 'Unknown Course', 'simple-lms' );
 
 								// GF entry ID and GravityPDF URL
 								$gf_entry_id = isset( $row->gf_entry_id ) ? absint( $row->gf_entry_id ) : 0;

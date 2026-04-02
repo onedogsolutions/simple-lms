@@ -245,7 +245,6 @@ function slms_load_bb_modules()
         require_once SLMS_PLUGIN_DIR . 'includes/bb-modules/lms-content/lms-content.php';
         require_once SLMS_PLUGIN_DIR . 'includes/bb-modules/lms-outline/lms-outline.php';
         require_once SLMS_PLUGIN_DIR . 'includes/bb-modules/lms-complete-button/lms-complete-button.php';
-        require_once SLMS_PLUGIN_DIR . 'includes/bb-modules/lms-account-dashboard/lms-account-dashboard.php';
         require_once SLMS_PLUGIN_DIR . 'includes/bb-modules/slms-student-dashboard/slms-student-dashboard.php';
     }
 }

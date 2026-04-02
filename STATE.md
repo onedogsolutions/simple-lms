@@ -270,20 +270,13 @@ Every Beaver Builder module must be fully self-contained. Rendering must never b
     └── frontend.js            # Behaviour — BB enqueues per instance
 ```
 
-### Active Dashboard Modules
+### Active Dashboard Module
 
-Both modules below are fully self-contained and render identically. `lms-account-dashboard` is placed on the live My Account page; `slms-student-dashboard` is available as an alternative drop-in.
+The module below is fully self-contained and is the single native BB module for the Student Dashboard.
 
 ```text
 includes/bb-modules/
-├── lms-account-dashboard/          # Live module — placed on /my-account/ BB page
-│   ├── lms-account-dashboard.php
-│   ├── css/frontend.css
-│   └── includes/
-│       ├── frontend.php
-│       ├── frontend.css.php
-│       └── frontend.js
-└── slms-student-dashboard/         # Equivalent module — available in BB panel
+└── slms-student-dashboard/         # Live module — placed on /my-account/ BB page
     ├── slms-student-dashboard.php
     ├── css/frontend.css
     └── includes/
