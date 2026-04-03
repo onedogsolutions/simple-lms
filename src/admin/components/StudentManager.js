@@ -445,6 +445,17 @@ const StudentManager = () => {
 		);
 	};
 
+	const courseOptions = [
+		{
+			label: __('All Courses', 'simple-lms-bridge'),
+			value: '',
+		},
+		...allAvailableCourses.map((c) => ({
+			label: c.title,
+			value: c.id.toString(),
+		})),
+	];
+
 	return (
 		<div className="slms-student-manager max-w-7xl mx-auto py-6">
 			{notice && (
@@ -457,30 +468,30 @@ const StudentManager = () => {
 				</Notice>
 			)}
 
-			<div className="mb-6 bg-white p-5 shadow-sm rounded-lg border border-gray-200 flex flex-col md:flex-row gap-4">
-				<div className="flex-grow">
+			{/* Header Search & Filter Bar */}
+			<div className="mb-8 bg-white p-5 shadow-sm rounded-lg border border-gray-200 flex flex-col md:flex-row items-end gap-4">
+
+				{/* Search Column */}
+				<div className="flex-grow w-full">
+					<label className="block text-sm font-medium text-gray-700 mb-1">
+						{__("Enter the Student's name or Email Address", 'simple-lms-bridge')}
+					</label>
 					<SearchControl
 						__nextHasNoMarginBottom={true}
 						label={__('Search students', 'simple-lms-bridge')}
+						hideLabelFromVision={true} // Keeps it accessible but clean
 						value={search}
 						onChange={setSearch}
 						className="slms-search w-full"
 					/>
 				</div>
+
+				{/* Course Filter Column */}
 				<div className="w-full md:w-1/3">
 					<SelectControl
 						label={__('Filter by Course', 'simple-lms-bridge')}
 						value={courseFilter}
-						options={[
-							{
-								label: __('All Courses', 'simple-lms-bridge'),
-								value: '',
-							},
-							...allAvailableCourses.map((c) => ({
-								label: c.title,
-								value: c.id.toString(),
-							})),
-						]}
+						options={courseOptions}
 						onChange={setCourseFilter}
 						__nextHasNoMarginBottom={true}
 					/>
