@@ -1,1 +1,9 @@
 @import "tailwindcss";
+
+@source "../../src/**/*.{js,jsx,ts,tsx}";
+@source "../../includes/**/*.php";
+@source "../../simple-lms-bridge.php";
+
+@theme {
+  /* Theme and variable overrides go here */
+}

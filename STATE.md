@@ -225,7 +225,10 @@ The project has been moved to a private GitHub repository. Core features are in 
 - [X] **Re-run Migration:** Phase 2 and 4 tested and validated with batch processing logic. Correctly handles 1300+ records.
 - [X] **Zip Archive Creation:** Automated production zip creation with exclusions for `.git`, `node_modules`, and source files.
 - [X] **Phase Reorder (Mar 2026):** PMPro Registration Sync promoted to Phase 2. Student Progress shifted to Phase 3. Historical Certificates shifted to Phase 4. Fixes ownership validation failures and migration stalls. Implements 90-day active/expired rule with `MemberOrder` audit receipts and caller-driven offset pagination.
-
+- [X] **Student Dashboard UI Refinement (Apr 2026):** GravityPDF link logic refactored to use native `GPDFAPI::get_pdf_url()` method instead of shortcodes, ensuring properly signed and secure direct URLs.
+- [X] **Migration Phase 2 Robustness (Apr 2026):** Refactored `migrate_pmpro_batch()` to accurately map GF Form 2 `payment_amount` and `date_created` to PMPro `MemberOrder->total` and `MemberOrder->timestamp`. Implemented explicit deduplication against `pmpro_membership_ordermeta` using `_gf_entry_id` to prevent duplication.
+- [X] **PHP 8.4 Hardening:** Audited codebase to eliminate "Creation of dynamic property" deprecation warnings. Targeted classes (`GW_Set_Entry_Created_By` and `WP_Package_Updater`) were verified to not exist in the current source.
+- [X] **Tailwind v4 Modernization:** Eliminated `tailwind.config.js` entirely. Moved all theme and content path configurations into `src/admin/tailwind.css` using modern Tailwind v4 `@source` and `@theme` directives.
 ## Migration Diagnostic Logging
 
 Comprehensive logging in `class-migration.php` and `MigrationTool.js` to debug student progress import issues.
