@@ -1196,19 +1196,46 @@ class Migration
                         $level_price = $pmpro_level ? (float) $pmpro_level->initial_payment : 0.0;
 
                         if (class_exists('MemberOrder')) {
-                            $order                      = new \MemberOrder();
-                            $order->user_id             = $user_id;
-                            $order->membership_id       = $level_id;
-                            $order->subtotal            = $level_price;
-                            $order->total               = $level_price;
-                            $order->status              = 'success';
-                            $order->gateway             = 'free';
-                            $order->gateway_environment = 'sandbox';
-                            $order->payment_type        = 'Migration Import';
-                            $order->notes               = 'Migrated from GF entry #' . $entry_id . '. Access expired (' . $days_elapsed . ' days ago).';
-                            $order->timestamp           = $entry_timestamp;
-                            $order->saveOrder();
-                            self::log($user_label . ': historical order created for level ' . $level_id . ' (expired, ' . $days_elapsed . ' days old). No active access granted.');
+                            // Deduplicate: check against existing MemberOrder meta to prevent duplicate record creation.
+                            global $wpdb;
+                            $ordermeta_table = count(explode('_', $wpdb->prefix)) > 1 ? $wpdb->prefix . 'pmpro_membership_ordermeta' : 'wp_pmpro_membership_ordermeta';
+                            $existing_order = false;
+                            
+                            // First map the amount and timestamp.
+                            $payment_amount = rgar($entry, 'payment_amount');
+                            $order_total    = is_numeric($payment_amount) && $payment_amount > 0 ? (float) $payment_amount : $level_price;
+                            
+                            // For DB compatibility and safety since pmpro_membership_ordermeta is conditionally used the plugin structure.
+                            if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $ordermeta_table)) === $ordermeta_table) {
+                                $existing_order = $wpdb->get_var($wpdb->prepare(
+                                    "SELECT pmpro_order_id FROM {$ordermeta_table} WHERE meta_key = '_gf_entry_id' AND meta_value = %d LIMIT 1",
+                                    $entry_id
+                                ));
+                            }
+
+                            if ($existing_order) {
+                                self::log($user_label . ': historical order already exists for GF entry #' . $entry_id . ' (Order ID: ' . $existing_order . '). Skipping duplication.');
+                            } else {
+                                $order                      = new \MemberOrder();
+                                $order->user_id             = $user_id;
+                                $order->membership_id       = $level_id;
+                                $order->subtotal            = $order_total;
+                                $order->total               = $order_total;
+                                $order->status              = 'success';
+                                $order->gateway             = 'free';
+                                $order->gateway_environment = 'sandbox';
+                                $order->payment_type        = 'Migration Import';
+                                $order->notes               = 'Migrated from GF entry #' . $entry_id . '. Access expired (' . $days_elapsed . ' days ago).';
+                                $order->timestamp           = $entry_timestamp;
+                                $order->saveOrder();
+                                
+                                // Save deduplication identifier
+                                if (function_exists('update_pmpro_membership_order_meta') && !empty($order->id)) {
+                                    update_pmpro_membership_order_meta($order->id, '_gf_entry_id', $entry_id);
+                                }
+                                
+                                self::log($user_label . ': historical order created for level ' . $level_id . ' (expired, ' . $days_elapsed . ' days old). No active access granted.');
+                            }
                         } else {
                             self::log($user_label . ': MemberOrder class unavailable — skipping historical order for level ' . $level_id . '.', 'warn');
                         }

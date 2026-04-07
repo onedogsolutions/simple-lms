@@ -394,9 +394,11 @@ $saved_state = get_user_meta( $current_user->ID, 'billing_state', true );
 											// Take the first active PDF config.
 											$pdf_hash_id = array_key_first( $pdfs );
 
-											// Step 3: Build the GravityPDF download link using the native shortcode,
-											// which natively handles URL signing and permissions.
-											$pdf_shortcode = do_shortcode( '[gravitypdf id="' . $pdf_hash_id . '" entry="' . $gf_entry_id . '" text="' . esc_attr__( 'Download PDF', 'simple-lms' ) . '"]' );
+											// Step 3: Build the GravityPDF download link using the signed URL API directly.
+											$pdf_url = GPDFAPI::get_pdf_url( $pdf_hash_id, $gf_entry_id );
+											if ( $pdf_url ) {
+												$pdf_shortcode = '<a href="' . esc_url( $pdf_url ) . '" class="slms-pdf-link">' . esc_html__( 'Download PDF', 'simple-lms' ) . '</a>';
+											}
 										}
 									}
 								}
