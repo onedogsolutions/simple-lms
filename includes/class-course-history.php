@@ -53,11 +53,13 @@ class CourseHistory
             user_id bigint(20) NOT NULL,
             course_name varchar(255) NOT NULL,
             completed_date datetime NOT NULL,
+            form_id bigint(20) DEFAULT NULL,
             gf_entry_id bigint(20) DEFAULT NULL,
             cert_data longtext DEFAULT NULL,
             PRIMARY KEY (id),
             KEY user_id (user_id),
-            KEY gf_entry_id (gf_entry_id)
+            KEY gf_entry_id (gf_entry_id),
+            KEY form_id (form_id)
         ) $charset_collate;";
 
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
@@ -71,10 +73,11 @@ class CourseHistory
      * @param string $course_name Course Title.
      * @param string $date        ISO date or Y-m-d H:i:s.
      * @param int    $entry_id    Gravity Forms entry ID if applicable.
+     * @param int    $form_id     Gravity Forms form ID if applicable.
      * @param array  $metadata    Any extra metadata.
      * @return int|bool Row ID or false on failure.
      */
-    public static function insert($user_id, $course_name, $date, $entry_id = null, $metadata = array())
+    public static function insert($user_id, $course_name, $date, $entry_id = null, $form_id = null, $metadata = array())
     {
         global $wpdb;
         self::init();
@@ -97,10 +100,11 @@ class CourseHistory
             'user_id' => absint($user_id),
             'course_name' => sanitize_text_field($course_name),
             'completed_date' => current_time('mysql', strtotime($date)),
+            'form_id' => $form_id ? absint($form_id) : null,
             'gf_entry_id' => $entry_id ? absint($entry_id) : null,
             'cert_data' => !empty($metadata) ? maybe_serialize($metadata) : null,
         ),
-            array('%d', '%s', '%s', '%d', '%s')
+            array('%d', '%s', '%s', '%d', '%d', '%s')
         );
 
         return $result ? $wpdb->insert_id : false;
@@ -112,14 +116,31 @@ class CourseHistory
      * @param int $user_id User ID.
      * @return array
      */
-    public static function get_for_user($user_id)
+    public static function get_for_user( int $user_id ): array
     {
         global $wpdb;
         self::init();
 
-        return $wpdb->get_results($wpdb->prepare(
+        $results = $wpdb->get_results($wpdb->prepare(
             "SELECT * FROM " . self::$table_name . " WHERE user_id = %d ORDER BY completed_date DESC",
             $user_id
         ));
+
+        return is_array($results) ? $results : [];
+    }
+
+    /**
+     * Purge corrupted records from the history table.
+     *
+     * @return int Number of deleted rows.
+     */
+    public static function purge_corrupted_records(): int
+    {
+        global $wpdb;
+        self::init();
+
+        return (int) $wpdb->query(
+            "DELETE FROM " . self::$table_name . " WHERE form_id IS NULL OR form_id = 0 OR gf_entry_id IS NULL OR gf_entry_id = 0"
+        );
     }
 }

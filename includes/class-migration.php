@@ -872,97 +872,119 @@ class Migration
 
             // Insert each entry into the compliance history table.
             foreach ($unique_entries as $entry) {
-                $gf_entry_id = absint($entry['id']);
+                try {
+                    // Strict Validation: Entry must be an array and have an ID.
+                    if (!is_array($entry) || empty($entry['id'])) {
+                        self::log($user_label . ': skipping malformed Gravity Forms entry record.', 'error');
+                        continue;
+                    }
 
-                // Guard: only process entries from known certificate forms.
-                if (!in_array((int)$entry['form_id'], $cert_form_ids, true)) {
-                    self::log($user_label . ': skipping entry ' . $gf_entry_id . ' — form_id ' . $entry['form_id'] . ' is not a certificate form.', 'warn');
-                    continue;
-                }
+                    $gf_entry_id = absint($entry['id']);
+                    $form_id     = absint($entry['form_id'] ?? 0);
 
-                $course_name = __('Unknown Course', 'simple-lms-bridge');
-                $form = \GFAPI::get_form($entry['form_id']);
+                    if (!$form_id) {
+                        self::log($user_label . ': Entry #' . $gf_entry_id . ' is missing a form_id. Skipping.', 'warn');
+                        continue;
+                    }
 
-                if ($form && isset($form['fields'])) {
-                    foreach ($form['fields'] as $field) {
-                        $label = $field->label ?? '';
-                        if (stripos($label, 'Course') !== false) {
-                            $value = rgar($entry, (string)$field->id);
-                            if (!empty($value)) {
-                                $course_name = $value;
-                                break;
+                    // Guard: only process entries from known certificate forms.
+                    if (!in_array($form_id, $cert_form_ids, true)) {
+                        self::log($user_label . ': skipping entry ' . $gf_entry_id . ' — form_id ' . $form_id . ' is not a certificate form.', 'warn');
+                        continue;
+                    }
+
+                    $course_name = __('Unknown Course', 'simple-lms-bridge');
+                    $form = \GFAPI::get_form($form_id);
+
+                    if ($form && isset($form['fields'])) {
+                        foreach ($form['fields'] as $field) {
+                            $label = $field->label ?? '';
+                            if (stripos($label, 'Course') !== false) {
+                                $value = rgar($entry, (string)$field->id);
+                                if (!empty($value)) {
+                                    $course_name = $value;
+                                    break;
+                                }
                             }
                         }
                     }
-                }
 
-                // Fallback: derive course name from form title.
-                if ($course_name === __('Unknown Course', 'simple-lms-bridge') && $form) {
-                    $course_name = str_ireplace('Certificate', '', $form['title'] ?? '');
-                    $course_name = trim($course_name, ' -');
-                }
+                    // Fallback: derive course name from form title.
+                    if ($course_name === __('Unknown Course', 'simple-lms-bridge') && $form) {
+                        $course_name = str_ireplace('Certificate', '', $form['title'] ?? '');
+                        $course_name = trim($course_name, ' -');
+                    }
 
-                // Strict Deduplication Check based on user_id and course_name
-                $exists = (int)$wpdb->get_var($wpdb->prepare(
-                    "SELECT COUNT(*) FROM {$history_table} WHERE user_id = %d AND course_name = %s",
-                    $user_id,
-                    sanitize_text_field($course_name)
-                ));
+                    // Strict Deduplication Check based on user_id and course_name
+                    $exists = (int)$wpdb->get_var($wpdb->prepare(
+                        "SELECT COUNT(*) FROM {$history_table} WHERE user_id = %d AND course_name = %s",
+                        $user_id,
+                        sanitize_text_field($course_name)
+                    ));
 
-                if ($exists) {
-                    $skipped_dup++;
-                    continue;
-                }
+                    if ($exists) {
+                        $skipped_dup++;
+                        continue;
+                    }
 
-                $wpdb->insert(
-                    $history_table,
-                    array(
-                    'user_id' => $user_id,
-                    'course_name' => sanitize_text_field($course_name),
-                    'completed_date' => sanitize_text_field($entry['date_created'] ?? current_time('mysql')),
-                    'gf_entry_id' => $gf_entry_id,
-                ),
-                    array('%d', '%s', '%s', '%d')
-                );
-                
-                // 1. Resolve Course ID: Try exact match first, fallback to fuzzy LIKE match.
-                $new_course_id = $wpdb->get_var($wpdb->prepare(
-                    "SELECT ID FROM {$wpdb->posts} WHERE post_title = %s AND post_type = 'slms_course' LIMIT 1",
-                    $course_name
-                ));
+                    $wpdb->insert(
+                        $history_table,
+                        array(
+                            'user_id'        => $user_id,
+                            'course_name'    => sanitize_text_field($course_name),
+                            'completed_date' => sanitize_text_field($entry['date_created'] ?? current_time('mysql')),
+                            'form_id'        => $form_id,
+                            'gf_entry_id'    => $gf_entry_id,
+                        ),
+                        array('%d', '%s', '%s', '%d', '%d')
+                    );
 
-                if (!$new_course_id) {
-                    // Fuzzy match fallback: strip common words and punctuation.
-                    $fuzzy_name = preg_replace('/[^a-zA-Z0-9\s]/', '', $course_name);
-                    $fuzzy_name = str_ireplace(array('Course', 'Hr', 'Hrs', 'Hour', 'Hours'), '', $fuzzy_name);
-                    $fuzzy_name = trim(preg_replace('/\s+/', ' ', $fuzzy_name));
+                    // 1. Resolve Course ID: Try exact match first, fallback to fuzzy LIKE match.
+                    $new_course_id = $wpdb->get_var($wpdb->prepare(
+                        "SELECT ID FROM {$wpdb->posts} WHERE post_title = %s AND post_type = 'slms_course' LIMIT 1",
+                        $course_name
+                    ));
 
-                    if (!empty($fuzzy_name)) {
-                        $new_course_id = $wpdb->get_var($wpdb->prepare(
-                            "SELECT ID FROM {$wpdb->posts} WHERE post_title LIKE %s AND post_type = 'slms_course' LIMIT 1",
-                            '%' . $wpdb->esc_like($fuzzy_name) . '%'
-                        ));
+                    if (!$new_course_id) {
+                        // Fuzzy match fallback: strip common words and punctuation.
+                        $fuzzy_name = preg_replace('/[^a-zA-Z0-9\s]/', '', $course_name);
+                        $fuzzy_name = str_ireplace(array('Course', 'Hr', 'Hrs', 'Hour', 'Hours'), '', $fuzzy_name);
+                        $fuzzy_name = trim(preg_replace('/\s+/', ' ', $fuzzy_name));
 
-                        if ($new_course_id) {
-                            self::log($user_label . ': Fuzzy match success for "' . $course_name . '" -> resolved to course ID ' . $new_course_id . ' using search string "' . $fuzzy_name . '".', 'info');
+                        if (!empty($fuzzy_name)) {
+                            $new_course_id = $wpdb->get_var($wpdb->prepare(
+                                "SELECT ID FROM {$wpdb->posts} WHERE post_title LIKE %s AND post_type = 'slms_course' LIMIT 1",
+                                '%' . $wpdb->esc_like($fuzzy_name) . '%'
+                            ));
+
+                            if ($new_course_id) {
+                                self::log($user_label . ': Fuzzy match success for "' . $course_name . '" -> resolved to course ID ' . $new_course_id . ' using search string "' . $fuzzy_name . '".', 'info');
+                            }
                         }
                     }
-                }
 
-                // 2. Active Enrollment Cleanup: If a certificate exists/was just logged, remove active enrollment.
-                if ($new_course_id) {
-                    $deleted = $wpdb->delete(
-                        $wpdb->prefix . 'slms_user_course',
-                        array('user_id' => $user_id, 'course_id' => $new_course_id),
-                        array('%d', '%d')
-                    );
-                    
-                    if ($deleted) {
-                        self::log($user_label . ': retroactive enrollment cleanup for course "' . $course_name . '" (ID: ' . $new_course_id . ').', 'debug');
+                    // 2. Active Enrollment Cleanup: If a certificate exists/was just logged, remove active enrollment.
+                    if ($new_course_id) {
+                        $deleted = $wpdb->delete(
+                            $wpdb->prefix . 'slms_user_course',
+                            array('user_id' => $user_id, 'course_id' => $new_course_id),
+                            array('%d', '%d')
+                        );
+
+                        if ($deleted) {
+                            self::log($user_label . ': retroactive enrollment cleanup for course "' . $course_name . '" (ID: ' . $new_course_id . ').', 'debug');
+                        }
                     }
+
+                    $inserted++;
+
+                } catch (\Exception $e) {
+                    self::log($user_label . ': Critical error processing GF entry #' . ($entry['id'] ?? 'unknown') . ': ' . $e->getMessage(), 'error');
+                    continue;
+                } catch (\Error $e) {
+                    self::log($user_label . ': Fatal type error processing GF entry #' . ($entry['id'] ?? 'unknown') . ': ' . $e->getMessage(), 'error');
+                    continue;
                 }
-                
-                $inserted++;
             }
 
             if ($inserted > 0) {

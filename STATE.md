@@ -229,6 +229,11 @@ The project has been moved to a private GitHub repository. Core features are in 
 - [X] **Migration Phase 2 Robustness (Apr 2026):** Refactored `migrate_pmpro_batch()` to accurately map GF Form 2 `payment_amount` and `date_created` to PMPro `MemberOrder->total` and `MemberOrder->timestamp`. Implemented explicit deduplication against `pmpro_membership_ordermeta` using `_gf_entry_id` to prevent duplication.
 - [X] **PHP 8.4 Hardening:** Audited codebase to eliminate "Creation of dynamic property" deprecation warnings. Targeted classes (`GW_Set_Entry_Created_By` and `WP_Package_Updater`) were verified to not exist in the current source.
 - [X] **Tailwind v4 Modernization:** Eliminated `tailwind.config.js` entirely. Moved all theme and content path configurations into `src/admin/tailwind.css` using modern Tailwind v4 `@source` and `@theme` directives.
+- [X] **Migration & Dashboard Hardening (Apr 2026):**
+  - **Phase 4 Hardening:** Implemented `try/catch` and strict type validation in `migrate_history_batch()` to prevent stalls from malformed Gravity Forms entries.
+  - **Database Schema Update:** Added `form_id` column to `wp_slms_course_history` for direct certificate linkage.
+  - **Frontend Guards:** Added defensive logic to the Student Dashboard's Certificates tab to prevent crashes and provide "N/A" fallbacks for corrupted data.
+  - **Cleanup Utility:** Updated `CourseHistory::purge_corrupted_records()` to target records with missing `form_id` or `gf_entry_id`.
 
 ## Migration Diagnostic Logging
 

@@ -375,30 +375,39 @@ $saved_state = get_user_meta( $current_user->ID, 'billing_state', true );
 								}
 
 								// ── GravityPDF Link Generation ──────────────────────────────────
-								$gf_entry_id  = isset( $row->gf_entry_id ) ? absint( $row->gf_entry_id ) : 0;
-								$pdf_shortcode = '';
+								$gf_entry_id   = isset( $row->gf_entry_id ) ? absint( $row->gf_entry_id ) : 0;
+								$form_id       = isset( $row->form_id ) ? absint( $row->form_id ) : 0;
+								$pdf_link_html = '';
 
 								if ( $gf_entry_id && class_exists( 'GFAPI' ) && class_exists( 'GPDFAPI' ) ) {
 
-									// Step 1: Verify the GF entry exists and extract form_id.
-									$entry = \GFAPI::get_entry( $gf_entry_id );
-
-									if ( ! is_wp_error( $entry ) && is_array( $entry ) && ! empty( $entry['form_id'] ) ) {
-										$form_id = (int) $entry['form_id'];
-
-										// Step 2: Get form-level PDF configs (bypasses conditional logic that
-										// entry-level get_entry_pdfs() applies, which was causing the empty result).
-										$pdfs = \GPDFAPI::get_form_pdfs( $form_id );
-
-										if ( ! is_wp_error( $pdfs ) && ! empty( $pdfs ) ) {
-											// Take the first active PDF config.
-											$pdf_hash_id = function_exists( 'array_key_first' ) ? array_key_first( $pdfs ) : reset( $pdfs );
-
-											// Step 3: Build the GravityPDF download link using the signed URL API directly.
-											$pdf_url = \GPDFAPI::get_pdf_url( $pdf_hash_id, $gf_entry_id );
-											if ( $pdf_url ) {
-												$pdf_shortcode = '<a href="' . esc_url( $pdf_url ) . '" class="slms-pdf-link">' . esc_html__( 'Download PDF', 'simple-lms' ) . '</a>';
+									// If form_id is missing from the row, try to resolve it from the entry.
+									if ( ! $form_id ) {
+										try {
+											$entry = \GFAPI::get_entry( $gf_entry_id );
+											if ( ! is_wp_error( $entry ) && is_array( $entry ) && ! empty( $entry['form_id'] ) ) {
+												$form_id = (int) $entry['form_id'];
 											}
+										} catch ( \Exception $e ) {
+											$form_id = 0;
+										}
+									}
+
+									if ( $form_id ) {
+										try {
+											// Get form-level PDF configs.
+											$pdfs = \GPDFAPI::get_form_pdfs( $form_id );
+
+											if ( ! is_wp_error( $pdfs ) && ! empty( $pdfs ) ) {
+												$pdf_hash_id = function_exists( 'array_key_first' ) ? array_key_first( $pdfs ) : array_keys( $pdfs )[0];
+												$pdf_url     = \GPDFAPI::get_pdf_url( $pdf_hash_id, $gf_entry_id );
+												if ( $pdf_url ) {
+													$pdf_link_html = '<a href="' . esc_url( $pdf_url ) . '" class="slms-pdf-link">' . esc_html__( 'Download PDF', 'simple-lms' ) . '</a>';
+												}
+											}
+										} catch ( \Throwable $e ) {
+											// Fallback to empty link on PDF API failure.
+											$pdf_link_html = '';
 										}
 									}
 								}
@@ -419,13 +428,15 @@ $saved_state = get_user_meta( $current_user->ID, 'billing_state', true );
 											echo esc_html( $course_name );
 										}
 									?></td>
-									<td><?php echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( $row->completed_date ) ) ); ?></td>
-									<td>
-										<?php if ( $pdf_shortcode ) : ?>
-											<?php echo $pdf_shortcode; // pre-escaped via esc_url + esc_html__ above ?>
-										<?php else : ?>
-											<span class="slms-na"><?php esc_html_e( 'N/A', 'simple-lms' ); ?></span>
-										<?php endif; ?>
+									<td><?php echo esc_html( ! empty( $row->completed_date ) ? date_i18n( get_option( 'date_format' ), strtotime( $row->completed_date ) ) : '—' ); ?></td>
+									<td class="slms-pdf-link">
+										<?php
+										if ( $pdf_link_html ) {
+											echo $pdf_link_html;
+										} else {
+											echo '<span class="slms-na">' . esc_html__( 'N/A', 'simple-lms' ) . '</span>';
+										}
+										?>
 									</td>
 								</tr>
 							<?php endforeach; ?>
