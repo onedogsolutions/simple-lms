@@ -229,6 +229,7 @@ The project has been moved to a private GitHub repository. Core features are in 
 - [X] **Migration Phase 2 Robustness (Apr 2026):** Refactored `migrate_pmpro_batch()` to accurately map GF Form 2 `payment_amount` and `date_created` to PMPro `MemberOrder->total` and `MemberOrder->timestamp`. Implemented explicit deduplication against `pmpro_membership_ordermeta` using `_gf_entry_id` to prevent duplication.
 - [X] **PHP 8.4 Hardening:** Audited codebase to eliminate "Creation of dynamic property" deprecation warnings. Targeted classes (`GW_Set_Entry_Created_By` and `WP_Package_Updater`) were verified to not exist in the current source.
 - [X] **Tailwind v4 Modernization:** Eliminated `tailwind.config.js` entirely. Moved all theme and content path configurations into `src/admin/tailwind.css` using modern Tailwind v4 `@source` and `@theme` directives.
+
 ## Migration Diagnostic Logging
 
 Comprehensive logging in `class-migration.php` and `MigrationTool.js` to debug student progress import issues.
@@ -258,6 +259,7 @@ Comprehensive logging in `class-migration.php` and `MigrationTool.js` to debug s
 ## BB Module Architecture
 
 ### Rule
+
 Every Beaver Builder module must be fully self-contained. Rendering must never be delegated through a WordPress shortcode or a PHP `include()` referencing another module's files. BB's engine injects `$settings`, `$id`, and `$module` directly into each module's own template files.
 
 ### Required File Structure (per module)
@@ -321,5 +323,5 @@ includes/bb-modules/
 
 - **GitHub Username:** `onedogsolutions`
 - **Next Step:** Continue feature development toward 1.0 release. Run `npm run build` after pulling to compile Tailwind v4 + React. Use diagnostic logging to validate migration data as new features are built out.
-- **Zip Output:** Final plugin zip should be written to `/Users/rwaterbury/Documents/`
-- **Working Directory:** `/Users/rwaterbury/Documents/simple-lms`
+- **Zip Output:** Final plugin zip should be written to `/Users/rwaterbury/Developer/`
+- **Working Directory:** `/Users/rwaterbury/Developer/simple-lms`
