@@ -228,8 +228,8 @@ $saved_state = get_user_meta( $current_user->ID, 'billing_state', true );
 		<div id="slms-tab-history" class="slms-tab-pane" role="tabpanel">
 
 			<?php
-				$orders = class_exists( 'MemberOrder' )
-					? MemberOrder::get_orders( array( 'user_id' => $current_user->ID ) )
+				$orders = class_exists( '\MemberOrder' )
+					? \MemberOrder::get_orders( array( 'user_id' => $current_user->ID ) )
 					: array();
 			?>
 
@@ -381,21 +381,21 @@ $saved_state = get_user_meta( $current_user->ID, 'billing_state', true );
 								if ( $gf_entry_id && class_exists( 'GFAPI' ) && class_exists( 'GPDFAPI' ) ) {
 
 									// Step 1: Verify the GF entry exists and extract form_id.
-									$entry = GFAPI::get_entry( $gf_entry_id );
+									$entry = \GFAPI::get_entry( $gf_entry_id );
 
 									if ( ! is_wp_error( $entry ) && is_array( $entry ) && ! empty( $entry['form_id'] ) ) {
 										$form_id = (int) $entry['form_id'];
 
 										// Step 2: Get form-level PDF configs (bypasses conditional logic that
 										// entry-level get_entry_pdfs() applies, which was causing the empty result).
-										$pdfs = GPDFAPI::get_form_pdfs( $form_id );
+										$pdfs = \GPDFAPI::get_form_pdfs( $form_id );
 
 										if ( ! is_wp_error( $pdfs ) && ! empty( $pdfs ) ) {
 											// Take the first active PDF config.
-											$pdf_hash_id = array_key_first( $pdfs );
+											$pdf_hash_id = function_exists( 'array_key_first' ) ? array_key_first( $pdfs ) : reset( $pdfs );
 
 											// Step 3: Build the GravityPDF download link using the signed URL API directly.
-											$pdf_url = GPDFAPI::get_pdf_url( $pdf_hash_id, $gf_entry_id );
+											$pdf_url = \GPDFAPI::get_pdf_url( $pdf_hash_id, $gf_entry_id );
 											if ( $pdf_url ) {
 												$pdf_shortcode = '<a href="' . esc_url( $pdf_url ) . '" class="slms-pdf-link">' . esc_html__( 'Download PDF', 'simple-lms' ) . '</a>';
 											}
