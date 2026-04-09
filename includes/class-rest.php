@@ -50,14 +50,14 @@ class REST
             'methods' => 'GET',
             'callback' => array(__CLASS__, 'get_progress'),
             'permission_callback' => function () {
-            return current_user_can('edit_users');
-        },
+                return current_user_can('edit_users');
+            },
             'args' => array(
                 'user_id' => array(
                     'required' => true,
                     'validate_callback' => function ($param) {
-                return is_numeric($param);
-            },
+                        return is_numeric($param);
+                    },
                     'sanitize_callback' => 'absint',
                 ),
             ),
@@ -68,8 +68,8 @@ class REST
             'methods' => 'POST',
             'callback' => array(__CLASS__, 'update_progress'),
             'permission_callback' => function () {
-            return current_user_can('edit_users');
-        },
+                return current_user_can('edit_users');
+            },
             'args' => array(
                 'user_id' => array(
                     'required' => true,
@@ -96,8 +96,8 @@ class REST
             'methods' => 'GET',
             'callback' => array(__CLASS__, 'get_forms'),
             'permission_callback' => function () {
-            return current_user_can('edit_posts');
-        },
+                return current_user_can('edit_posts');
+            },
         ));
 
         /* ── Presto Player Videos ───────────────────────────────────── */
@@ -106,8 +106,8 @@ class REST
             'methods' => 'GET',
             'callback' => array(__CLASS__, 'get_videos'),
             'permission_callback' => function () {
-            return current_user_can('edit_posts');
-        },
+                return current_user_can('edit_posts');
+            },
         ));
 
         /* ── Students List ──────────────────────────────────────────── */
@@ -116,8 +116,8 @@ class REST
             'methods' => 'GET',
             'callback' => array(__CLASS__, 'get_students'),
             'permission_callback' => function () {
-            return current_user_can('edit_users');
-        },
+                return current_user_can('edit_users');
+            },
             'args' => array(
                 'search' => array(
                     'required' => false,
@@ -141,8 +141,8 @@ class REST
             'methods' => 'POST',
             'callback' => array(__CLASS__, 'update_student_meta'),
             'permission_callback' => function () {
-            return current_user_can('edit_users');
-        },
+                return current_user_can('edit_users');
+            },
             'args' => array(
                 'id' => array(
                     'required' => true,
@@ -168,8 +168,8 @@ class REST
             'methods' => 'GET',
             'callback' => array(__CLASS__, 'get_lessons_list'),
             'permission_callback' => function () {
-            return current_user_can('edit_posts');
-        },
+                return current_user_can('edit_posts');
+            },
         ));
 
         /* ── PMPro Membership Levels ─────────────────────────────────── */
@@ -178,8 +178,8 @@ class REST
             'methods' => 'GET',
             'callback' => array(__CLASS__, 'get_pmpro_levels'),
             'permission_callback' => function () {
-            return current_user_can('edit_posts');
-        },
+                return current_user_can('edit_posts');
+            },
         ));
 
         /* ── Migration ──────────────────────────────────────────────── */
@@ -188,25 +188,25 @@ class REST
         register_rest_route(self::NAMESPACE , '/migration/status', array(
             'methods' => 'GET',
             'callback' => function () {
-            return rest_ensure_response(array(
-            'progress' => array('pending' => Migration::get_pending_migration_count()),
-            'content' => array('pending' => Migration::get_pending_content_count()),
-            'history' => array('pending' => Migration::get_pending_history_count()),
-            'pmpro' => array('pending' => Migration::get_pending_pmpro_count()),
-            ));
-        },
+                return rest_ensure_response(array(
+                    'progress' => array('pending' => Migration::get_pending_migration_count()),
+                    'content' => array('pending' => Migration::get_pending_content_count()),
+                    'history' => array('pending' => Migration::get_pending_history_count()),
+                    'pmpro' => array('pending' => Migration::get_pending_pmpro_count()),
+                ));
+            },
             'permission_callback' => function () {
-            return current_user_can('manage_options');
-        }
+                return current_user_can('manage_options');
+            }
         ));
 
         // CPT Migration endpoint
         register_rest_route(self::NAMESPACE , '/migration/cpts', array(
             'methods' => 'POST',
             'callback' => function ($request) {
-            $limit = $request->get_param('limit') ?? 5;
-            return rest_ensure_response(Migration::migrate_cpt_batch($limit));
-        },
+                $limit = $request->get_param('limit') ?? 5;
+                return rest_ensure_response(Migration::migrate_cpt_batch($limit));
+            },
             'args' => array(
                 'limit' => array(
                     'sanitize_callback' => 'absint',
@@ -214,17 +214,17 @@ class REST
                 ),
             ),
             'permission_callback' => function () {
-            return current_user_can('manage_options');
-        }
+                return current_user_can('manage_options');
+            }
         ));
 
         // Progress Migration endpoint
         register_rest_route(self::NAMESPACE , '/migration/progress', array(
             'methods' => 'POST',
             'callback' => function ($request) {
-            $limit = $request->get_param('limit') ?? 10;
-            return rest_ensure_response(Migration::migrate_progress_batch($limit));
-        },
+                $limit = $request->get_param('limit') ?? 10;
+                return rest_ensure_response(Migration::migrate_progress_batch($limit));
+            },
             'args' => array(
                 'limit' => array(
                     'sanitize_callback' => 'absint',
@@ -232,18 +232,18 @@ class REST
                 ),
             ),
             'permission_callback' => function () {
-            return current_user_can('manage_options');
-        }
+                return current_user_can('manage_options');
+            }
         ));
 
         // History Migration endpoint
         register_rest_route(self::NAMESPACE , '/migration/history', array(
             'methods' => 'POST',
             'callback' => function ($request) {
-            $limit = $request->get_param('limit') ?? 10;
-            $offset = $request->get_param('offset') ?? 0;
-            return rest_ensure_response(Migration::migrate_history_batch($limit, $offset));
-        },
+                $limit = $request->get_param('limit') ?? 10;
+                $offset = $request->get_param('offset') ?? 0;
+                return rest_ensure_response(Migration::migrate_history_batch($limit, $offset));
+            },
             'args' => array(
                 'limit' => array(
                     'sanitize_callback' => 'absint',
@@ -255,8 +255,8 @@ class REST
                 ),
             ),
             'permission_callback' => function () {
-            return current_user_can('manage_options');
-        }
+                return current_user_can('manage_options');
+            }
         ));
 
 
@@ -264,10 +264,10 @@ class REST
         register_rest_route(self::NAMESPACE , '/migration/pmpro', array(
             'methods' => 'POST',
             'callback' => function ($request) {
-            $limit  = $request->get_param('limit') ?? 10;
-            $offset = $request->get_param('offset') ?? 0;
-            return rest_ensure_response(Migration::migrate_pmpro_batch($limit, $offset));
-        },
+                $limit = $request->get_param('limit') ?? 10;
+                $offset = $request->get_param('offset') ?? 0;
+                return rest_ensure_response(Migration::migrate_pmpro_batch($limit, $offset));
+            },
             'args' => array(
                 'limit' => array(
                     'sanitize_callback' => 'absint',
@@ -279,19 +279,19 @@ class REST
                 ),
             ),
             'permission_callback' => function () {
-            return current_user_can('manage_options');
-        }
+                return current_user_can('manage_options');
+            }
         ));
 
         // Reset Phase 2 migration meta so entries can be re-processed.
         register_rest_route(self::NAMESPACE , '/migration/pmpro/reset', array(
             'methods' => 'POST',
             'callback' => function () {
-            return rest_ensure_response(Migration::reset_pmpro_migration());
-        },
+                return rest_ensure_response(Migration::reset_pmpro_migration());
+            },
             'permission_callback' => function () {
-            return current_user_can('manage_options');
-        }
+                return current_user_can('manage_options');
+            }
         ));
 
         /* ── Debug Log ──────────────────────────────────────────────── */
@@ -299,36 +299,36 @@ class REST
         register_rest_route(self::NAMESPACE , '/debug-log', array(
             'methods' => 'GET',
             'callback' => function () {
-            return rest_ensure_response(array(
-            'log' => Migration::read_log(500),
-            ));
-        },
+                return rest_ensure_response(array(
+                    'log' => Migration::read_log(500),
+                ));
+            },
             'permission_callback' => function () {
-            return current_user_can('manage_options');
-        },
+                return current_user_can('manage_options');
+            },
         ));
 
         register_rest_route(self::NAMESPACE , '/debug-log', array(
             'methods' => 'DELETE',
             'callback' => function () {
-            Migration::clear_log();
-            return rest_ensure_response(array('success' => true));
-        },
+                Migration::clear_log();
+                return rest_ensure_response(array('success' => true));
+            },
             'permission_callback' => function () {
-            return current_user_can('manage_options');
-        },
+                return current_user_can('manage_options');
+            },
         ));
 
-        register_rest_route( self::NAMESPACE, '/course-history/repair-form-ids', array(
-            'methods'             => 'POST',
-            'callback'            => function () {
+        register_rest_route(self::NAMESPACE , '/course-history/repair-form-ids', array(
+            'methods' => 'POST',
+            'callback' => function () {
                 $result = \SimpleLMS\CourseHistory::repair_form_ids();
-                return rest_ensure_response( $result );
+                return rest_ensure_response($result);
             },
             'permission_callback' => function () {
-                return current_user_can( 'manage_options' );
+                return current_user_can('manage_options');
             },
-        ) );
+        ));
 
         /* ── Relationships ──────────────────────────────────────────── */
 
@@ -337,8 +337,8 @@ class REST
             'methods' => 'GET',
             'callback' => array(__CLASS__, 'get_course_lessons'),
             'permission_callback' => function () {
-            return current_user_can('edit_posts');
-        },
+                return current_user_can('edit_posts');
+            },
         ));
 
         // POST /relationships/course/{id}/lessons
@@ -346,8 +346,8 @@ class REST
             'methods' => 'POST',
             'callback' => array(__CLASS__, 'update_course_lessons'),
             'permission_callback' => function () {
-            return current_user_can('edit_posts');
-        },
+                return current_user_can('edit_posts');
+            },
             'args' => array(
                 'lesson_ids' => array(
                     'type' => 'array',
@@ -362,8 +362,8 @@ class REST
             'methods' => 'GET',
             'callback' => array(__CLASS__, 'get_lesson_courses'),
             'permission_callback' => function () {
-            return current_user_can('edit_posts');
-        },
+                return current_user_can('edit_posts');
+            },
         ));
 
         // GET /relationships/courses
@@ -371,8 +371,8 @@ class REST
             'methods' => 'GET',
             'callback' => array(__CLASS__, 'get_courses_list'),
             'permission_callback' => function () {
-            return current_user_can('edit_posts');
-        },
+                return current_user_can('edit_posts');
+            },
         ));
 
         /* ── Enrollments ────────────────────────────────────────────── */
@@ -382,8 +382,8 @@ class REST
             'methods' => 'GET',
             'callback' => array(__CLASS__, 'get_user_courses'),
             'permission_callback' => function () {
-            return current_user_can('edit_users');
-        },
+                return current_user_can('edit_users');
+            },
         ));
 
         // POST /enrollments/user/{id}/courses
@@ -391,8 +391,8 @@ class REST
             'methods' => 'POST',
             'callback' => array(__CLASS__, 'enroll_user'),
             'permission_callback' => function () {
-            return current_user_can('edit_users');
-        },
+                return current_user_can('edit_users');
+            },
             'args' => array(
                 'course_id' => array(
                     'required' => true,
@@ -411,8 +411,8 @@ class REST
             'methods' => 'DELETE',
             'callback' => array(__CLASS__, 'unenroll_user'),
             'permission_callback' => function () {
-            return current_user_can('edit_users');
-        },
+                return current_user_can('edit_users');
+            },
         ));
 
         // GET /enrollments/course/{id}/students
@@ -420,8 +420,8 @@ class REST
             'methods' => 'GET',
             'callback' => array(__CLASS__, 'get_course_students'),
             'permission_callback' => function () {
-            return current_user_can('edit_users');
-        },
+                return current_user_can('edit_users');
+            },
         ));
 
         // GET /student/{id}/history
@@ -429,8 +429,8 @@ class REST
             'methods' => 'GET',
             'callback' => array(__CLASS__, 'get_student_history'),
             'permission_callback' => function () {
-            return current_user_can('edit_users');
-        },
+                return current_user_can('edit_users');
+            },
             'args' => array(
                 'id' => array(
                     'required' => true,
@@ -495,8 +495,7 @@ class REST
                 $progress[$course_id] = array();
             }
             $progress[$course_id][$lesson_id] = time();
-        }
-        else {
+        } else {
             unset($progress[$course_id][$lesson_id]);
 
             // Clean up empty course arrays.
@@ -535,7 +534,7 @@ class REST
 
         foreach ($forms as $form) {
             $result[] = array(
-                'id' => (int)$form['id'],
+                'id' => (int) $form['id'],
                 'title' => sanitize_text_field($form['title']),
             );
         }
@@ -622,7 +621,7 @@ class REST
             $courses = array();
 
             foreach ($enrolled_courses as $enrollment) {
-                $course_id = (int)$enrollment->id;
+                $course_id = (int) $enrollment->id;
                 $course_post = get_post($course_id);
                 if (!$course_post) {
                     continue;
@@ -699,8 +698,8 @@ class REST
 
         return rest_ensure_response(array(
             'students' => $result,
-            'total' => (int)$query->get_total(),
-            'pages' => (int)ceil($query->get_total() / $per_page),
+            'total' => (int) $query->get_total(),
+            'pages' => (int) ceil($query->get_total() / $per_page),
         ));
     }
 
@@ -722,9 +721,17 @@ class REST
         }
 
         $meta_fields = array(
-            'billing_address_1', 'billing_address_2', 'billing_city', 'billing_state',
-            'billing_postcode', 'billing_phone', 'aalp_member', 'registration_date',
-            'license_number', 'pro_exam_date', 'pro_exam_status'
+            'billing_address_1',
+            'billing_address_2',
+            'billing_city',
+            'billing_state',
+            'billing_postcode',
+            'billing_phone',
+            'aalp_member',
+            'registration_date',
+            'license_number',
+            'pro_exam_date',
+            'pro_exam_status'
         );
 
         foreach ($meta_fields as $field) {
@@ -786,7 +793,7 @@ class REST
 
         foreach ($levels as $level) {
             $expiration_days = 0;
-            $exp_num = isset($level->expiration_number) ? (int)$level->expiration_number : 0;
+            $exp_num = isset($level->expiration_number) ? (int) $level->expiration_number : 0;
             $exp_period = isset($level->expiration_period) ? $level->expiration_period : '';
 
             if ($exp_num > 0 && $exp_period) {
@@ -807,7 +814,7 @@ class REST
             }
 
             $result[] = array(
-                'id' => (int)$level->id,
+                'id' => (int) $level->id,
                 'name' => sanitize_text_field($level->name),
                 'expiration_days' => $expiration_days,
             );
@@ -940,16 +947,16 @@ class REST
         }
 
         // 1. Query the permanent compliance table first.
-        $records = CourseHistory::get_for_user( $user_id );
+        $records = CourseHistory::get_for_user($user_id);
 
         if (!empty($records)) {
             $history = array();
             foreach ($records as $row) {
                 $history[] = array(
-                    'id' => (int)$row->id,
+                    'id' => (int) $row->id,
                     'course_name' => self::resolve_course_name($row->course_name),
                     'date' => $row->completed_date,
-                    'gf_entry_id' => (int)$row->gf_entry_id,
+                    'gf_entry_id' => (int) $row->gf_entry_id,
                 );
             }
             return rest_ensure_response($history);
@@ -975,7 +982,7 @@ class REST
             'status' => 'active',
             'field_filters' => array(
                 'mode' => 'any',
-                    array('key' => 'created_by', 'value' => $user_id),
+                array('key' => 'created_by', 'value' => $user_id),
             ),
         );
         $entries = \GFAPI::get_entries($form_ids, $search_criteria);
@@ -984,12 +991,12 @@ class REST
             'status' => 'active',
             'field_filters' => array(
                 'mode' => 'any',
-                    array('value' => $user->user_email),
+                array('value' => $user->user_email),
             ),
         );
         $entries_by_email = \GFAPI::get_entries($form_ids, $search_criteria_email);
 
-        $all_entries = array_merge((array)$entries, (array)$entries_by_email);
+        $all_entries = array_merge((array) $entries, (array) $entries_by_email);
         $unique_entries = array();
         foreach ($all_entries as $entry) {
             if (isset($entry['id']) && !isset($unique_entries[$entry['id']])) {
@@ -1007,7 +1014,7 @@ class REST
                 foreach ($form['fields'] as $field) {
                     $label = $field->label ?? '';
                     if (stripos($label, 'Course') !== false) {
-                        $value = rgar($entry, (string)$field->id);
+                        $value = rgar($entry, (string) $field->id);
                         if (!empty($value)) {
                             $course_name = $value;
                             break;
@@ -1079,26 +1086,26 @@ class REST
      */
     public static function handle_log_download()
     {
-        if ( ! current_user_can( 'manage_options' ) ) {
-            wp_die( 'Unauthorized', 403 );
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized', 403);
         }
 
-        check_admin_referer( 'slms_download_log' );
+        check_admin_referer('slms_download_log');
 
         $log_file = \SimpleLMS\Migration::get_log_file_path();
 
-        if ( ! file_exists( $log_file ) || filesize( $log_file ) === 0 ) {
-            wp_die( 'No log file found.', 404 );
+        if (!file_exists($log_file) || filesize($log_file) === 0) {
+            wp_die('No log file found.', 404);
         }
 
-        $filename = 'slms-migration-' . gmdate( 'Y-m-d_H-i-s' ) . '.log';
+        $filename = 'slms-migration-' . gmdate('Y-m-d_H-i-s') . '.log';
 
-        header( 'Content-Type: text/plain; charset=utf-8' );
-        header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
-        header( 'Content-Length: ' . filesize( $log_file ) );
-        header( 'X-Content-Type-Options: nosniff' );
-        header( 'Cache-Control: no-cache, no-store, must-revalidate' );
-        readfile( $log_file );
+        header('Content-Type: text/plain; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Content-Length: ' . filesize($log_file));
+        header('X-Content-Type-Options: nosniff');
+        header('Cache-Control: no-cache, no-store, must-revalidate');
+        readfile($log_file);
         exit;
     }
 }

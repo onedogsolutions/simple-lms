@@ -90,20 +90,20 @@ class CourseHistory
                 $entry_id
             ));
             if ($exists) {
-                return (int)$exists;
+                return (int) $exists;
             }
         }
 
         $result = $wpdb->insert(
             self::$table_name,
             array(
-            'user_id' => absint($user_id),
-            'course_name' => sanitize_text_field($course_name),
-            'completed_date' => current_time('mysql', strtotime($date)),
-            'form_id' => $form_id ? absint($form_id) : null,
-            'gf_entry_id' => $entry_id ? absint($entry_id) : null,
-            'cert_data' => !empty($metadata) ? maybe_serialize($metadata) : null,
-        ),
+                'user_id' => absint($user_id),
+                'course_name' => sanitize_text_field($course_name),
+                'completed_date' => current_time('mysql', strtotime($date)),
+                'form_id' => $form_id ? absint($form_id) : null,
+                'gf_entry_id' => $entry_id ? absint($entry_id) : null,
+                'cert_data' => !empty($metadata) ? maybe_serialize($metadata) : null,
+            ),
             array('%d', '%s', '%s', '%d', '%d', '%s')
         );
 
@@ -116,7 +116,7 @@ class CourseHistory
      * @param int $user_id User ID.
      * @return array
      */
-    public static function get_for_user( int $user_id ): array
+    public static function get_for_user(int $user_id): array
     {
         global $wpdb;
         self::init();
@@ -149,7 +149,8 @@ class CourseHistory
      *
      * @return array { updated: int, skipped: int, failed: int }
      */
-    public static function repair_form_ids(): array {
+    public static function repair_form_ids(): array
+    {
         global $wpdb;
         self::init();
 
@@ -160,33 +161,33 @@ class CourseHistory
 
         $updated = 0;
         $skipped = 0;
-        $failed  = 0;
+        $failed = 0;
 
-        if ( empty( $rows ) || ! class_exists( 'GFAPI' ) ) {
-            return compact( 'updated', 'skipped', 'failed' );
+        if (empty($rows) || !class_exists('GFAPI')) {
+            return compact('updated', 'skipped', 'failed');
         }
 
-        foreach ( $rows as $row ) {
-            $entry = \GFAPI::get_entry( (int) $row->gf_entry_id );
+        foreach ($rows as $row) {
+            $entry = \GFAPI::get_entry((int) $row->gf_entry_id);
 
-            if ( is_wp_error( $entry ) || empty( $entry['form_id'] ) ) {
+            if (is_wp_error($entry) || empty($entry['form_id'])) {
                 $failed++;
                 continue;
             }
             $result = $wpdb->update(
                 self::$table_name,
-                array( 'form_id' => absint( $entry['form_id'] ) ),
-                array( 'id'      => absint( $row->id ) ),
-                array( '%d' ),
-                array( '%d' )
+                array('form_id' => absint($entry['form_id'])),
+                array('id' => absint($row->id)),
+                array('%d'),
+                array('%d')
             );
 
-            if ( false === $result ) {
+            if (false === $result) {
                 $failed++;
             } else {
                 $updated++;
             }
         }
-        return compact( 'updated', 'skipped', 'failed' );
+        return compact('updated', 'skipped', 'failed');
     }
 }
