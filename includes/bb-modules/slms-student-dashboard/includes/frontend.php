@@ -385,7 +385,7 @@ $saved_state = get_user_meta( $current_user->ID, 'billing_state', true );
 								$pdf_link_html = '';
 
 								// If form_id is missing from the DB row, resolve it from the GF entry at runtime.
-								if ( $gf_entry_id && ! $pdf_form_id && function_exists( 'GFAPI::get_entry' ) ) {
+								if ( $gf_entry_id && ! $pdf_form_id && class_exists( 'GFAPI' ) ) {
 									$gf_entry    = \GFAPI::get_entry( $gf_entry_id );
 									$pdf_form_id = ( ! is_wp_error( $gf_entry ) && ! empty( $gf_entry['form_id'] ) )
 										? absint( $gf_entry['form_id'] )

@@ -162,7 +162,7 @@ class CourseHistory
         $skipped = 0;
         $failed  = 0;
 
-        if ( empty( $rows ) || ! function_exists( 'GFAPI::get_entry' ) ) {
+        if ( empty( $rows ) || ! class_exists( 'GFAPI' ) ) {
             return compact( 'updated', 'skipped', 'failed' );
         }
 
