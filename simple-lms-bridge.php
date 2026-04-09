@@ -71,6 +71,9 @@ function slms_init()
 
     // Admin Menus
     add_action('admin_menu', __NAMESPACE__ . '\\slms_admin_menu');
+
+    // Handle log download action
+    add_action( 'admin_post_slms_download_log', array(__NAMESPACE__ . '\\REST', 'handle_log_download') );
 }
 add_action('init', __NAMESPACE__ . '\\slms_init');
 
@@ -228,6 +231,13 @@ function slms_enqueue_admin_assets($hook_suffix)
         'postId' => get_the_ID(),
         'postType' => $screen->post_type,
         'page' => isset($_GET['page']) ? sanitize_text_field(wp_unslash($_GET['page'])) : '',
+        'downloadUrl' => add_query_arg(
+            array(
+                'action' => 'slms_download_log',
+                '_wpnonce' => wp_create_nonce('slms_download_log'),
+            ),
+            admin_url('admin-post.php')
+        ),
     ));
 }
 add_action('admin_enqueue_scripts', __NAMESPACE__ . '\\slms_enqueue_admin_assets');

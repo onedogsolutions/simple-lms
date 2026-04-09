@@ -29,6 +29,12 @@ const DebugLog = () => {
 		}
 	};
 
+	const downloadLog = () => {
+		if ( window.slmsAdmin?.downloadUrl ) {
+			window.location.href = window.slmsAdmin.downloadUrl;
+		}
+	};
+
 	const clearLog = async () => {
 		if (
 			/* eslint-disable no-alert */
@@ -149,9 +155,17 @@ const DebugLog = () => {
 							variant="secondary"
 							onClick={ fetchLog }
 							disabled={ loading }
-							className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md"
+							className="bg-white border border-gray-300 text-gray-70 py-2 rounded-md"
 						>
 							{ __( 'Refresh', 'simple-lms-bridge' ) }
+						</Button>
+						<Button
+							variant="secondary"
+							onClick={ downloadLog }
+							disabled={ loading || ! log }
+							className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md"
+						>
+							{ __( 'Download Log', 'simple-lms-bridge' ) }
 						</Button>
 						<Button
 							variant="secondary"

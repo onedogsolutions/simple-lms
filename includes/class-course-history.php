@@ -143,4 +143,50 @@ class CourseHistory
             "DELETE FROM " . self::$table_name . " WHERE form_id IS NULL OR form_id = 0 OR gf_entry_id IS NULL OR gf_entry_id = 0"
         );
     }
+
+    /**
+     * Backfill form_id for rows that have gf_entry_id but NULL form_id.
+     *
+     * @return array { updated: int, skipped: int, failed: int }
+     */
+    public static function repair_form_ids(): array {
+        global $wpdb;
+        self::init();
+
+        $rows = $wpdb->get_results(
+            "SELECT id, gf_entry_id FROM " . self::$table_name .
+            " WHERE gf_entry_id IS NOT NULL AND gf_entry_id > 0 AND (form_id IS NULL OR form_id = 0)"
+        );
+
+        $updated = 0;
+        $skipped = 0;
+        $failed  = 0;
+
+        if ( empty( $rows ) || ! function_exists( 'GFAPI::get_entry' ) ) {
+            return compact( 'updated', 'skipped', 'failed' );
+        }
+
+        foreach ( $rows as $row ) {
+            $entry = \GFAPI::get_entry( (int) $row->gf_entry_id );
+
+            if ( is_wp_error( $entry ) || empty( $entry['form_id'] ) ) {
+                $failed++;
+                continue;
+            }
+            $result = $wpdb->update(
+                self::$table_name,
+                array( 'form_id' => absint( $entry['form_id'] ) ),
+                array( 'id'      => absint( $row->id ) ),
+                array( '%d' ),
+                array( '%d' )
+            );
+
+            if ( false === $result ) {
+                $failed++;
+            } else {
+                $updated++;
+            }
+        }
+        return compact( 'updated', 'skipped', 'failed' );
+    }
 }

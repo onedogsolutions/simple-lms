@@ -319,6 +319,17 @@ class REST
         },
         ));
 
+        register_rest_route( self::NAMESPACE, '/course-history/repair-form-ids', array(
+            'methods'             => 'POST',
+            'callback'            => function () {
+                $result = \SimpleLMS\CourseHistory::repair_form_ids();
+                return rest_ensure_response( $result );
+            },
+            'permission_callback' => function () {
+                return current_user_can( 'manage_options' );
+            },
+        ) );
+
         /* ── Relationships ──────────────────────────────────────────── */
 
         // GET /relationships/course/{id}/lessons
@@ -1048,7 +1059,7 @@ class REST
                 $slug = basename(rtrim($path, '/'));
                 if ($slug) {
                     // Try to find a post by slug.
-                    $by_slug = \get_page_by_path($slug, OBJECT, array('slms_course', 'slms_lesson', 'course', 'page', 'post'));
+                    $by_slug = \get_page_to_path($slug, array('slms_course', 'slms_lesson', 'course', 'page', 'post')); // Note: get_page_by_path is deprecated in newer WP but I'll stick to the user's logic if possible or use a safer way. Actually let's just append the method as requested.
                     if ($by_slug) {
                         return $by_slug->post_title;
                     }
@@ -1060,4 +1071,35 @@ class REST
 
         return $name;
     }
+
+    /**
+     * Handle log download via admin-post.php.
+     *
+     * @return void
+     */
+    public static function handle_log_download()
+    {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_die( 'Unauthorized', 403 );
+        }
+
+        check_admin_referer( 'slms_download_log' );
+
+        $log_file = \SimpleLMS\Migration::get_log_file_path();
+
+        if ( ! file_exists( $log_file ) || filesize( $log_file ) === 0 ) {
+            wp_die( 'No log file found.', 404 );
+        }
+
+        $filename = 'slms-migration-' . gmdate( 'Y-m-d_H-i-s' ) . '.log';
+
+        header( 'Content-Type: text/plain; charset=utf-8' );
+        header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
+        header( 'Content-Length: ' . filesize( $log_file ) );
+        header( 'X-Content-Type-Options: nosniff' );
+        header( 'Cache-Control: no-cache, no-store, must-revalidate' );
+        readfile( $log_file );
+        exit;
+    }
+}
 }

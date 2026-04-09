@@ -234,6 +234,15 @@ The project has been moved to a private GitHub repository. Core features are in 
   - **Database Schema Update:** Added `form_id` column to `wp_slms_course_history` for direct certificate linkage.
   - **Frontend Guards:** Added defensive logic to the Student Dashboard's Certificates tab to prevent crashes and provide "N/A" fallbacks for corrupted data.
   - **Cleanup Utility:** Updated `CourseHistory::purge_corrupted_records()` to target records with missing `form_id` or `gf_entry_id`.
+- **Certificate PDF Link Fix (Apr 2026 — Pending):**
+  - **Root cause:** `GPDFAPI::get_entry_pdfs($entry_id)` evaluates the PDF template's entry-level conditional logic; entries that don't satisfy the condition return an empty array, producing N/A for every row on sites where conditions are active.
+  - **Fix:** Replace `get_entry_pdfs()` with `GPDFAPI::get_form_pdfs($form_id)` to retrieve all active PDF templates for the form regardless of entry conditions, then call `GPDFAPI::get_pdf_url($pdf_hash_id, $entry_id)` to build the signed URL. All `slms_course_history` rows are proven completions so bypassing entry conditions is appropriate.
+  - **Missing `form_id`:** Many rows have `gf_entry_id` but NULL `form_id`. Add runtime fallback in `frontend.php`: when `$row->form_id` is NULL, call `GFAPI::get_entry($gf_entry_id)['form_id']` to resolve it before the PDF block.
+  - **New `CourseHistory::repair_form_ids()`:** Bulk backfill method that finds rows with non-null `gf_entry_id` but null `form_id`, fetches the form ID from GF, and updates the row. Wire to a new REST endpoint `POST /course-history/repair-form-ids` (admin-only).
+  - **`purge_corrupted_records()` hazard:** This method deletes ANY row where `form_id IS NULL` — which includes legitimate pre-migration records. It must never be called automatically. Remove any automated invocations; call only via an explicit admin action.
+  - **Course name raw URL fallback:** When slug resolution fails, the Step E formatter `ucwords(str_replace('-', ' ', $last_slug))` may receive an empty `$last_slug` if `end($segments)` fails on an empty array. Guard: fall back to stripping the full URL path as the last resort rather than outputting an empty string or the raw URL.
+  - **Record count gap (live vs dev):** If the live site shows far fewer history rows, re-run Phase 4 migration on the live site. Verify `purge_corrupted_records()` was not called on live.
+  - **Files to change:** `includes/bb-modules/slms-student-dashboard/includes/frontend.php`, `includes/class-course-history.php`, `includes/class-rest.php`.
 
 ## Migration Diagnostic Logging
 
