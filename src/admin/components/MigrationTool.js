@@ -348,7 +348,7 @@ const MigrationTool = () => {
 
 	const downloadLog = () => {
 		const text = logEntries
-			.map((e) => `[${ e.time }] ${ e.level.toUpperCase() } ${ e.message }`)
+			.map((e) => `[${ e.time }] ${ e.level.toUpperCase() } ${ e.msg }`)
 			.join('\n');
 		const blob = new Blob([text], { type: 'text/plain' });
 		const url = URL.createObjectURL(blob);
@@ -362,15 +362,27 @@ const MigrationTool = () => {
 	return (
 		<div className="max-w-4xl mx-auto py-8">
 			<div className="bg-white rounded-lg shadow-sm p-8 mb-8 border border-gray-200">
-				<h1 className="text-3xl font-bold text-gray-900 mb-3">
-					{__('SimpleLMS Migration Hub', 'simple-lms-bridge')}
-				</h1>
-				<p className="text-gray-600">
-					{__(
-						'Execute the structural and historical data migration for your LMS platform sequentially.',
-						'simple-lms-bridge'
-					)}
-				</p>
+				<div className="flex justify-between items-start">
+					<div>
+						<h1 className="text-3xl font-bold text-gray-900 mb-3">
+							{__('SimpleLMS Migration Hub', 'simple-lms-bridge')}
+						</h1>
+						<p className="text-gray-600">
+							{__(
+								'Execute the structural and historical data migration for your LMS platform sequentially.',
+								'simple-lms-bridge'
+							)}
+						</p>
+					</div>
+					<Button
+						variant="secondary"
+						onClick={ downloadLog }
+						disabled={ logEntries.length === 0 }
+						className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-md"
+					>
+						{__('Download Log', 'simple-lms-bridge')}
+					</Button>
+				</div>
 			</div>
 
 			{error && (
