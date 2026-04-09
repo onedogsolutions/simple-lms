@@ -346,6 +346,19 @@ const MigrationTool = () => {
 	const warnCount = logEntries.filter((e) => e.level === 'warn').length;
 	const errorCount = logEntries.filter((e) => e.level === 'error').length;
 
+	const downloadLog = () => {
+		const text = logEntries
+			.map((e) => `[${ e.time }] ${ e.level.toUpperCase() } ${ e.message }`)
+			.join('\n');
+		const blob = new Blob([text], { type: 'text/plain' });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = 'migration-log.txt';
+		a.click();
+		URL.revokeObjectURL(url);
+	};
+
 	return (
 		<div className="max-w-4xl mx-auto py-8">
 			<div className="bg-white rounded-lg shadow-sm p-8 mb-8 border border-gray-200">
@@ -890,6 +903,13 @@ const MigrationTool = () => {
 										</button>
 									))}
 									<div className="flex-grow" />
+									<button
+										type="button"
+										onClick={ downloadLog }
+										className="px-3 py-1 text-xs font-medium rounded-full border border-gray-300 text-gray-500 hover:text-blue-600 hover:border-blue-300 bg-white cursor-pointer transition-colors"
+									>
+										{__('Download', 'simple-lms-bridge')}
+									</button>
 									<button
 										type="button"
 										onClick={() => {
