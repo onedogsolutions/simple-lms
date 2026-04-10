@@ -187,7 +187,7 @@ The project has been moved to a private GitHub repository. Core features are in 
   - Fixed in `slms-student-dashboard/includes/frontend.php`:
     - Switched to `GPDFAPI::get_form_pdfs($pdf_form_id)` (public API, confirmed in source; reads form settings only — no entry-level permission check).
     - Iterates the returned PDF config array to find the first active template and extracts its hash key.
-    - Constructs GravityPDF v6 pretty URL directly: `home_url('/pdf/{entry_id}/{pdf_hash}/download/')` — no GPDFAPI URL helper needed.
+    - Constructs GravityPDF v6 pretty URL directly: `home_url('/pdf/{pdf_hash}/{entry_id}/download/')` — no GPDFAPI URL helper needed. Note: GravityPDF's actual URL order is hash first, then entry ID (not entry ID first).
     - If `form_id` is missing from the history row, falls back to `GFAPI::get_entry()` to resolve it before calling `get_form_pdfs()`.
   - Falls back to "N/A" if GravityPDF is not active or no PDF template is configured for the form.
 - **Deployment Note (Apr 2026):** After any JS or CSS change to BB modules, the Beaver Builder cache must be manually cleared (WP Admin → Settings → Beaver Builder → Tools → Clear Cache) to force BB to re-enqueue updated module assets. Hard-refresh (`Cmd+Shift+R`) also required to bypass browser cache.

@@ -469,8 +469,8 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 										}
 
 										if ($hash_id) {
-											// GravityPDF v6 pretty permalink: /pdf/{entry_id}/{pdf_hash}/download/
-											$pdf_url = home_url('/pdf/' . $gf_entry_id . '/' . $hash_id . '/download/');
+											// GravityPDF v6 pretty permalink: /pdf/{pdf_hash}/{entry_id}/download/
+											$pdf_url = home_url('/pdf/' . $hash_id . '/' . $gf_entry_id . '/download/');
 											$pdf_link_html = '<a href="' . esc_url($pdf_url) . '" class="slms-pdf-link">'
 												. esc_html__('Download PDF', 'simple-lms')
 												. '</a>';
