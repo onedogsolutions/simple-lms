@@ -535,16 +535,7 @@ class Migration
             return array();
         }
 
-        $course_ids = array();
-        foreach ($entries as $entry) {
-            // GF checkboxes store each choice in sub-fields: 20.1, 20.2, etc.
-            for ($i = 1; $i <= 20; $i++) {
-                $val = rgar($entry, $course_field_id . '.' . $i);
-                if (!empty($val) && is_numeric($val)) {
-                    $course_ids[] = (int)$val;
-                }
-            }
-        }
+        $course_ids = self::extract_legacy_course_ids($entries, $course_field_id);
 
         if (empty($course_ids)) {
             return array();
@@ -568,6 +559,47 @@ class Migration
         }
 
         return array_unique($new_course_ids);
+    }
+
+    /**
+     * Parse and sanitize legacy course IDs from an array of Gravity Forms entries.
+     * Splits mistakenly concatenated IDs (e.g., 546630) to retrieve valid course assignments.
+     *
+     * @param array $entries
+     * @param int   $course_field_id
+     * @return array array of unique int course IDs
+     */
+    private static function extract_legacy_course_ids($entries, $course_field_id) {
+        $course_ids = array();
+        
+        foreach ($entries as $entry) {
+            // GF checkboxes store each choice in sub-fields: 20.1, 20.2, etc.
+            for ($i = 1; $i <= 20; $i++) {
+                $val = rgar($entry, $course_field_id . '.' . $i);
+                if (!empty($val) && is_numeric($val)) {
+                    $raw_id = (string)$val;
+                    $len = strlen($raw_id);
+                    
+                    // Detect mistakenly concatenated IDs (e.g., from a badly configured form export/import)
+                    if ($len === 6) {
+                        // 3-digit + 3-digit
+                        $course_ids[] = (int)substr($raw_id, 0, 3);
+                        $course_ids[] = (int)substr($raw_id, 3);
+                    } elseif ($len === 5) {
+                        // 2-digit + 3-digit OR 3-digit + 2-digit
+                        $course_ids[] = (int)substr($raw_id, 0, 2);
+                        $course_ids[] = (int)substr($raw_id, 2);
+                        $course_ids[] = (int)substr($raw_id, 0, 3);
+                        $course_ids[] = (int)substr($raw_id, 3);
+                    } else {
+                        // Standard valid ID
+                        $course_ids[] = (int)$raw_id;
+                    }
+                }
+            }
+        }
+        
+        return array_values(array_unique($course_ids));
     }
 
     /**
@@ -1173,13 +1205,8 @@ class Migration
 
             // Extract legacy course post IDs from checkbox field 20.
             // GF checkboxes store each choice in sub-fields: 20.1, 20.2, 20.3, etc.
-            $legacy_course_ids = array();
-            for ($i = 1; $i <= 20; $i++) {
-                $val = rgar($entry, $course_field_id . '.' . $i);
-                if (!empty($val) && is_numeric($val)) {
-                    $legacy_course_ids[] = (int)$val;
-                }
-            }
+            // Uses a helper to split mistakenly concatenated IDs (e.g. 546630).
+            $legacy_course_ids = self::extract_legacy_course_ids(array($entry), $course_field_id);
 
             if (empty($legacy_course_ids)) {
                 self::log('Entry #' . $entry_id . ' (' . $user_label . '): no course selections in field ' . $course_field_id . ', skipping.', 'debug');

@@ -454,7 +454,7 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 										// Use the first active (not inactive) PDF template.
 										$pdf_hash_id = null;
 										foreach ($pdfs as $hash => $pdf_config) {
-											if (isset($pdf_config['active']) && true === $pdf_config['active']) {
+											if (!empty($pdf_config['active'])) {
 												$pdf_hash_id = $hash;
 												break;
 											}
