@@ -443,40 +443,103 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 								}
 							}
 
-							if ($gf_entry_id && class_exists('GPDFAPI')) {
+							if ($gf_entry_id && $pdf_form_id && class_exists('GPDFAPI')) {
 								try {
-									// get_entry_pdfs() evaluates all PDF templates' conditional logic
-									// (state + course URL conditions) against this entry's field values,
-									// returning only the single matching template. Required because the
-									// Certificate form has 11 PDFs gated by state (field 6) and course
-									// URL (field 18) — get_form_pdfs() would always pick the wrong one.
-									// GFAPI::get_entry() (called internally by get_entry_pdfs) is a direct
-									// DB query with no user permission check, so it works for students.
-									$pdfs = \GPDFAPI::get_entry_pdfs($gf_entry_id);
+									$hash_id = null;
 
-									// Fallback: if stored entry ID is stale or invalid, search GF for
-									// this user's entry in the certificate form by user ID or email.
-									if ((is_wp_error($pdfs) || empty($pdfs)) && $pdf_form_id && class_exists('GFAPI')) {
-										$search_criteria = array(
-											'status' => 'active',
-											'field_filters' => array(
-												'mode' => 'any',
-												array('key' => 'created_by', 'value' => $current_user->ID),
-												array('value' => $current_user->user_email),
-											),
-										);
-										$matches = \GFAPI::get_entries($pdf_form_id, $search_criteria, null, array('page_size' => 20));
-										if (!empty($matches)) {
-											$gf_entry_id = absint($matches[0]['id']);
-											$pdfs = \GPDFAPI::get_entry_pdfs($gf_entry_id);
+									// ── Stage 1: get_entry_pdfs() ──────────────────────────────────────
+									// Evaluates all 11 PDF templates' conditional logic against the GF
+									// entry's actual field values — most accurate when entry data is intact.
+									$entry_pdfs = \GPDFAPI::get_entry_pdfs($gf_entry_id);
+									if (!is_wp_error($entry_pdfs) && !empty($entry_pdfs)) {
+										$hash_id = function_exists('array_key_first')
+											? array_key_first($entry_pdfs)
+											: key($entry_pdfs);
+									}
+
+									// ── Stage 2: Manual conditional logic evaluation ───────────────────
+									// Fallback when get_entry_pdfs() returns empty or WP_Error (e.g. the
+									// GF entry's field 6 / field 18 were not populated during migration).
+									// Evaluates each PDF's conditionalLogic rules using:
+									//   Field 6  → billing_state user meta
+									//   Field 18 → course slug from $course_link (resolved permalink)
+									//              or $raw_course_name as secondary source
+									if (!$hash_id) {
+										$all_pdfs = \GPDFAPI::get_form_pdfs($pdf_form_id);
+
+										if (!is_wp_error($all_pdfs) && !empty($all_pdfs)) {
+											$student_state = (string) get_user_meta($current_user->ID, 'billing_state', true);
+											// Prefer resolved permalink; fall back to raw stored course name.
+											$url_to_match  = $course_link ?: $raw_course_name;
+
+											foreach ($all_pdfs as $id => $pdf_config) {
+												if (empty($pdf_config['active'])) {
+													continue;
+												}
+
+												$logic = !empty($pdf_config['conditionalLogic'])
+													? $pdf_config['conditionalLogic']
+													: array();
+
+												// No conditional logic on this template → always matches.
+												if (empty($logic['rules'])) {
+													$hash_id = $id;
+													break;
+												}
+
+												$logic_type  = isset($logic['logicType']) ? $logic['logicType'] : 'all';
+												$rule_results = array();
+
+												foreach ($logic['rules'] as $rule) {
+													$fid = (string)(isset($rule['fieldId']) ? $rule['fieldId'] : '');
+													$op  = isset($rule['operator']) ? $rule['operator'] : 'is';
+													$val = isset($rule['value']) ? $rule['value'] : '';
+
+													if ('6' === $fid) {
+														// State: exact string comparison.
+														$match = ('is' === $op)
+															? ($student_state === $val)
+															: ($student_state !== $val);
+
+													} elseif ('18' === $fid) {
+														// Course URL: match by course slug so both lesson-URL
+														// and course-only-URL formats resolve correctly.
+														$cond_path  = (string) parse_url($val, PHP_URL_PATH);
+														$cond_parts = array_values(array_filter(explode('/', trim($cond_path, '/'))));
+														$cidx       = array_search('course', $cond_parts, true);
+														$course_slug = ($cidx !== false && isset($cond_parts[$cidx + 1]))
+															? $cond_parts[$cidx + 1]
+															: '';
+														$match = $course_slug !== ''
+															&& strpos((string) $url_to_match, $course_slug) !== false;
+														if ('isnot' === $op) {
+															$match = !$match;
+														}
+
+													} else {
+														continue; // Unknown field — skip rule.
+													}
+
+													$rule_results[] = $match;
+												}
+
+												if (empty($rule_results)) {
+													continue;
+												}
+
+												$passes = ('any' === $logic_type)
+													? in_array(true, $rule_results, true)
+													: !in_array(false, $rule_results, true);
+
+												if ($passes) {
+													$hash_id = $id;
+													break;
+												}
+											}
 										}
 									}
 
-									if (!is_wp_error($pdfs) && !empty($pdfs)) {
-										// Array is keyed by hash ID (get_active_pdfs preserves hash as key).
-										$hash_id = function_exists('array_key_first')
-											? array_key_first($pdfs)
-											: key($pdfs);
+									if ($hash_id) {
 										// GravityPDF v6 pretty permalink: /pdf/{hash}/{entry_id}/download/
 										$pdf_url = home_url('/pdf/' . $hash_id . '/' . $gf_entry_id . '/download/');
 										$pdf_link_html = '<a href="' . esc_url($pdf_url) . '" class="slms-pdf-link">'

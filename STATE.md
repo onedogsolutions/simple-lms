@@ -186,12 +186,17 @@ The project has been moved to a private GitHub repository. Core features are in 
   - **Certificate Form structure:** Form ID 5 ("Certificate") has **11 PDF templates**, all with conditional logic on field 6 (State: TX, NC, or other) and field 18 (Course URL). Each entry matches exactly one template. Picking any template without evaluating conditions returns the wrong PDF.
   - **Root cause of N/A:** `GPDFAPI::get_pdf_url()` is **not part of the public GPDFAPI** (confirmed via source code audit of `api.php`). Calling it threw a PHP Error silently caught by try/catch, always producing N/A.
   - **Root cause of "conditional logic not met":** `GPDFAPI::get_form_pdfs()` returns all 11 templates; taking the first one (`63589084394c6` = "Certificate PDF - Single Courses") fails for entries that match a different state/course condition.
-  - **Final fix in `slms-student-dashboard/includes/frontend.php`:**
-    - Uses `GPDFAPI::get_entry_pdfs($gf_entry_id)` — evaluates all 11 templates' conditional logic against the entry's actual field values and returns only the matching template. `GFAPI::get_entry()` (called internally) is a direct DB query with no user permission check, so it works for student users.
-    - Falls back to searching GF entries by `created_by` user ID or email if the stored `gf_entry_id` is invalid/stale (migration artifact).
-    - URL format confirmed as `home_url('/pdf/{hash}/{entry_id}/download/')` — hash first, then entry ID.
-    - If `form_id` is missing from the history row, resolves it from `GFAPI::get_entry()` before the fallback search.
-  - Falls back to "N/A" if GravityPDF is not active, no matching PDF template is found, or no GF entry can be located for the user.
+  - **Final fix in `slms-student-dashboard/includes/frontend.php` — two-stage PDF hash resolution:**
+    - **Stage 1:** `GPDFAPI::get_entry_pdfs($gf_entry_id)` — evaluates all 11 templates' conditional logic against the GF entry's actual field values. Most accurate when GF entry field 6 (State) and field 18 (Course URL) are populated.
+    - **Stage 2 (fallback):** When Stage 1 returns empty or WP_Error (GF entry fields unpopulated due to migration), evaluates each PDF template's `conditionalLogic` rules manually using data already in context: `billing_state` user meta (→ field 6) and the resolved course permalink slug (→ field 18). Course slug matching (`strpos`) handles both lesson-URL and course-only-URL formats stored in `slms_course_history.course_name`.
+    - URL format confirmed as `home_url('/pdf/{hash}/{entry_id}/download/')` — hash first, then entry ID (confirmed from browser URL bar screenshot).
+    - If `form_id` is missing from the history row, resolves it via `GFAPI::get_entry()` before either stage runs.
+  - Falls back to "N/A" if GravityPDF is not active, no matching PDF template is found, or `gf_entry_id` / `form_id` are both absent.
+- **Student Manager Certificate PDF Column (Apr 2026):**
+  - Added `resolve_pdf_url(int $gf_entry_id, int $pdf_form_id, string $raw_course, int $user_id): string` private static helper to `class-rest.php`. Uses the identical two-stage GravityPDF hash resolution from the student dashboard (Stage 1: `get_entry_pdfs()`, Stage 2: manual conditional logic with `billing_state` + course slug).
+  - Updated `get_student_history()` REST endpoint to include `pdf_url` in both response paths: compliance table path (`slms_course_history` records) and fallback GFAPI path.
+  - Added third "Certificate PDF" column to `HistoryTab` in `StudentManager.js`. Renders as a `<a>` download link if `pdf_url` is present, otherwise "N/A" in italicised gray.
+  - Built with `npm run build`.
 - **Deployment Note (Apr 2026):** After any JS or CSS change to BB modules, the Beaver Builder cache must be manually cleared (WP Admin → Settings → Beaver Builder → Tools → Clear Cache) to force BB to re-enqueue updated module assets. Hard-refresh (`Cmd+Shift+R`) also required to bypass browser cache.
 
 ## Technical Details

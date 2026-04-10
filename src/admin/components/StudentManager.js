@@ -81,6 +81,9 @@ const HistoryTab = ({ userId }) => {
 							<th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
 								{__('Class', 'simple-lms-bridge')}
 							</th>
+							<th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+								{__('Certificate PDF', 'simple-lms-bridge')}
+							</th>
 						</tr>
 					</thead>
 					<tbody className="divide-y divide-gray-100">
@@ -94,6 +97,22 @@ const HistoryTab = ({ userId }) => {
 								</td>
 								<td className="px-4 py-3 text-sm text-gray-900 font-medium">
 									{entry.course_name}
+								</td>
+								<td className="px-4 py-3 text-sm">
+									{entry.pdf_url ? (
+										<a
+											href={entry.pdf_url}
+											target="_blank"
+											rel="noreferrer"
+											className="text-blue-600 hover:text-blue-800 underline"
+										>
+											{__('Download PDF', 'simple-lms-bridge')}
+										</a>
+									) : (
+										<span className="text-gray-400 italic">
+											{__('N/A', 'simple-lms-bridge')}
+										</span>
+									)}
 								</td>
 							</tr>
 						))}
