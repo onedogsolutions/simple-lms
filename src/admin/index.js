@@ -12,6 +12,7 @@
  */
 
 import { createRoot, render } from '@wordpress/element';
+import './index.css';
 
 import CourseEditor from './components/CourseEditor';
 import LessonSettings from './components/LessonSettings';
