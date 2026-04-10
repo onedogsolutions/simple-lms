@@ -447,10 +447,40 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 								try {
 									$hash_id = null;
 
+									// Resolve student state and course URL early — needed for both the
+									// GF entry backfill (below) and the Stage 2 manual fallback.
+									$student_state = (string) get_user_meta($current_user->ID, 'billing_state', true);
+									// Prefer resolved permalink; fall back to raw stored course name.
+									$url_to_match  = $course_link ?: $raw_course_name;
+
 									// ── Stage 1: get_entry_pdfs() ──────────────────────────────────────
 									// Evaluates all 11 PDF templates' conditional logic against the GF
 									// entry's actual field values — most accurate when entry data is intact.
 									$entry_pdfs = \GPDFAPI::get_entry_pdfs($gf_entry_id);
+
+									// When Stage 1 returns empty the GF entry is likely missing field 6
+									// (State) and/or field 18 (Course URL) — common for migrated entries.
+									// Backfill those fields so GravityPDF's server-side conditional check
+									// will pass when the user actually downloads the PDF, then retry.
+									if (!is_wp_error($entry_pdfs) && empty($entry_pdfs) && class_exists('GFAPI')) {
+										$_gf_entry_check = \GFAPI::get_entry($gf_entry_id);
+										if (!is_wp_error($_gf_entry_check)) {
+											$_backfilled = false;
+											if ($student_state && empty($_gf_entry_check['6'])) {
+												\GFAPI::update_entry_field($gf_entry_id, 6, $student_state);
+												$_backfilled = true;
+											}
+											if ($url_to_match && empty($_gf_entry_check['18'])) {
+												\GFAPI::update_entry_field($gf_entry_id, 18, $url_to_match);
+												$_backfilled = true;
+											}
+											if ($_backfilled) {
+												// Retry Stage 1 — entry now has the field values needed.
+												$entry_pdfs = \GPDFAPI::get_entry_pdfs($gf_entry_id);
+											}
+										}
+									}
+
 									if (!is_wp_error($entry_pdfs) && !empty($entry_pdfs)) {
 										$hash_id = function_exists('array_key_first')
 											? array_key_first($entry_pdfs)
@@ -458,19 +488,13 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 									}
 
 									// ── Stage 2: Manual conditional logic evaluation ───────────────────
-									// Fallback when get_entry_pdfs() returns empty or WP_Error (e.g. the
-									// GF entry's field 6 / field 18 were not populated during migration).
-									// Evaluates each PDF's conditionalLogic rules using:
-									//   Field 6  → billing_state user meta
-									//   Field 18 → course slug from $course_link (resolved permalink)
-									//              or $raw_course_name as secondary source
+									// Final fallback when Stage 1 still returns empty even after the
+									// entry field backfill (e.g. billing_state is missing from user meta
+									// or the course URL could not be resolved).
 									if (!$hash_id) {
 										$all_pdfs = \GPDFAPI::get_form_pdfs($pdf_form_id);
 
 										if (!is_wp_error($all_pdfs) && !empty($all_pdfs)) {
-											$student_state = (string) get_user_meta($current_user->ID, 'billing_state', true);
-											// Prefer resolved permalink; fall back to raw stored course name.
-											$url_to_match  = $course_link ?: $raw_course_name;
 
 											foreach ($all_pdfs as $id => $pdf_config) {
 												if (empty($pdf_config['active'])) {
