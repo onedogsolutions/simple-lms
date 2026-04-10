@@ -426,8 +426,23 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 								}
 
 							} else {
-								// Plain string (post-migration data) — use directly.
+								// Plain string (post-migration data or new completion title) — use directly.
 								$course_name = !empty($raw_course_name) ? $raw_course_name : __('Unknown Course', 'simple-lms');
+
+								// Try to resolve a permalink from the title so PDF backfill has a valid URL.
+								if (!empty($raw_course_name)) {
+									$title_posts = get_posts(array(
+										'post_type'      => 'slms_course',
+										'title'          => $raw_course_name,
+										'posts_per_page' => 1,
+										'post_status'    => array('publish', 'private'),
+										'no_found_rows'  => true,
+									));
+									if (!empty($title_posts)) {
+										$course_name = $title_posts[0]->post_title;
+										$course_link = get_permalink($title_posts[0]->ID);
+									}
+								}
 							}
 
 							// ── GravityPDF Link Generation ──────────────────────────────────
@@ -466,11 +481,17 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 										$_gf_entry_check = \GFAPI::get_entry($gf_entry_id);
 										if (!is_wp_error($_gf_entry_check)) {
 											$_backfilled = false;
-											if ($student_state && empty($_gf_entry_check['6'])) {
+											// Always overwrite field 6 — existing value clearly isn't working.
+											if ($student_state) {
 												\GFAPI::update_entry_field($gf_entry_id, 6, $student_state);
 												$_backfilled = true;
 											}
-											if ($url_to_match && empty($_gf_entry_check['18'])) {
+											// For field 18 prefer the resolved permalink; only fall back to the
+											// raw value when the field is completely empty.
+											if ($course_link) {
+												\GFAPI::update_entry_field($gf_entry_id, 18, $course_link);
+												$_backfilled = true;
+											} elseif ($url_to_match && empty($_gf_entry_check['18'])) {
 												\GFAPI::update_entry_field($gf_entry_id, 18, $url_to_match);
 												$_backfilled = true;
 											}
@@ -530,12 +551,28 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 														// and course-only-URL formats resolve correctly.
 														$cond_path  = (string) parse_url($val, PHP_URL_PATH);
 														$cond_parts = array_values(array_filter(explode('/', trim($cond_path, '/'))));
-														$cidx       = array_search('course', $cond_parts, true);
+														$cidx        = array_search('course', $cond_parts, true);
+														// Use segment after "course/" if present; fall back to last segment.
 														$course_slug = ($cidx !== false && isset($cond_parts[$cidx + 1]))
 															? $cond_parts[$cidx + 1]
-															: '';
-														$match = $course_slug !== ''
-															&& strpos((string) $url_to_match, $course_slug) !== false;
+															: (!empty($cond_parts) ? end($cond_parts) : '');
+
+														if ($course_slug !== '') {
+															// Case-insensitive URL slug match.
+															$match = stripos((string) $url_to_match, $course_slug) !== false;
+															// Also compare via the resolved course title slug (handles
+															// plain-text course_name values that aren't URLs).
+															if (!$match && !empty($course_name)) {
+																$title_slug = sanitize_title($course_name);
+																$match = $title_slug !== '' && (
+																	stripos($title_slug, $course_slug) !== false ||
+																	stripos($course_slug, $title_slug) !== false
+																);
+															}
+														} else {
+															$match = false;
+														}
+
 														if ('isnot' === $op) {
 															$match = !$match;
 														}

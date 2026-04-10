@@ -152,29 +152,45 @@ class Certificates
                 // Automate certificate generation.
                 $form_id = (int)get_post_meta($course_id, '_lms_certificate_form', true);
 
+                $linked_entry_id = null;
+
                 if ($form_id > 0 && class_exists('GFAPI')) {
                     // Check if an entry already exists for this user and form to avoid duplicates.
-                    $entry_query = array(
-                        'form_id' => $form_id,
+                    $search_criteria = array(
+                        'status'        => 'active',
                         'field_filters' => array(
-                                array('key' => 'created_by', 'value' => $user_id)
-                        )
+                            array('key' => 'created_by', 'value' => $user_id),
+                        ),
                     );
-                    $entries = \GFAPI::get_entries($form_id, $entry_query['field_filters']);
+                    $entries = \GFAPI::get_entries($form_id, $search_criteria);
 
                     if (empty($entries)) {
-                        $entry = array(
-                            'form_id' => $form_id,
+                        // Populate field 6 (State) and field 18 (Course URL) so GravityPDF
+                        // conditional logic can match the correct PDF template immediately.
+                        $result = \GFAPI::add_entry(array(
+                            'form_id'    => $form_id,
                             'created_by' => $user_id,
-                            'status' => 'active',
-                        );
-                        \GFAPI::add_entry($entry);
+                            'status'     => 'active',
+                            '6'          => (string) get_user_meta($user_id, 'billing_state', true),
+                            '18'         => (string) get_permalink($course_id),
+                        ));
+                        if (!is_wp_error($result)) {
+                            $linked_entry_id = (int) $result;
+                        }
+                    } else {
+                        $linked_entry_id = (int) $entries[0]['id'];
                     }
                 }
 
                 if (class_exists(__NAMESPACE__ . '\CourseHistory')) {
                     $course_title = get_the_title($course_id);
-                    CourseHistory::insert($user_id, $course_title, current_time('mysql'));
+                    CourseHistory::insert(
+                        $user_id,
+                        $course_title,
+                        current_time('mysql'),
+                        $linked_entry_id,
+                        $form_id > 0 ? $form_id : null
+                    );
                 }
 
                 // Revoke access automatically upon completion (if configured or standard behavior).

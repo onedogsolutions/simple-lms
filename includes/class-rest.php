@@ -1151,11 +1151,27 @@ class REST
                 } elseif ('18' === $fid) {
                     $cond_path  = (string) parse_url($val, PHP_URL_PATH);
                     $cond_parts = array_values(array_filter(explode('/', trim($cond_path, '/'))));
-                    $cidx       = array_search('course', $cond_parts, true);
+                    $cidx        = array_search('course', $cond_parts, true);
+                    // Use segment after "course/" if present; fall back to last segment.
                     $course_slug = ($cidx !== false && isset($cond_parts[$cidx + 1]))
                         ? $cond_parts[$cidx + 1]
-                        : '';
-                    $match = $course_slug !== '' && strpos($raw_course, $course_slug) !== false;
+                        : (!empty($cond_parts) ? end($cond_parts) : '');
+
+                    if ($course_slug !== '') {
+                        // Case-insensitive match against the stored course value.
+                        $match = stripos($raw_course, $course_slug) !== false;
+                        // Also compare via a title-slug conversion (handles plain-text course_name).
+                        if (!$match) {
+                            $title_slug = sanitize_title($raw_course);
+                            $match = $title_slug !== '' && (
+                                stripos($title_slug, $course_slug) !== false ||
+                                stripos($course_slug, $title_slug) !== false
+                            );
+                        }
+                    } else {
+                        $match = false;
+                    }
+
                     if ('isnot' === $op) {
                         $match = !$match;
                     }
