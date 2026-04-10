@@ -435,44 +435,39 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 							$pdf_form_id = isset($row->form_id) ? absint($row->form_id) : 0;
 							$pdf_link_html = '';
 
-							// If form_id is missing from the DB row, resolve it from the GF entry at runtime.
-							if ($gf_entry_id && !$pdf_form_id && class_exists('GFAPI')) {
-								$gf_entry = \GFAPI::get_entry($gf_entry_id);
-								$pdf_form_id = (!is_wp_error($gf_entry) && !empty($gf_entry['form_id']))
-									? absint($gf_entry['form_id'])
-									: 0;
-							}
-
-							if ($gf_entry_id && $pdf_form_id && class_exists('GPDFAPI')) {
+							if ($gf_entry_id && class_exists('GPDFAPI')) {
 								try {
-									// Use get_form_pdfs() — returns all active PDF templates for the form,
-									// bypassing entry-level conditional logic. Every slms_course_history row
-									// is a proven completion so this is appropriate.
-									$pdfs = \GPDFAPI::get_form_pdfs($pdf_form_id);
+									// Use get_entry_pdfs() — resolves PDFs for the specific GF entry,
+									// applying conditional logic. More reliable than get_form_pdfs() for
+									// migrated certificate records.
+									$pdfs = \GPDFAPI::get_entry_pdfs($gf_entry_id);
+
+									// Fallback: if stored entry ID is stale (migration artifact), search
+									// GF for this user's entry in the certificate form by email/user ID.
+									if ((is_wp_error($pdfs) || empty($pdfs)) && $pdf_form_id && class_exists('GFAPI')) {
+										$search_criteria = array(
+											'status' => 'active',
+											'field_filters' => array(
+												'mode' => 'any',
+												array('key' => 'created_by', 'value' => $current_user->ID),
+												array('value' => $current_user->user_email),
+											),
+										);
+										$matches = \GFAPI::get_entries($pdf_form_id, $search_criteria, null, array('page_size' => 20));
+										if (!empty($matches)) {
+											$gf_entry_id = absint($matches[0]['id']);
+											$pdfs = \GPDFAPI::get_entry_pdfs($gf_entry_id);
+										}
+									}
 
 									if (!is_wp_error($pdfs) && !empty($pdfs)) {
-										// Use the first active (not inactive) PDF template.
-										$pdf_hash_id = null;
-										foreach ($pdfs as $hash => $pdf_config) {
-											if (!empty($pdf_config['active'])) {
-												$pdf_hash_id = $hash;
-												break;
-											}
-										}
-										// Fallback: use first key if none are explicitly marked active.
-										if (!$pdf_hash_id) {
-											$pdf_hash_id = function_exists('array_key_first')
-												? array_key_first($pdfs)
-												: array_keys($pdfs)[0];
-										}
-
-										$pdf_url = \GPDFAPI::get_pdf_url($pdf_hash_id, $gf_entry_id, false, true);
-
-										if ($pdf_url && !is_wp_error($pdf_url)) {
-											$pdf_link_html = '<a href="' . esc_url($pdf_url) . '" class="slms-pdf-link">'
-												. esc_html__('Download PDF', 'simple-lms')
-												. '</a>';
-										}
+										$hash_id = function_exists('array_key_first')
+											? array_key_first($pdfs)
+											: key($pdfs);
+										$pdf_url = home_url('/?gpdf=1&pid=' . urlencode($hash_id) . '&lid=' . $gf_entry_id . '&action=download');
+										$pdf_link_html = '<a href="' . esc_url($pdf_url) . '" class="slms-pdf-link">'
+											. esc_html__('Download PDF', 'simple-lms')
+											. '</a>';
 									}
 								} catch (\Throwable $e) {
 									$pdf_link_html = '';

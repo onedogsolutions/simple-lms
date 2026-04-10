@@ -184,7 +184,9 @@ The project has been moved to a private GitHub repository. Core features are in 
   - **Profile form not centered** — `.slms-profile-form` had `max-width: 800px` but no `margin: 0 auto`. Added `margin: 0 auto` to `css/frontend.css` in both modules.
 - **GravityPDF URL Fix (Apr 2026):**
   - Certificates tab was generating invalid PDF links using `/?gf_pdf=1&fid={form_id}&lid={entry_id}` (wrong query parameter names).
-  - Fixed in both `lms-account-dashboard` and `slms-student-dashboard` `includes/frontend.php`: replaced `$form_id` / `GFAPI` lookup entirely with `GPDFAPI::get_entry_pdfs($gf_entry_id)`; constructs URL as `/?gpdf=1&pid={hash_id}&lid={entry_id}&action=download` from the first PDF config returned. Falls back to "N/A" if GravityPDF is not active or no PDF template is configured for the entry.
+  - Fixed in `slms-student-dashboard/includes/frontend.php`: replaced `GPDFAPI::get_form_pdfs($pdf_form_id)` + `GPDFAPI::get_pdf_url()` with `GPDFAPI::get_entry_pdfs($gf_entry_id)`. Constructs URL as `/?gpdf=1&pid={hash_id}&lid={entry_id}&action=download` from the first PDF config returned.
+  - Added fallback: if `get_entry_pdfs()` returns empty/WP_Error (stale migration entry ID), searches GF for the user's entry by `created_by` user ID or email, then retries `get_entry_pdfs()` with the resolved entry ID.
+  - Falls back to "N/A" if GravityPDF is not active or no PDF template is found.
 - **Deployment Note (Apr 2026):** After any JS or CSS change to BB modules, the Beaver Builder cache must be manually cleared (WP Admin → Settings → Beaver Builder → Tools → Clear Cache) to force BB to re-enqueue updated module assets. Hard-refresh (`Cmd+Shift+R`) also required to bypass browser cache.
 
 ## Technical Details
