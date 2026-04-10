@@ -435,39 +435,46 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 							$pdf_form_id = isset($row->form_id) ? absint($row->form_id) : 0;
 							$pdf_link_html = '';
 
-							if ($gf_entry_id && class_exists('GPDFAPI')) {
-								try {
-									// Use get_entry_pdfs() — resolves PDFs for the specific GF entry,
-									// applying conditional logic. More reliable than get_form_pdfs() for
-									// migrated certificate records.
-									$pdfs = \GPDFAPI::get_entry_pdfs($gf_entry_id);
+							// If form_id missing from row, resolve via GFAPI.
+							if (!$pdf_form_id && $gf_entry_id && class_exists('GFAPI')) {
+								$_gf_entry = \GFAPI::get_entry($gf_entry_id);
+								if (!is_wp_error($_gf_entry) && !empty($_gf_entry['form_id'])) {
+									$pdf_form_id = absint($_gf_entry['form_id']);
+								}
+							}
 
-									// Fallback: if stored entry ID is stale (migration artifact), search
-									// GF for this user's entry in the certificate form by email/user ID.
-									if ((is_wp_error($pdfs) || empty($pdfs)) && $pdf_form_id && class_exists('GFAPI')) {
-										$search_criteria = array(
-											'status' => 'active',
-											'field_filters' => array(
-												'mode' => 'any',
-												array('key' => 'created_by', 'value' => $current_user->ID),
-												array('value' => $current_user->user_email),
-											),
-										);
-										$matches = \GFAPI::get_entries($pdf_form_id, $search_criteria, null, array('page_size' => 20));
-										if (!empty($matches)) {
-											$gf_entry_id = absint($matches[0]['id']);
-											$pdfs = \GPDFAPI::get_entry_pdfs($gf_entry_id);
-										}
-									}
+							if ($gf_entry_id && $pdf_form_id && class_exists('GPDFAPI')) {
+								try {
+									// get_form_pdfs() retrieves PDF templates by form ID only — no entry-level
+									// GFAPI::get_entry() call, so it works even when migrated certificate entries
+									// have created_by set to an admin rather than the student.
+									// NOTE: GPDFAPI::get_pdf_url() is not part of the public API; construct the
+									// GravityPDF v6 pretty URL directly: /pdf/{entry_id}/{pdf_hash}/download/
+									$pdfs = \GPDFAPI::get_form_pdfs($pdf_form_id);
 
 									if (!is_wp_error($pdfs) && !empty($pdfs)) {
-										$hash_id = function_exists('array_key_first')
-											? array_key_first($pdfs)
-											: key($pdfs);
-										$pdf_url = home_url('/?gpdf=1&pid=' . urlencode($hash_id) . '&lid=' . $gf_entry_id . '&action=download');
-										$pdf_link_html = '<a href="' . esc_url($pdf_url) . '" class="slms-pdf-link">'
-											. esc_html__('Download PDF', 'simple-lms')
-											. '</a>';
+										// Find the first active PDF template.
+										$hash_id = null;
+										foreach ($pdfs as $id => $pdf_config) {
+											if (!empty($pdf_config['active'])) {
+												$hash_id = $id;
+												break;
+											}
+										}
+										// Fallback: use first template if none are explicitly marked active.
+										if (!$hash_id) {
+											$hash_id = function_exists('array_key_first')
+												? array_key_first($pdfs)
+												: key($pdfs);
+										}
+
+										if ($hash_id) {
+											// GravityPDF v6 pretty permalink: /pdf/{entry_id}/{pdf_hash}/download/
+											$pdf_url = home_url('/pdf/' . $gf_entry_id . '/' . $hash_id . '/download/');
+											$pdf_link_html = '<a href="' . esc_url($pdf_url) . '" class="slms-pdf-link">'
+												. esc_html__('Download PDF', 'simple-lms')
+												. '</a>';
+										}
 									}
 								} catch (\Throwable $e) {
 									$pdf_link_html = '';
