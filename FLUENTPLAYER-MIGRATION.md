@@ -26,14 +26,14 @@ Public docs confirm a Gutenberg block and a per-player shortcode but not the exa
 1. Exact shortcode tag and attributes (e.g. `[fluent_player id="…"]`).
 2. Where players are stored and how to enumerate them from PHP (helper class, custom table, or REST route).
 3. Whether a PrestoPlayer importer exists at all — if not (likely, given we're first-install), our own importer is the plan, not a fallback.
-4. **Where the Presto Pro content is hosted, per video** — Bunny Stream, self-hosted Media Library, or YouTube/Vimeo. Both sides are Pro, so FluentPlayer Pro can consume the same sources; the goal is to **re-point** players at the existing files (especially the Bunny library), not re-upload. Confirm the Bunny connection can be re-established in FluentPlayer Pro before migrating.
+4. **Bunny Stream attach.** All videos are on Bunny Stream (no self-hosting), identified by library ID + video GUID. Confirm FluentPlayer Pro can attach to the **same** Bunny library and reference the **same** GUIDs — so migration re-points players, never re-uploads. Critically, check whether the current embeds use Bunny **token authentication** (signed URLs); if so, verify FluentPlayer Pro supports the same token auth against that library, or embeds will 403.
 5. **Inventory the Pro-only extras** attached to each Presto video: chapters, captions/subtitles, poster frame, and interactive overlays (email opt-in gates, CTAs/action bars). These have FluentPlayer analogs but do **not** transfer via an id→id map — decide per item what to rebuild.
 
 ## Phase 1 — Migrate the video library
 
 FluentPlayer starts empty (first install), so every player is created fresh — no collision with existing content.
 
-1. Write a one-shot WP-CLI command that reads each `pp_video_block` post — source/host (Bunny, self-hosted, YouTube/Vimeo), title, poster, chapters, captions — and creates the equivalent FluentPlayer Pro player pointing at the **same** source. (Only use a bundled importer if Phase 0 confirms one exists and it emits an ID map we can capture.)
+1. Write a one-shot WP-CLI command that reads each `pp_video_block` post — Bunny library ID + video GUID, title, poster, chapters, captions — and creates the equivalent FluentPlayer Pro player pointing at the **same** Bunny GUID. Uniform host means no per-video branching. (Only use a bundled importer if Phase 0 confirms one exists and it emits an ID map we can capture.)
 2. Produce and persist an **ID map** (`presto_id → fluent_id`), e.g. as an option or meta on the new players — Phase 3 depends on it.
 3. Rebuild the inventoried Pro overlays (opt-in gates, CTAs) as FluentPlayer layers where they matter — manual, not scripted.
 4. Presto analytics/watch data does not carry over; accept and note this.
@@ -59,6 +59,6 @@ One-shot routine (WP-CLI command or Migration Tool button): for every `slms_less
 
 - **Early-adopter / first-install**: FluentPlayer is v1.0 and unproven here; thin docs, possible bugs, and API drift between early releases. Pin the version after testing and re-verify the shortcode/API on each update.
 - **Phase 0 unknowns**: shortcode/API specifics are unverified; everything downstream is shaped by them.
-- **Hosting source**: both sides are Pro, so no feature is blocked, but the players must be re-pointed at the existing files. If videos are on Bunny Stream, confirm FluentPlayer Pro can attach to the same Bunny library so nothing re-uploads.
+- **Bunny token auth**: all videos are Bunny Stream, so files stay put and players re-point by GUID — the one real risk is signed-URL/token authentication. If Presto's embeds are token-authenticated and FluentPlayer Pro can't match that against the same library, embeds 403. Verify in Phase 0.
 - **Pro extras don't auto-migrate**: chapters, captions, posters, and interactive overlays (opt-ins, CTAs) need per-video review and manual rebuild; analytics history is lost.
 - **Pods key-mismatch bug**: some imported lessons are typed `video` with no working video today; the backfill will surface them — expect a manual review list.
