@@ -1379,4 +1379,6 @@ class REST
         @unlink($tmp);
         exit;
     }
+=======
+>>>>>>> 481732a (Phase 4: centralize GravityPDF URL resolution into Certificates::pdf_url())
 }
