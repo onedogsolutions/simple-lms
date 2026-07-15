@@ -460,149 +460,17 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 
 							if ($gf_entry_id && $pdf_form_id && class_exists('GPDFAPI')) {
 								try {
-									$hash_id = null;
-
-									// Resolve student state and course URL early — needed for both the
-									// GF entry backfill (below) and the Stage 2 manual fallback.
-									$student_state = (string) get_user_meta($current_user->ID, 'billing_state', true);
 									// Prefer resolved permalink; fall back to raw stored course name.
-									$url_to_match  = $course_link ?: $raw_course_name;
+									$url_to_match = $course_link ?: $raw_course_name;
 
-									// ── Stage 1: get_entry_pdfs() ──────────────────────────────────────
-									// Evaluates all 11 PDF templates' conditional logic against the GF
-									// entry's actual field values — most accurate when entry data is intact.
-									$entry_pdfs = \GPDFAPI::get_entry_pdfs($gf_entry_id);
+									$pdf_url = \SimpleLMS\Certificates::pdf_url(
+										$gf_entry_id,
+										$pdf_form_id,
+										(string) $url_to_match,
+										$current_user->ID
+									);
 
-									// When Stage 1 returns empty the GF entry is likely missing field 6
-									// (State) and/or field 18 (Course URL) — common for migrated entries.
-									// Backfill those fields so GravityPDF's server-side conditional check
-									// will pass when the user actually downloads the PDF, then retry.
-									if (!is_wp_error($entry_pdfs) && empty($entry_pdfs) && class_exists('GFAPI')) {
-										$_gf_entry_check = \GFAPI::get_entry($gf_entry_id);
-										if (!is_wp_error($_gf_entry_check)) {
-											$_backfilled = false;
-											// Always overwrite field 6 — existing value clearly isn't working.
-											if ($student_state) {
-												\GFAPI::update_entry_field($gf_entry_id, 6, $student_state);
-												$_backfilled = true;
-											}
-											// For field 18 prefer the resolved permalink; only fall back to the
-											// raw value when the field is completely empty.
-											if ($course_link) {
-												\GFAPI::update_entry_field($gf_entry_id, 18, $course_link);
-												$_backfilled = true;
-											} elseif ($url_to_match && empty($_gf_entry_check['18'])) {
-												\GFAPI::update_entry_field($gf_entry_id, 18, $url_to_match);
-												$_backfilled = true;
-											}
-											if ($_backfilled) {
-												// Retry Stage 1 — entry now has the field values needed.
-												$entry_pdfs = \GPDFAPI::get_entry_pdfs($gf_entry_id);
-											}
-										}
-									}
-
-									if (!is_wp_error($entry_pdfs) && !empty($entry_pdfs)) {
-										$hash_id = function_exists('array_key_first')
-											? array_key_first($entry_pdfs)
-											: key($entry_pdfs);
-									}
-
-									// ── Stage 2: Manual conditional logic evaluation ───────────────────
-									// Final fallback when Stage 1 still returns empty even after the
-									// entry field backfill (e.g. billing_state is missing from user meta
-									// or the course URL could not be resolved).
-									if (!$hash_id) {
-										$all_pdfs = \GPDFAPI::get_form_pdfs($pdf_form_id);
-
-										if (!is_wp_error($all_pdfs) && !empty($all_pdfs)) {
-
-											foreach ($all_pdfs as $id => $pdf_config) {
-												if (empty($pdf_config['active'])) {
-													continue;
-												}
-
-												$logic = !empty($pdf_config['conditionalLogic'])
-													? $pdf_config['conditionalLogic']
-													: array();
-
-												// No conditional logic on this template → always matches.
-												if (empty($logic['rules'])) {
-													$hash_id = $id;
-													break;
-												}
-
-												$logic_type  = isset($logic['logicType']) ? $logic['logicType'] : 'all';
-												$rule_results = array();
-
-												foreach ($logic['rules'] as $rule) {
-													$fid = (string)(isset($rule['fieldId']) ? $rule['fieldId'] : '');
-													$op  = isset($rule['operator']) ? $rule['operator'] : 'is';
-													$val = isset($rule['value']) ? $rule['value'] : '';
-
-													if ('6' === $fid) {
-														// State: exact string comparison.
-														$match = ('is' === $op)
-															? ($student_state === $val)
-															: ($student_state !== $val);
-
-													} elseif ('18' === $fid) {
-														// Course URL: match by course slug so both lesson-URL
-														// and course-only-URL formats resolve correctly.
-														$cond_path  = (string) parse_url($val, PHP_URL_PATH);
-														$cond_parts = array_values(array_filter(explode('/', trim($cond_path, '/'))));
-														$cidx        = array_search('course', $cond_parts, true);
-														// Use segment after "course/" if present; fall back to last segment.
-														$course_slug = ($cidx !== false && isset($cond_parts[$cidx + 1]))
-															? $cond_parts[$cidx + 1]
-															: (!empty($cond_parts) ? end($cond_parts) : '');
-
-														if ($course_slug !== '') {
-															// Case-insensitive URL slug match.
-															$match = stripos((string) $url_to_match, $course_slug) !== false;
-															// Also compare via the resolved course title slug (handles
-															// plain-text course_name values that aren't URLs).
-															if (!$match && !empty($course_name)) {
-																$title_slug = sanitize_title($course_name);
-																$match = $title_slug !== '' && (
-																	stripos($title_slug, $course_slug) !== false ||
-																	stripos($course_slug, $title_slug) !== false
-																);
-															}
-														} else {
-															$match = false;
-														}
-
-														if ('isnot' === $op) {
-															$match = !$match;
-														}
-
-													} else {
-														continue; // Unknown field — skip rule.
-													}
-
-													$rule_results[] = $match;
-												}
-
-												if (empty($rule_results)) {
-													continue;
-												}
-
-												$passes = ('any' === $logic_type)
-													? in_array(true, $rule_results, true)
-													: !in_array(false, $rule_results, true);
-
-												if ($passes) {
-													$hash_id = $id;
-													break;
-												}
-											}
-										}
-									}
-
-									if ($hash_id) {
-										// GravityPDF v6 pretty permalink: /pdf/{hash}/{entry_id}/download/
-										$pdf_url = home_url('/pdf/' . $hash_id . '/' . $gf_entry_id . '/download/');
+									if ($pdf_url) {
 										$pdf_link_html = '<a href="' . esc_url($pdf_url) . '" class="slms-pdf-link">'
 											. esc_html__('Download PDF', 'simple-lms')
 											. '</a>';
