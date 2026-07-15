@@ -8,6 +8,33 @@ The project has been moved to a private GitHub repository. Core features are in 
 
 ## Accomplishments (Recent)
 
+- **Core/Migrator Split (Jul 2026):** Streamlined the plugin into a clean LMS
+  connector by extracting one-time data-migration machinery into a separate,
+  deletable companion plugin (`simple-lms-migrator/`). This supersedes several
+  stale references below:
+  - The `lms-account-dashboard` BB module referenced throughout the Feb 2026
+    entries below no longer exists in the tree — it and its shortcode were
+    already dead code (never loaded) and have been deleted outright.
+  - The migration engine (`class-migration.php`), the Migration Tool and
+    Debug Log admin pages/React components, and their REST routes
+    (`/migration/*`, `/debug-log`, `/course-history/repair-form-ids`) now
+    live in `simple-lms-migrator/`, a standalone plugin dependent on core.
+    It is deletable once a site's historical data is fully migrated. SimpleLMS
+    > Migration Tool / Debug Log are still reached the same way in wp-admin;
+    the underlying plugin providing them has changed.
+  - The Tailwind CDN fallback (`cdn.tailwindcss.com`) mentioned in the Feb
+    2026 Tailwind entry below has been removed entirely. The local Tailwind
+    v4 build (`build/admin/tailwind.css`) is now the only CSS source.
+  - `includes/class-user-meta.php` (the native WP user-profile screen fields)
+    has been removed. Legacy Pods user-meta editing now lives in exactly two
+    places: the Student Manager admin (kept as-is by owner decision; further
+    improvements are deferred) and the `slms-student-dashboard` BB module's
+    profile tab (students).
+  - The duplicated two-stage GravityPDF URL resolution described in the Apr
+    2026 "Certificate PDF Conditional Logic Fix" and "Concatenated Course ID
+    Bug" entries below (present separately in both `frontend.php` and
+    `class-rest.php`'s private `resolve_pdf_url()`) is now one shared helper,
+    `Certificates::pdf_url()`, called from both places.
 - **UI Cleanup:** Removed the legacy global admin migration nag banner in favor of the dedicated React Migration Tool UI.
 - **Rebranding:** Renamed plugin to "One Dog Solutions".
 - **API Migration:** Moved from jQuery AJAX to WP REST API.
