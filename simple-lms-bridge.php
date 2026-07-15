@@ -34,7 +34,6 @@ require_once SLMS_PLUGIN_DIR . 'includes/class-pmpro.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-expiration.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-course-history.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-certificates.php';
-require_once SLMS_PLUGIN_DIR . 'includes/class-user-meta.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-relationships.php';
 
 
@@ -60,8 +59,6 @@ function slms_init()
     if (function_exists('pmpro_getMembershipLevelForUser')) {
         PMPro::init();
     }
-
-    UserMeta::init();
 
     // Admin Menus
     add_action('admin_menu', __NAMESPACE__ . '\\slms_admin_menu');
