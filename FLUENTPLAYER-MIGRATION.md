@@ -16,18 +16,24 @@ No PrestoPlayer PHP classes, hooks, or analytics are referenced — the coupling
 
 ## Phase 0 — Verify FluentPlayer internals (blocking)
 
-FluentPlayer (WPManageNinja) is new; public docs confirm a Gutenberg block and per-player shortcode but not the exact shortcode tag, storage model (Fluent plugins typically use custom DB tables, not CPTs), or a PHP/REST API for listing players. Before coding:
+**We are an early adopter.** FluentPlayer (WPManageNinja) just launched, and the target site is its **first install** in the fleet — there is no existing FluentPlayer content anywhere, and no accumulated in-house experience with it. Treat it as a v1.0: expect thin docs, an API that may change between early releases, and possible rough edges. Practical consequences:
 
-1. Install FluentPlayer on staging and confirm:
-   - Exact shortcode tag and attributes (e.g. `[fluent_player id="…"]`).
-   - Where players are stored and how to enumerate them from PHP (helper class, custom table, or REST route).
-   - Whether it ships a PrestoPlayer importer (Fluent products often ship competitor importers) — this decides Phase 1 effort.
-2. Confirm feature parity for how videos are actually hosted today (self-hosted / YouTube / Vimeo are in the free tier; Bunny CDN and Mux require Pro).
+- **Pin the plugin version** once the migration is built and tested; do not auto-update FluentPlayer mid-rollout.
+- **Do not assume a bundled PrestoPlayer importer or a stable public API.** Verify everything against the actual install rather than docs.
+
+Public docs confirm a Gutenberg block and a per-player shortcode but not the exact shortcode tag, the storage model (Fluent plugins typically use custom DB tables, not CPTs), or a PHP/REST API for listing players. Before coding, install FluentPlayer on staging and confirm:
+
+1. Exact shortcode tag and attributes (e.g. `[fluent_player id="…"]`).
+2. Where players are stored and how to enumerate them from PHP (helper class, custom table, or REST route).
+3. Whether a PrestoPlayer importer exists at all — if not (likely, given we're first-install), our own importer is the plan, not a fallback.
+4. Feature parity for how videos are actually hosted today (self-hosted / YouTube / Vimeo are in the free tier; Bunny CDN and Mux require Pro).
 
 ## Phase 1 — Migrate the video library
 
-1. If FluentPlayer has a Presto importer, use it; otherwise write a one-shot WP-CLI command that reads each `pp_video_block` post (source URL, title, poster) and creates the equivalent FluentPlayer player.
-2. Either way, produce and persist an **ID map** (`presto_id → fluent_id`), e.g. as an option or meta on the new players — Phase 3 depends on it.
+FluentPlayer starts empty (first install), so every player is created fresh — no collision with existing content.
+
+1. Write a one-shot WP-CLI command that reads each `pp_video_block` post (source URL, title, poster) and creates the equivalent FluentPlayer player. (Only use a bundled importer if Phase 0 confirms one exists and it emits an ID map we can capture.)
+2. Produce and persist an **ID map** (`presto_id → fluent_id`), e.g. as an option or meta on the new players — Phase 3 depends on it.
 3. Presto analytics/watch data does not carry over; accept and note this.
 
 ## Phase 2 — Code changes in this plugin
@@ -49,6 +55,7 @@ One-shot routine (WP-CLI command or Migration Tool button): for every `slms_less
 
 ## Risks
 
+- **Early-adopter / first-install**: FluentPlayer is v1.0 and unproven here; thin docs, possible bugs, and API drift between early releases. Pin the version after testing and re-verify the shortcode/API on each update.
 - **Phase 0 unknowns**: shortcode/API specifics are unverified; everything downstream is shaped by them.
 - **Hosting tier**: if current videos use Presto Pro's Bunny CDN hosting, FluentPlayer Pro is required and video files must be re-pointed.
 - **Pods key-mismatch bug**: some imported lessons are typed `video` with no working video today; the backfill will surface them — expect a manual review list.
