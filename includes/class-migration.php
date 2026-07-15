@@ -1456,11 +1456,14 @@ class Migration
         if (!is_wp_error($new_lesson_id)) {
             update_post_meta($new_lesson_id, '_legacy_id', $legacy_lesson->ID);
 
-            // Map Video Meta if exists (Legacy Pods)
+            // Map Video Meta if exists (Legacy Pods).
+            // Note: the render path and REST/editor read '_lms_presto_video';
+            // the previous '_slms_presto_video' key was never read, so Pods-imported
+            // videos silently failed to render. Write the correct key.
             $video = get_post_meta($legacy_lesson->ID, 'lesson_video', true);
             if ($video) {
                 update_post_meta($new_lesson_id, '_slms_lesson_type', 'video');
-                update_post_meta($new_lesson_id, '_slms_presto_video', $video);
+                update_post_meta($new_lesson_id, '_lms_presto_video', $video);
             }
 
             return $new_lesson_id;

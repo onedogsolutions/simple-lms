@@ -195,10 +195,23 @@ class CPT
         },
         ));
 
-        // Presto Player video ID.
+        // Presto Player video ID (legacy; retained during FluentPlayer migration).
         register_post_meta('slms_lesson', '_lms_presto_video', array(
             'type' => 'integer',
             'description' => 'Presto Player video post ID.',
+            'single' => true,
+            'show_in_rest' => true,
+            'default' => 0,
+            'sanitize_callback' => 'absint',
+            'auth_callback' => function () {
+            return current_user_can('edit_posts');
+        },
+        ));
+
+        // FluentPlayer video ID.
+        register_post_meta('slms_lesson', '_lms_fluent_video', array(
+            'type' => 'integer',
+            'description' => 'FluentPlayer video/player ID.',
             'single' => true,
             'show_in_rest' => true,
             'default' => 0,
