@@ -37,10 +37,6 @@ require_once SLMS_PLUGIN_DIR . 'includes/class-certificates.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-migration.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-user-meta.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-relationships.php';
-// class-account-dashboard.php intentionally not loaded.
-// The [simple_lms_account] shortcode has been replaced by the native
-// lms-account-dashboard Beaver Builder module. Shortcode-based rendering
-// of BB module content is no longer used.
 
 
 /* ─── Boot ───────────────────────────────────────────────────────────── */
