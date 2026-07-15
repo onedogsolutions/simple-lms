@@ -188,15 +188,6 @@ function slms_enqueue_admin_assets($hook_suffix)
 
     $asset = require $asset_file;
 
-    // Tailwind CDN fallback — ensures admin UI renders even if local build is stale.
-    wp_enqueue_script(
-        'slms-tailwind-cdn',
-        'https://cdn.tailwindcss.com',
-        array(),
-        null,
-        false
-    );
-
     if ($is_slms_page) {
         wp_enqueue_style(
             'slms-tailwind',
