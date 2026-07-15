@@ -34,7 +34,6 @@ require_once SLMS_PLUGIN_DIR . 'includes/class-pmpro.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-expiration.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-course-history.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-certificates.php';
-require_once SLMS_PLUGIN_DIR . 'includes/class-migration.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-user-meta.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-relationships.php';
 
@@ -55,7 +54,6 @@ function slms_init()
     MetaBoxes::init();
     Expiration::init();
     Certificates::init();
-    Migration::init();
     Relationships::init();
 
     // Conditionally boot PMPro integration.
@@ -67,9 +65,6 @@ function slms_init()
 
     // Admin Menus
     add_action('admin_menu', __NAMESPACE__ . '\\slms_admin_menu');
-
-    // Handle log download action
-    add_action( 'admin_post_slms_download_log', array(__NAMESPACE__ . '\\REST', 'handle_log_download') );
 }
 add_action('init', __NAMESPACE__ . '\\slms_init');
 
@@ -100,28 +95,6 @@ function slms_admin_menu()
         'manage_options',
         'slms-students',
         array(__NAMESPACE__ . '\\MetaBoxes', 'render_students_page')
-    );
-
-    add_submenu_page(
-        'simple-lms',
-        __('Migration Tool', 'simple-lms-bridge'),
-        __('Migration Tool', 'simple-lms-bridge'),
-        'manage_options',
-        'slms-migration',
-        function () {
-        echo '<div class="wrap slms-admin-wrap tw-preflight"><div id="slms-migration-root"></div></div>';
-    }
-    );
-
-    add_submenu_page(
-        'simple-lms',
-        __('Debug Log', 'simple-lms-bridge'),
-        __('Debug Log', 'simple-lms-bridge'),
-        'manage_options',
-        'slms-debug-log',
-        function () {
-        echo '<div class="wrap slms-admin-wrap tw-preflight"><div id="slms-admin-root"></div></div>';
-    }
     );
 }
 
@@ -170,11 +143,10 @@ function slms_enqueue_admin_assets($hook_suffix)
         return;
     }
 
-    // Load on our CPT edit screens and the Student Manager / Migration Tool pages.
+    // Load on our CPT edit screens and the Student Manager page.
     $is_lms_cpt = in_array($screen->post_type, array('slms_course', 'slms_lesson'), true);
     $screen_id = (string)($screen->id ?? '');
-    $is_migration_page = ($hook_suffix === 'simple-lms_page_slms-migration' || (isset($_GET['page']) && $_GET['page'] === 'slms-migration'));
-    $is_slms_page = ($is_migration_page || strpos($screen_id ?? '', 'slms-students') !== false || strpos($screen_id ?? '', 'slms-migration') !== false || strpos($screen_id ?? '', 'slms-debug-log') !== false || strpos($screen_id ?? '', 'simple-lms') !== false);
+    $is_slms_page = (strpos($screen_id, 'slms-students') !== false || $screen_id === 'toplevel_page_simple-lms');
 
     if (!$is_lms_cpt && !$is_slms_page) {
         return;
@@ -218,13 +190,6 @@ function slms_enqueue_admin_assets($hook_suffix)
         'postId' => get_the_ID(),
         'postType' => $screen->post_type,
         'page' => isset($_GET['page']) ? sanitize_text_field(wp_unslash($_GET['page'])) : '',
-        'downloadUrl' => add_query_arg(
-            array(
-                'action' => 'slms_download_log',
-                '_wpnonce' => wp_create_nonce('slms_download_log'),
-            ),
-            admin_url('admin-post.php')
-        ),
     ));
 }
 add_action('admin_enqueue_scripts', __NAMESPACE__ . '\\slms_enqueue_admin_assets');

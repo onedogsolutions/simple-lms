@@ -5,8 +5,6 @@
  * - Course edit screen  → CourseEditor
  * - Lesson edit screen  → LessonSettings
  * - Student Manager     → StudentManager
- * - Migration Tool      → MigrationTool
- * - Debug Log           → DebugLog
  *
  * @package
  */
@@ -17,20 +15,13 @@ import './index.css';
 import CourseEditor from './components/CourseEditor';
 import LessonSettings from './components/LessonSettings';
 import StudentManager from './components/StudentManager';
-import MigrationTool from './components/MigrationTool';
-import DebugLog from './components/DebugLog';
 
 const mount = () => {
 	const postId = window.slmsAdmin?.postId;
 	const postType = window.slmsAdmin?.postType;
 	const page = window.slmsAdmin?.page;
 
-	let rootId = 'slms-admin-root';
-	if ( page === 'slms-migration' ) {
-		rootId = 'slms-migration-root';
-	}
-	
-	const root = document.getElementById( rootId ) || document.getElementById( 'slms-admin-root' );
+	const root = document.getElementById( 'slms-admin-root' );
 	if ( ! root ) {
 		return;
 	}
@@ -43,10 +34,6 @@ const mount = () => {
 		App = <LessonSettings postId={ postId } />;
 	} else if ( page === 'slms-students' ) {
 		App = <StudentManager />;
-	} else if ( page === 'slms-migration' ) {
-		App = <MigrationTool />;
-	} else if ( page === 'slms-debug-log' ) {
-		App = <DebugLog />;
 	}
 
 	if ( ! App ) {

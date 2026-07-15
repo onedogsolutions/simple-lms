@@ -1,0 +1,9 @@
+@import "tailwindcss";
+
+@source "../../src/**/*.{js,jsx,ts,tsx}";
+@source "../../includes/**/*.php";
+@source "../../simple-lms-migrator.php";
+
+@theme {
+  /* Theme and variable overrides go here */
+}

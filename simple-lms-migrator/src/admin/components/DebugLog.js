@@ -30,8 +30,8 @@ const DebugLog = () => {
 	};
 
 	const downloadLog = () => {
-		if ( window.slmsAdmin?.downloadUrl ) {
-			window.location.href = window.slmsAdmin.downloadUrl;
+		if ( window.slmsMigrator?.downloadUrl ) {
+			window.location.href = window.slmsMigrator.downloadUrl;
 		}
 	};
 
