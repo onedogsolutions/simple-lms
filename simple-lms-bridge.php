@@ -41,6 +41,8 @@ require_once SLMS_PLUGIN_DIR . 'includes/class-user-meta.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-relationships.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-analytics.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-upgrade.php';
+require_once SLMS_PLUGIN_DIR . 'includes/class-access.php';
+require_once SLMS_PLUGIN_DIR . 'includes/class-quiz.php';
 // The legacy [simple_lms_account] shortcode (formerly class-account-dashboard.php)
 // has been removed. The native lms-account-dashboard Beaver Builder module renders
 // the account dashboard; shortcode-based rendering of BB module content is not used.
@@ -62,6 +64,7 @@ function slms_init()
     MetaBoxes::init();
     Expiration::init();
     Certificates::init();
+    Quiz::init();
     Migration::init();
     Relationships::init();
     Analytics::init();
@@ -274,6 +277,10 @@ function slms_load_bb_modules()
         require_once SLMS_PLUGIN_DIR . 'includes/bb-modules/lms-content/lms-content.php';
         require_once SLMS_PLUGIN_DIR . 'includes/bb-modules/lms-outline/lms-outline.php';
         require_once SLMS_PLUGIN_DIR . 'includes/bb-modules/lms-complete-button/lms-complete-button.php';
+        require_once SLMS_PLUGIN_DIR . 'includes/bb-modules/lms-course-grid/lms-course-grid.php';
+        require_once SLMS_PLUGIN_DIR . 'includes/bb-modules/lms-my-courses/lms-my-courses.php';
+        require_once SLMS_PLUGIN_DIR . 'includes/bb-modules/lms-course-cta/lms-course-cta.php';
+        require_once SLMS_PLUGIN_DIR . 'includes/bb-modules/lms-lesson-nav/lms-lesson-nav.php';
         require_once SLMS_PLUGIN_DIR . 'includes/bb-modules/slms-student-dashboard/slms-student-dashboard.php';
     }
 }
@@ -291,6 +298,17 @@ function slms_enqueue_frontend_assets()
         SLMS_PLUGIN_URL . 'assets/css/frontend.css',
         array(),
         SLMS_VERSION
+    );
+
+    // Single consolidated frontend script (complete button, video gating,
+    // quiz timer, completion redirect). Enqueued globally so every module can
+    // rely on it regardless of placement.
+    wp_enqueue_script(
+        'slms-frontend',
+        SLMS_PLUGIN_URL . 'assets/js/frontend.js',
+        array(),
+        SLMS_VERSION,
+        true
     );
 }
 add_action('wp_enqueue_scripts', __NAMESPACE__ . '\\slms_enqueue_frontend_assets');

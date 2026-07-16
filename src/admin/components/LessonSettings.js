@@ -31,6 +31,10 @@ const LessonSettings = ( { postId } ) => {
 	const [ prestoVideo, setPrestoVideo ] = useState( 0 );
 	const [ gravityForm, setGravityForm ] = useState( 0 );
 	const [ quizTimer, setQuizTimer ] = useState( 0 );
+	const [ quizPassField, setQuizPassField ] = useState( '' );
+	const [ quizPassMin, setQuizPassMin ] = useState( 0 );
+	const [ dripDays, setDripDays ] = useState( 0 );
+	const [ videoGatePct, setVideoGatePct ] = useState( 0 );
 	const [ videos, setVideos ] = useState( [] );
 	const [ forms, setForms ] = useState( [] );
 	const [ saving, setSaving ] = useState( false );
@@ -61,6 +65,10 @@ const LessonSettings = ( { postId } ) => {
 				setPrestoVideo( meta._lms_presto_video || 0 );
 				setGravityForm( meta._lms_gravity_form || 0 );
 				setQuizTimer( meta._lms_quiz_timer || 0 );
+				setQuizPassField( meta._lms_quiz_pass_field || '' );
+				setQuizPassMin( meta._lms_quiz_pass_min || 0 );
+				setDripDays( meta._lms_drip_days || 0 );
+				setVideoGatePct( meta._lms_video_gate_pct || 0 );
 			} catch ( err ) {
 				setNotice( { status: 'error', message: err.message } );
 			} finally {
@@ -84,6 +92,12 @@ const LessonSettings = ( { postId } ) => {
 						_lms_presto_video: parseInt( prestoVideo, 10 ) || 0,
 						_lms_gravity_form: parseInt( gravityForm, 10 ) || 0,
 						_lms_quiz_timer: parseInt( quizTimer, 10 ) || 0,
+						_lms_quiz_pass_field: quizPassField,
+						_lms_quiz_pass_min:
+							parseFloat( quizPassMin ) || 0,
+						_lms_drip_days: parseInt( dripDays, 10 ) || 0,
+						_lms_video_gate_pct:
+							parseInt( videoGatePct, 10 ) || 0,
 					},
 				},
 			} );
@@ -96,7 +110,17 @@ const LessonSettings = ( { postId } ) => {
 		} finally {
 			setSaving( false );
 		}
-	}, [ postId, lessonType, prestoVideo, gravityForm, quizTimer ] );
+	}, [
+		postId,
+		lessonType,
+		prestoVideo,
+		gravityForm,
+		quizTimer,
+		quizPassField,
+		quizPassMin,
+		dripDays,
+		videoGatePct,
+	] );
 
 	if ( loading ) {
 		return <Spinner />;
@@ -165,6 +189,26 @@ const LessonSettings = ( { postId } ) => {
 					/>
 				) }
 
+				{ lessonType === 'video' && (
+					<TextControl
+						label={ __(
+							'Require % watched to complete',
+							'simple-lms-bridge'
+						) }
+						help={ __(
+							'0 = no video gate. Complete button unlocks after this percent is watched.',
+							'simple-lms-bridge'
+						) }
+						type="number"
+						min={ 0 }
+						max={ 100 }
+						value={ videoGatePct }
+						onChange={ ( val ) =>
+							setVideoGatePct( parseInt( val, 10 ) || 0 )
+						}
+					/>
+				) }
+
 				{ /* ── Quiz Picker + Timer ────────────────────────── */ }
 				{ lessonType === 'quiz' && (
 					<>
@@ -207,8 +251,60 @@ const LessonSettings = ( { postId } ) => {
 								setQuizTimer( parseInt( val, 10 ) || 0 )
 							}
 						/>
+						<TextControl
+							label={ __(
+								'Passing Score Field ID',
+								'simple-lms-bridge'
+							) }
+							help={ __(
+								'Gravity Forms field ID holding the score. Leave blank to auto-complete on any submission.',
+								'simple-lms-bridge'
+							) }
+							value={ quizPassField }
+							onChange={ setQuizPassField }
+						/>
+						{ quizPassField !== '' && (
+							<TextControl
+								label={ __(
+									'Minimum Passing Score',
+									'simple-lms-bridge'
+								) }
+								help={ __(
+									'Auto-complete only when the score is at least this value.',
+									'simple-lms-bridge'
+								) }
+								type="number"
+								min={ 0 }
+								value={ quizPassMin }
+								onChange={ ( val ) =>
+									setQuizPassMin( parseFloat( val ) || 0 )
+								}
+							/>
+						) }
 					</>
 				) }
+			</PanelBody>
+
+			<PanelBody
+				title={ __( 'Drip Scheduling', 'simple-lms-bridge' ) }
+				initialOpen={ false }
+			>
+				<TextControl
+					label={ __(
+						'Unlock after (days from enrollment)',
+						'simple-lms-bridge'
+					) }
+					help={ __(
+						'0 = available immediately. Otherwise this lesson unlocks this many days after the student enrolls.',
+						'simple-lms-bridge'
+					) }
+					type="number"
+					min={ 0 }
+					value={ dripDays }
+					onChange={ ( val ) =>
+						setDripDays( parseInt( val, 10 ) || 0 )
+					}
+				/>
 			</PanelBody>
 
 			<PanelBody

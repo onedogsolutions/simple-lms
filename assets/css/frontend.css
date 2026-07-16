@@ -212,6 +212,90 @@
     font-size: 1.25rem;
 }
 
+/* Outline — locked (drip) lessons */
+.slms-lesson-item.is-locked .slms-lesson-locked {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    color: var(--slms-text-light);
+    cursor: not-allowed;
+    opacity: 0.75;
+}
+
+.slms-lesson-item.is-locked .slms-status-icon {
+    color: var(--slms-text-light);
+}
+
+.slms-lesson-unlock {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--slms-text-light);
+    margin-top: 2px;
+}
+
+/* Complete button — quiz notice + video gate */
+.slms-complete-button-container.slms-quiz-notice {
+    margin-top: 2rem;
+    padding: 1rem 1.25rem;
+    background: #f0f6fc;
+    border: 1px solid #c5d9ed;
+    border-radius: 10px;
+    color: var(--slms-text-light);
+    text-align: center;
+    font-style: italic;
+}
+
+.slms-complete-toggle.is-gated {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.slms-gate-notice {
+    margin: 0.75rem 0 0;
+    font-size: 0.85rem;
+    color: var(--slms-text-light);
+    text-align: center;
+}
+
+/* Quiz timer */
+.slms-quiz-timer {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+    padding: 0.5rem 1rem;
+    background: #fff8e5;
+    border: 1px solid #f0d68a;
+    border-radius: 8px;
+    font-weight: 600;
+    color: #7a5c00;
+}
+
+.slms-quiz-timer.is-expired {
+    background: #fcebea;
+    border-color: #e6a6a1;
+    color: #a12622;
+}
+
+.slms-quiz-timer-clock {
+    font-variant-numeric: tabular-nums;
+    font-size: 1.05rem;
+}
+
+.slms-quiz-expired-notice {
+    margin-bottom: 1.25rem;
+    padding: 0.75rem 1rem;
+    background: #fcebea;
+    border: 1px solid #e6a6a1;
+    border-radius: 8px;
+    color: #a12622;
+    font-weight: 600;
+}
+
 /* Placeholder Styles */
 .slms-content-placeholder,
 .slms-outline-placeholder,

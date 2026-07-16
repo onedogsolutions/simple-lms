@@ -558,36 +558,35 @@ class REST
             return new \WP_Error('not_enrolled', __('User is not enrolled in this course.', 'simple-lms-bridge'), array('status' => 403));
         }
 
-        $progress = get_user_meta($user_id, '_lms_progress', true);
+        // Route through the shared completion path (also fires certificate
+        // automation + completion detection).
+        $progress = Access::set_lesson_progress($user_id, $course_id, $lesson_id, $completed);
 
-        if (!is_array($progress)) {
-            $progress = array();
-        }
-
-        if ($completed) {
-            if (!isset($progress[$course_id])) {
-                $progress[$course_id] = array();
-            }
-            $progress[$course_id][$lesson_id] = time();
-        } else {
-            unset($progress[$course_id][$lesson_id]);
-
-            // Clean up empty course arrays.
-            if (isset($progress[$course_id]) && empty($progress[$course_id])) {
-                unset($progress[$course_id]);
-            }
-        }
-
-        update_user_meta($user_id, '_lms_progress', $progress);
-
-        // Check for course completion.
-        Certificates::check_course_completion($user_id, $course_id);
-
-
-        return rest_ensure_response(array(
-            'success' => true,
+        $response = array(
+            'success'  => true,
             'progress' => $progress,
-        ));
+        );
+
+        // On completion of the final lesson, surface the configured redirect URL
+        // so the frontend can send the student onward (e.g. to a certificate).
+        //
+        // NOTE: certificate automation (fired inside set_lesson_progress) may
+        // de-enroll the student and wipe _lms_progress, so we cannot re-read
+        // progress here. Instead we key off _lms_completed_at, which is set when
+        // the course completes and is NOT cleared by de-enrollment.
+        if ($completed) {
+            $completed_map = get_user_meta($user_id, '_lms_completed_at', true);
+            if (is_array($completed_map) && isset($completed_map[$course_id])) {
+                $response['course_complete'] = true;
+
+                $redirect = get_post_meta($course_id, '_lms_completion_redirect', true);
+                if (!empty($redirect)) {
+                    $response['redirect'] = esc_url_raw($redirect);
+                }
+            }
+        }
+
+        return rest_ensure_response($response);
     }
 
     /**
