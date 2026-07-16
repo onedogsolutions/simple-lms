@@ -330,6 +330,29 @@ class REST
             },
         ));
 
+        // Hazardous: deletes rows missing form_id/gf_entry_id. Guarded by a
+        // typed confirmation string (per the STATE.md hazard note).
+        register_rest_route(self::NAMESPACE , '/course-history/purge-corrupted', array(
+            'methods' => 'POST',
+            'callback' => function ($request) {
+                if ('DELETE CORRUPTED' !== (string) $request->get_param('confirm')) {
+                    return new \WP_Error(
+                        'confirmation_required',
+                        __('Type the confirmation phrase to proceed.', 'simple-lms-bridge'),
+                        array('status' => 400)
+                    );
+                }
+                $deleted = \SimpleLMS\CourseHistory::purge_corrupted_records();
+                return rest_ensure_response(array('deleted' => (int) $deleted));
+            },
+            'args' => array(
+                'confirm' => array('sanitize_callback' => 'sanitize_text_field'),
+            ),
+            'permission_callback' => function () {
+                return current_user_can('manage_options');
+            },
+        ));
+
         /* ── Relationships ──────────────────────────────────────────── */
 
         // GET /relationships/course/{id}/lessons
@@ -952,17 +975,33 @@ class REST
         if (!empty($records)) {
             $history = array();
             foreach ($records as $row) {
+                $cert_uuid = isset($row->cert_uuid) ? (string) $row->cert_uuid : '';
+
+                // Native path first: a cached branded PDF served via our route.
+                $native_url = '';
+                $verify_url = '';
+                if ($cert_uuid && class_exists('\\SimpleLMS\\Certificates\\Issuer')) {
+                    $verify_url = \SimpleLMS\Certificates\Issuer::verify_url($cert_uuid);
+                    if (\SimpleLMS\Certificates\Issuer::pdf_exists($cert_uuid)) {
+                        $native_url = \SimpleLMS\Certificates\Issuer::download_url($cert_uuid);
+                    }
+                }
+
+                $pdf_url = $native_url ?: self::resolve_legacy_pdf_url(
+                    (int) $row->gf_entry_id,
+                    (int) $row->form_id,
+                    (string) $row->course_name,
+                    $user_id
+                );
+
                 $history[] = array(
                     'id' => (int) $row->id,
                     'course_name' => self::resolve_course_name($row->course_name),
                     'date' => $row->completed_date,
                     'gf_entry_id' => (int) $row->gf_entry_id,
-                    'pdf_url' => self::resolve_pdf_url(
-                        (int) $row->gf_entry_id,
-                        (int) $row->form_id,
-                        (string) $row->course_name,
-                        $user_id
-                    ),
+                    'cert_uuid' => $cert_uuid,
+                    'pdf_url' => $pdf_url,
+                    'verify_url' => $verify_url,
                 );
             }
             return rest_ensure_response($history);
@@ -1038,7 +1077,7 @@ class REST
                 'id' => $entry['id'],
                 'course_name' => self::resolve_course_name($course_name),
                 'date' => $entry['date_created'] ?? '',
-                'pdf_url' => self::resolve_pdf_url(
+                'pdf_url' => self::resolve_legacy_pdf_url(
                     (int) $entry['id'],
                     (int) $entry['form_id'],
                     (string) $course_name,
@@ -1104,7 +1143,7 @@ class REST
      * @param int    $user_id       Student user ID (for billing_state lookup).
      * @return string Download URL or empty string.
      */
-    private static function resolve_pdf_url(int $gf_entry_id, int $pdf_form_id, string $raw_course, int $user_id): string
+    public static function resolve_legacy_pdf_url(int $gf_entry_id, int $pdf_form_id, string $raw_course, int $user_id): string
     {
         if (!$gf_entry_id || !$pdf_form_id || !class_exists('GPDFAPI')) {
             return '';
@@ -1196,6 +1235,152 @@ class REST
         }
 
         return '';
+    }
+
+    /**
+     * Compliance export via admin-post.php.
+     *
+     * Streams a CSV summary or a ZIP of certificate PDFs for a course and/or
+     * date range (state-audit use case). Admin-only.
+     *
+     * @return void
+     */
+    public static function handle_certificate_export()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized', 403);
+        }
+
+        check_admin_referer('slms_export_certificates');
+
+        $format = isset($_GET['format']) && 'zip' === $_GET['format'] ? 'zip' : 'csv';
+        $args   = array(
+            'course' => isset($_GET['course']) ? sanitize_text_field(wp_unslash($_GET['course'])) : '',
+            'from'   => isset($_GET['from']) ? sanitize_text_field(wp_unslash($_GET['from'])) : '',
+            'to'     => isset($_GET['to']) ? sanitize_text_field(wp_unslash($_GET['to'])) : '',
+        );
+
+        $rows  = CourseHistory::query_for_export($args);
+        $stamp = gmdate('Y-m-d_H-i-s');
+
+        if ('zip' === $format) {
+            self::stream_certificate_zip($rows, 'slms-certificates-' . $stamp . '.zip');
+        }
+
+        self::stream_certificate_csv($rows, 'slms-certificates-' . $stamp . '.csv');
+    }
+
+    /**
+     * Stream a CSV summary of certificate rows.
+     *
+     * @param array  $rows     History rows.
+     * @param string $filename Download filename.
+     * @return void
+     */
+    private static function stream_certificate_csv(array $rows, string $filename): void
+    {
+        nocache_headers();
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('X-Content-Type-Options: nosniff');
+
+        $out = fopen('php://output', 'w');
+        fputcsv($out, array('ID', 'Student', 'Email', 'Course', 'Completion Date', 'Certificate ID', 'Type', 'Verify URL'));
+
+        $native = class_exists('\\SimpleLMS\\Certificates\\Issuer');
+        foreach ($rows as $row) {
+            $user      = get_userdata((int) $row->user_id);
+            $name      = $user ? trim($user->first_name . ' ' . $user->last_name) : '';
+            if ('' === $name && $user) {
+                $name = $user->display_name;
+            }
+            $uuid      = isset($row->cert_uuid) ? (string) $row->cert_uuid : '';
+            $is_native = $native && $uuid && \SimpleLMS\Certificates\Issuer::pdf_exists($uuid);
+
+            fputcsv($out, array(
+                (int) $row->id,
+                $name,
+                $user ? $user->user_email : '',
+                self::resolve_course_name($row->course_name),
+                $row->completed_date,
+                $uuid,
+                $is_native ? 'native' : (!empty($row->gf_entry_id) ? 'legacy' : 'record-only'),
+                ($native && $uuid) ? \SimpleLMS\Certificates\Issuer::verify_url($uuid) : '',
+            ));
+        }
+
+        fclose($out);
+        exit;
+    }
+
+    /**
+     * Stream a ZIP of certificate PDFs (native, rendered on demand if needed).
+     *
+     * @param array  $rows     History rows.
+     * @param string $filename Download filename.
+     * @return void
+     */
+    private static function stream_certificate_zip(array $rows, string $filename): void
+    {
+        if (!class_exists('ZipArchive') || !class_exists('\\SimpleLMS\\Certificates\\Issuer')) {
+            wp_die(esc_html__('ZIP export is not available on this server.', 'simple-lms-bridge'), '', array('response' => 500));
+        }
+
+        $tmp = wp_tempnam('slms-certs-export');
+        $zip = new \ZipArchive();
+        if (true !== $zip->open($tmp, \ZipArchive::CREATE | \ZipArchive::OVERWRITE)) {
+            wp_die(esc_html__('Could not create the export archive.', 'simple-lms-bridge'), '', array('response' => 500));
+        }
+
+        $manifest = "Certificate ID,Student,Course,Completion Date\n";
+
+        foreach ($rows as $row) {
+            $uuid = isset($row->cert_uuid) ? (string) $row->cert_uuid : '';
+            if ('' === $uuid) {
+                continue;
+            }
+
+            // Render on demand if the native PDF isn't cached yet.
+            if (!\SimpleLMS\Certificates\Issuer::pdf_exists($uuid)) {
+                $course_id = \SimpleLMS\Certificates\Routes::resolve_course_id((string) $row->course_name);
+                if ($course_id) {
+                    \SimpleLMS\Certificates\Issuer::render_and_cache(
+                        $uuid,
+                        (int) $row->user_id,
+                        $course_id,
+                        (string) $row->completed_date
+                    );
+                }
+            }
+
+            if (\SimpleLMS\Certificates\Issuer::pdf_exists($uuid)) {
+                $user = get_userdata((int) $row->user_id);
+                $name = $user ? sanitize_file_name($user->display_name) : ('user-' . (int) $row->user_id);
+                $zip->addFile(
+                    \SimpleLMS\Certificates\Issuer::pdf_path($uuid),
+                    $name . '-' . $uuid . '.pdf'
+                );
+                $manifest .= sprintf(
+                    "%s,%s,%s,%s\n",
+                    $uuid,
+                    $user ? $user->display_name : '',
+                    self::resolve_course_name($row->course_name),
+                    $row->completed_date
+                );
+            }
+        }
+
+        $zip->addFromString('manifest.csv', $manifest);
+        $zip->close();
+
+        nocache_headers();
+        header('Content-Type: application/zip');
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Content-Length: ' . filesize($tmp));
+        header('X-Content-Type-Options: nosniff');
+        readfile($tmp);
+        @unlink($tmp);
+        exit;
     }
 
     /**

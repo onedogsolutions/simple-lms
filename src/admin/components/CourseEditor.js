@@ -21,6 +21,42 @@ import { Reorder } from 'motion/react';
 
 import LessonItem from './LessonItem';
 import PMProLevels from './PMProLevels';
+import CertificateTemplate from './CertificateTemplate';
+
+// Mirror of Template::defaults() on the PHP side.
+const DEFAULT_CERT_TEMPLATE = {
+	background_id: 0,
+	preset: 'classic',
+	orientation: 'landscape',
+	placeholders: {
+		student_name: { x: 50, y: 42, size: 44, color: '#1a1a1a', align: 'center', weight: 'bold' },
+		course_title: { x: 50, y: 58, size: 26, color: '#333333', align: 'center', weight: 'normal' },
+		completed_date: { x: 50, y: 70, size: 16, color: '#555555', align: 'center', weight: 'normal' },
+		license_number: { x: 12, y: 88, size: 12, color: '#555555', align: 'left', weight: 'normal' },
+		cert_uuid: { x: 88, y: 88, size: 10, color: '#888888', align: 'right', weight: 'normal' },
+	},
+};
+
+/**
+ * Deep-merge a stored (possibly partial) template onto the defaults.
+ *
+ * @param {Object} stored Stored template meta.
+ * @return {Object} Complete template.
+ */
+const mergeTemplate = ( stored ) => {
+	const base = { ...DEFAULT_CERT_TEMPLATE, placeholders: {} };
+	const s = stored && typeof stored === 'object' ? stored : {};
+	base.background_id = s.background_id || 0;
+	base.preset = s.preset || DEFAULT_CERT_TEMPLATE.preset;
+	base.orientation = s.orientation || DEFAULT_CERT_TEMPLATE.orientation;
+	Object.keys( DEFAULT_CERT_TEMPLATE.placeholders ).forEach( ( key ) => {
+		base.placeholders[ key ] = {
+			...DEFAULT_CERT_TEMPLATE.placeholders[ key ],
+			...( s.placeholders && s.placeholders[ key ] ? s.placeholders[ key ] : {} ),
+		};
+	} );
+	return base;
+};
 
 /**
  * CourseEditor component.
@@ -35,6 +71,8 @@ const CourseEditor = ({ postId }) => {
 	const [allLessons, setAllLessons] = useState([]);
 	const [forms, setForms] = useState([]);
 	const [certificateForm, setCertificateForm] = useState(0);
+	const [certTemplate, setCertTemplate] = useState(DEFAULT_CERT_TEMPLATE);
+	const [courseTitle, setCourseTitle] = useState('');
 	const [pmproLevels, setPmproLevels] = useState([]);
 	const [allPMProLevels, setAllPMProLevels] = useState([]);
 	const [enrolledStudents, setEnrolledStudents] = useState([]);
@@ -76,6 +114,8 @@ const CourseEditor = ({ postId }) => {
 				setLessonOrder(relationshipsRes.map((l) => l.id) || []);
 				setCertificateForm(meta._lms_certificate_form || 0);
 				setPmproLevels(meta._lms_pmpro_levels || []);
+				setCertTemplate(mergeTemplate(meta._lms_cert_template));
+				setCourseTitle(postRes.title?.rendered || '');
 			} catch (err) {
 				setNotice({ status: 'error', message: err.message });
 			} finally {
@@ -99,6 +139,7 @@ const CourseEditor = ({ postId }) => {
 							_lms_certificate_form:
 								parseInt(certificateForm, 10) || 0,
 							_lms_pmpro_levels: pmproLevels,
+							_lms_cert_template: certTemplate,
 						},
 					},
 				}),
@@ -119,7 +160,7 @@ const CourseEditor = ({ postId }) => {
 		} finally {
 			setSaving(false);
 		}
-	}, [postId, lessonOrder, certificateForm, pmproLevels]);
+	}, [postId, lessonOrder, certificateForm, pmproLevels, certTemplate]);
 
 	// ── Add lesson to order ───────────────────────────────────────
 	const addLesson = (lessonId) => {
@@ -263,6 +304,30 @@ const CourseEditor = ({ postId }) => {
 					onChange={(val) =>
 						setCertificateForm(parseInt(val, 10))
 					}
+				/>
+				<p className="slms-panel-desc">
+					{__(
+						'Legacy option: used only for pre-existing migrated certificates. New completions use the native template below.',
+						'simple-lms-bridge'
+					)}
+				</p>
+			</PanelBody>
+
+			{ /* ── Native Certificate Template ─────────────────────── */}
+			<PanelBody
+				title={__('Certificate Template', 'simple-lms-bridge')}
+				initialOpen={false}
+			>
+				<p className="slms-panel-desc">
+					{__(
+						'Design the branded PDF issued when a student completes this course. Drag the position sliders and watch the live preview.',
+						'simple-lms-bridge'
+					)}
+				</p>
+				<CertificateTemplate
+					template={certTemplate}
+					onChange={setCertTemplate}
+					courseTitle={courseTitle}
 				/>
 			</PanelBody>
 

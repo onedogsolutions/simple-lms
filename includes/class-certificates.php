@@ -144,52 +144,27 @@ class Certificates
             }
 
             if (!isset($completion_recorded[$course_id])) {
+                $completed_at = current_time('mysql');
                 $completion_recorded[$course_id] = time();
                 update_user_meta($user_id, '_lms_completed_at', $completion_recorded);
 
                 do_action('slms_course_completed', $user_id, $course_id);
 
-                // Automate certificate generation.
-                $form_id = (int)get_post_meta($course_id, '_lms_certificate_form', true);
-
-                $linked_entry_id = null;
-
-                if ($form_id > 0 && class_exists('GFAPI')) {
-                    // Check if an entry already exists for this user and form to avoid duplicates.
-                    $search_criteria = array(
-                        'status'        => 'active',
-                        'field_filters' => array(
-                            array('key' => 'created_by', 'value' => $user_id),
-                        ),
-                    );
-                    $entries = \GFAPI::get_entries($form_id, $search_criteria);
-
-                    if (empty($entries)) {
-                        // Populate field 6 (State) and field 18 (Course URL) so GravityPDF
-                        // conditional logic can match the correct PDF template immediately.
-                        $result = \GFAPI::add_entry(array(
-                            'form_id'    => $form_id,
-                            'created_by' => $user_id,
-                            'status'     => 'active',
-                            '6'          => (string) get_user_meta($user_id, 'billing_state', true),
-                            '18'         => (string) get_permalink($course_id),
-                        ));
-                        if (!is_wp_error($result)) {
-                            $linked_entry_id = (int) $result;
-                        }
-                    } else {
-                        $linked_entry_id = (int) $entries[0]['id'];
-                    }
-                }
-
-                if (class_exists(__NAMESPACE__ . '\CourseHistory')) {
-                    $course_title = get_the_title($course_id);
+                // Native certificate pipeline: allocate a UUID, persist the
+                // compliance row and render/cache a branded PDF. No Gravity
+                // Forms / GravityPDF involvement for new completions.
+                if (class_exists(__NAMESPACE__ . '\\Certificates\\Issuer')) {
+                    Certificates\Issuer::issue($user_id, $course_id, $completed_at);
+                } elseif (class_exists(__NAMESPACE__ . '\CourseHistory')) {
+                    // Defensive fallback: still record the completion.
                     CourseHistory::insert(
                         $user_id,
-                        $course_title,
-                        current_time('mysql'),
-                        $linked_entry_id,
-                        $form_id > 0 ? $form_id : null
+                        get_the_title($course_id),
+                        $completed_at,
+                        null,
+                        null,
+                        array(),
+                        wp_generate_uuid4()
                     );
                 }
 

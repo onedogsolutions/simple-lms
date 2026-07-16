@@ -445,20 +445,31 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 								}
 							}
 
-							// ── GravityPDF Link Generation ──────────────────────────────────
+							// ── Native Certificate (preferred) ─────────────────────────────
+							$pdf_link_html = '';
+							$cert_uuid = isset($row->cert_uuid) ? (string) $row->cert_uuid : '';
+
+							if ($cert_uuid && class_exists('\\SimpleLMS\\Certificates\\Issuer')
+								&& \SimpleLMS\Certificates\Issuer::pdf_exists($cert_uuid)) {
+								$native_url = \SimpleLMS\Certificates\Issuer::download_url($cert_uuid);
+								$pdf_link_html = '<a href="' . esc_url($native_url) . '" class="slms-pdf-link">'
+									. esc_html__('Download PDF', 'simple-lms')
+									. '</a>';
+							}
+
+							// ── GravityPDF Link Generation (legacy fallback) ────────────────
 							$gf_entry_id = isset($row->gf_entry_id) ? absint($row->gf_entry_id) : 0;
 							$pdf_form_id = isset($row->form_id) ? absint($row->form_id) : 0;
-							$pdf_link_html = '';
 
 							// If form_id missing from row, resolve via GFAPI.
-							if (!$pdf_form_id && $gf_entry_id && class_exists('GFAPI')) {
+							if ('' === $pdf_link_html && !$pdf_form_id && $gf_entry_id && class_exists('GFAPI')) {
 								$_gf_entry = \GFAPI::get_entry($gf_entry_id);
 								if (!is_wp_error($_gf_entry) && !empty($_gf_entry['form_id'])) {
 									$pdf_form_id = absint($_gf_entry['form_id']);
 								}
 							}
 
-							if ($gf_entry_id && $pdf_form_id && class_exists('GPDFAPI')) {
+							if ('' === $pdf_link_html && $gf_entry_id && $pdf_form_id && class_exists('GPDFAPI')) {
 								try {
 									$hash_id = null;
 

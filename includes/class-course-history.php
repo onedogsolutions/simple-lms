@@ -26,6 +26,13 @@ class CourseHistory
     private static $table_name;
 
     /**
+     * Current schema version for this table.
+     *
+     * @var string
+     */
+    const DB_VERSION = '2';
+
+    /**
      * Hook into WordPress.
      *
      * @return void
@@ -55,15 +62,79 @@ class CourseHistory
             completed_date datetime NOT NULL,
             form_id bigint(20) DEFAULT NULL,
             gf_entry_id bigint(20) DEFAULT NULL,
+            cert_uuid varchar(36) DEFAULT NULL,
             cert_data longtext DEFAULT NULL,
             PRIMARY KEY (id),
             KEY user_id (user_id),
             KEY gf_entry_id (gf_entry_id),
-            KEY form_id (form_id)
+            KEY form_id (form_id),
+            UNIQUE KEY cert_uuid (cert_uuid)
         ) $charset_collate;";
 
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
         dbDelta($sql);
+
+        update_option('slms_ch_db_version', self::DB_VERSION);
+    }
+
+    /**
+     * Run schema upgrades for existing installs.
+     *
+     * Adds the cert_uuid column + unique key and backfills UUIDs for every
+     * pre-existing row so legacy certificates remain verifiable by URL.
+     *
+     * @return void
+     */
+    public static function maybe_upgrade()
+    {
+        if (get_option('slms_ch_db_version') === self::DB_VERSION) {
+            return;
+        }
+
+        global $wpdb;
+        self::init();
+        $table = self::$table_name;
+
+        // Bail if the table doesn't exist yet (fresh installs use create_table()).
+        if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table)) !== $table) {
+            self::create_table();
+            return;
+        }
+
+        // 1. Add the cert_uuid column if missing.
+        $has_col = $wpdb->get_var($wpdb->prepare(
+            "SHOW COLUMNS FROM `" . $table . "` LIKE %s",
+            'cert_uuid'
+        ));
+        if (!$has_col) {
+            $wpdb->query("ALTER TABLE `" . $table . "` ADD COLUMN cert_uuid varchar(36) DEFAULT NULL");
+        }
+
+        // 2. Backfill UUIDs for any row missing one.
+        $ids = $wpdb->get_col(
+            "SELECT id FROM `" . $table . "` WHERE cert_uuid IS NULL OR cert_uuid = ''"
+        );
+        foreach ((array) $ids as $id) {
+            $wpdb->update(
+                $table,
+                array('cert_uuid' => wp_generate_uuid4()),
+                array('id' => absint($id)),
+                array('%s'),
+                array('%d')
+            );
+        }
+
+        // 3. Add the unique key if it isn't there yet.
+        $has_index = $wpdb->get_var($wpdb->prepare(
+            "SHOW INDEX FROM `" . $table . "` WHERE Key_name = %s",
+            'cert_uuid'
+        ));
+        if (!$has_index) {
+            // Suppress errors: a duplicate key here is non-fatal.
+            $wpdb->query("ALTER TABLE `" . $table . "` ADD UNIQUE KEY cert_uuid (cert_uuid)");
+        }
+
+        update_option('slms_ch_db_version', self::DB_VERSION);
     }
 
     /**
@@ -75,9 +146,10 @@ class CourseHistory
      * @param int    $entry_id    Gravity Forms entry ID if applicable.
      * @param int    $form_id     Gravity Forms form ID if applicable.
      * @param array  $metadata    Any extra metadata.
+     * @param string $cert_uuid   Native certificate UUID if applicable.
      * @return int|bool Row ID or false on failure.
      */
-    public static function insert($user_id, $course_name, $date, $entry_id = null, $form_id = null, $metadata = array())
+    public static function insert($user_id, $course_name, $date, $entry_id = null, $form_id = null, $metadata = array(), $cert_uuid = null)
     {
         global $wpdb;
         self::init();
@@ -102,12 +174,36 @@ class CourseHistory
                 'completed_date' => current_time('mysql', strtotime($date)),
                 'form_id' => $form_id ? absint($form_id) : null,
                 'gf_entry_id' => $entry_id ? absint($entry_id) : null,
+                'cert_uuid' => $cert_uuid ? sanitize_text_field($cert_uuid) : null,
                 'cert_data' => !empty($metadata) ? maybe_serialize($metadata) : null,
             ),
-            array('%d', '%s', '%s', '%d', '%d', '%s')
+            array('%d', '%s', '%s', '%d', '%d', '%s', '%s')
         );
 
         return $result ? $wpdb->insert_id : false;
+    }
+
+    /**
+     * Fetch a single history row by its certificate UUID.
+     *
+     * @param string $uuid Certificate UUID.
+     * @return object|null Row object or null if not found.
+     */
+    public static function get_by_uuid(string $uuid)
+    {
+        global $wpdb;
+        self::init();
+
+        if ('' === $uuid) {
+            return null;
+        }
+
+        $row = $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM " . self::$table_name . " WHERE cert_uuid = %s LIMIT 1",
+            $uuid
+        ));
+
+        return $row ?: null;
     }
 
     /**
@@ -127,6 +223,46 @@ class CourseHistory
         ));
 
         return is_array($results) ? $results : [];
+    }
+
+    /**
+     * Query rows for a compliance export, filtered by course and/or date range.
+     *
+     * @param array $args {
+     *   @type string $course Course name filter (LIKE), optional.
+     *   @type string $from   Start date (Y-m-d), optional.
+     *   @type string $to     End date (Y-m-d), optional.
+     * }
+     * @return array Row objects.
+     */
+    public static function query_for_export(array $args = array()): array
+    {
+        global $wpdb;
+        self::init();
+
+        $where  = array('1=1');
+        $params = array();
+
+        if (!empty($args['course'])) {
+            $where[]  = 'course_name LIKE %s';
+            $params[] = '%' . $wpdb->esc_like($args['course']) . '%';
+        }
+        if (!empty($args['from'])) {
+            $where[]  = 'completed_date >= %s';
+            $params[] = $args['from'] . ' 00:00:00';
+        }
+        if (!empty($args['to'])) {
+            $where[]  = 'completed_date <= %s';
+            $params[] = $args['to'] . ' 23:59:59';
+        }
+
+        $sql = "SELECT * FROM " . self::$table_name . " WHERE " . implode(' AND ', $where) . " ORDER BY completed_date DESC";
+        if ($params) {
+            $sql = $wpdb->prepare($sql, $params); // phpcs:ignore WordPress.DB.PreparedSQL
+        }
+
+        $results = $wpdb->get_results($sql); // phpcs:ignore WordPress.DB.PreparedSQL
+        return is_array($results) ? $results : array();
     }
 
     /**

@@ -1,0 +1,17 @@
+{
+    "name": "onedogsolutions/simple-lms-bridge",
+    "description": "Native certificate PDF rendering dependencies for SimpleLMS Bridge.",
+    "type": "wordpress-plugin",
+    "license": "proprietary",
+    "require": {
+        "php": ">=7.4",
+        "dompdf/dompdf": "^3.0",
+        "chillerlan/php-qrcode": "^5.0"
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "platform": {
+            "php": "7.4.0"
+        }
+    }
+}

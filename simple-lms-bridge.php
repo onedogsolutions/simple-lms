@@ -33,6 +33,12 @@ require_once SLMS_PLUGIN_DIR . 'includes/class-metaboxes.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-pmpro.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-expiration.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-course-history.php';
+// Native certificate pipeline (dompdf-backed).
+require_once SLMS_PLUGIN_DIR . 'includes/certificates/interface-renderer.php';
+require_once SLMS_PLUGIN_DIR . 'includes/certificates/class-dompdf-renderer.php';
+require_once SLMS_PLUGIN_DIR . 'includes/certificates/class-template.php';
+require_once SLMS_PLUGIN_DIR . 'includes/certificates/class-issuer.php';
+require_once SLMS_PLUGIN_DIR . 'includes/certificates/class-routes.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-certificates.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-migration.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-user-meta.php';
@@ -59,8 +65,13 @@ function slms_init()
     MetaBoxes::init();
     Expiration::init();
     Certificates::init();
+    Certificates\Routes::init();
     Migration::init();
     Relationships::init();
+
+    // Run certificate schema upgrades (cert_uuid column + backfill) for
+    // existing installs.
+    CourseHistory::maybe_upgrade();
 
     // Conditionally boot PMPro integration.
     if (function_exists('pmpro_getMembershipLevelForUser')) {
@@ -74,6 +85,9 @@ function slms_init()
 
     // Handle log download action
     add_action( 'admin_post_slms_download_log', array(__NAMESPACE__ . '\\REST', 'handle_log_download') );
+
+    // Handle compliance certificate export.
+    add_action( 'admin_post_slms_export_certificates', array(__NAMESPACE__ . '\\REST', 'handle_certificate_export') );
 }
 add_action('init', __NAMESPACE__ . '\\slms_init');
 
@@ -127,6 +141,17 @@ function slms_admin_menu()
         echo '<div class="wrap slms-admin-wrap tw-preflight"><div id="slms-admin-root"></div></div>';
     }
     );
+
+    add_submenu_page(
+        'simple-lms',
+        __('Tools', 'simple-lms-bridge'),
+        __('Tools', 'simple-lms-bridge'),
+        'manage_options',
+        'slms-tools',
+        function () {
+        echo '<div class="wrap slms-admin-wrap tw-preflight"><div id="slms-admin-root"></div></div>';
+    }
+    );
 }
 
 /* ─── Activation ─────────────────────────────────────────────────────── */
@@ -141,6 +166,10 @@ function slms_activate()
     CPT::register_post_types();
     Relationships::create_table();
     CourseHistory::create_table();
+    CourseHistory::maybe_upgrade();
+    Certificates\Routes::add_rewrite_rules();
+    // Force the certificate rewrite rules to be re-flushed on next admin load.
+    delete_option('slms_cert_rewrite_version');
     flush_rewrite_rules();
 }
 register_activation_hook(__FILE__, __NAMESPACE__ . '\\slms_activate');
@@ -192,6 +221,11 @@ function slms_enqueue_admin_assets($hook_suffix)
 
     $asset = require $asset_file;
 
+    // Media library for the certificate template background picker.
+    if ($is_lms_cpt) {
+        wp_enqueue_media();
+    }
+
     // Tailwind CDN fallback — ensures admin UI renders even if local build is stale.
     wp_enqueue_script(
         'slms-tailwind-cdn',
@@ -238,6 +272,8 @@ function slms_enqueue_admin_assets($hook_suffix)
             ),
             admin_url('admin-post.php')
         ),
+        'adminPost' => admin_url('admin-post.php'),
+        'exportNonce' => wp_create_nonce('slms_export_certificates'),
     ));
 }
 add_action('admin_enqueue_scripts', __NAMESPACE__ . '\\slms_enqueue_admin_assets');

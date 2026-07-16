@@ -8,6 +8,51 @@ The project has been moved to a private GitHub repository. Core features are in 
 
 ## Accomplishments (Recent)
 
+- **Stage 4 — Native Certificate Pipeline (Jul 2026):** New completions now
+  produce branded PDFs with zero Gravity Forms / GravityPDF involvement, while
+  every legacy migrated link keeps resolving.
+  - **Bundled renderer:** dompdf 3.x + chillerlan/php-qrcode are vendored under
+    `vendor/` (Composer) behind a `SimpleLMS\Certificates\Renderer` interface
+    (`interface-renderer.php`). `DompdfRenderer` loads the autoloader lazily,
+    guarded by `class_exists` so a dompdf already loaded by another plugin (or a
+    php-scoper-prefixed build) is never redeclared. Swap engines via the
+    `slms_certificate_renderer` filter.
+  - **Template model (`Certificates\Template`):** per-course `_lms_cert_template`
+    object meta — background image (media ID), layout preset (classic/modern/
+    minimal), orientation, and per-placeholder position/size/color/align/weight
+    for `{student_name}`, `{course_title}`, `{completed_date}`,
+    `{license_number}`, `{cert_uuid}`. `build_html()` and `placeholder_css()`
+    define the anchoring model; the CourseEditor live preview mirrors it exactly.
+  - **Template UI:** `CertificateTemplate.js` (a new section in `CourseEditor.js`)
+    with a live HTML preview, wp.media background picker, preset/orientation
+    selects, and per-placeholder sliders. Saved to `_lms_cert_template`.
+  - **Issuance (`Certificates\Issuer`):** `check_course_completion()` now calls
+    `Issuer::issue()` — allocates a UUID, inserts the history row with it, and
+    renders/caches a branded PDF (with an embedded QR verify code) to
+    `wp-content/uploads/slms-certs/` (`.htaccess deny from all`, same pattern as
+    `slms-logs`). The old `GFAPI::add_entry` fields-6/18 synthesis block is
+    **deleted** for new completions.
+  - **Schema:** `slms_course_history` gains `cert_uuid varchar(36)` + unique key.
+    `CourseHistory::maybe_upgrade()` (runs on `init`, gated by
+    `slms_ch_db_version`) adds the column and backfills UUIDs for all existing
+    rows so legacy certificates are verifiable too.
+  - **Native-first resolution:** `class-rest.php` `get_student_history()` and the
+    `slms-student-dashboard` certificates tab check the native cached PDF first
+    (`Issuer::pdf_exists`), falling back to the existing two-stage GravityPDF
+    `resolve_legacy_pdf_url()` (renamed from `resolve_pdf_url`, now public) for
+    migrated rows.
+  - **Public routes (`Certificates\Routes`):** rewrite rules
+    `GET /certificate/{uuid}/download` (streams the PDF; permission = row owner
+    OR `edit_users`; regenerates on demand; legacy redirect fallback) and
+    `GET /certificate/verify/{uuid}` (login-free verification page: student,
+    course, date, validity). Rewrite rules auto-flush via `slms_cert_rewrite_version`.
+  - **Compliance export:** admin-post `slms_export_certificates` streams a CSV
+    summary or a ZIP of PDFs (rendered on demand) filtered by course/date range.
+  - **Admin Tools screen (`Tools.js`, `SimpleLMS > Tools`):** export UI plus
+    explicit buttons for `repair_form_ids()` and `purge_corrupted_records()`; the
+    purge is guarded by a typed `DELETE CORRUPTED` confirmation + JS confirm and a
+    new `POST /course-history/purge-corrupted` endpoint that rejects any request
+    without the exact phrase (per the STATE hazard note — never automatic).
 - **UI Cleanup:** Removed the legacy global admin migration nag banner in favor of the dedicated React Migration Tool UI.
 - **Rebranding:** Renamed plugin to "One Dog Solutions".
 - **API Migration:** Moved from jQuery AJAX to WP REST API.
