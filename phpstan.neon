@@ -42,6 +42,12 @@ parameters:
             message: '#^Function gform_(get|update)_meta not found\.$#'
             path: includes/class-migration.php
         -
+            message: '#^Function rgar not found\.$#'
+            path: includes/class-migration.php
+        -
+            message: '#^Function rgar not found\.$#'
+            path: includes/class-rest.php
+        -
             message: '#^Variable \$entries in empty\(\) always exists and is not falsy\.$#'
             path: includes/class-migration.php
         -
