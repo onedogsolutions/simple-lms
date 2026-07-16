@@ -8,6 +8,27 @@ The project has been moved to a private GitHub repository. Core features are in 
 
 ## Accomplishments (Recent)
 
+- **Stage 2 — Frontend Course Experience (Jul 2026):**
+  - **Access service (`includes/class-access.php`):** New central authority for course access + state.
+    - `can_view($user_id, $lesson_id, $course_id)` combines enrollment/PMPro access with drip scheduling; editors always pass (builder/preview). Filterable via `slms_can_view_lesson`.
+    - Drip helpers: `get_unlock_timestamp()` / `is_dripped()` computed from `slms_user_course.enrolled_at` + lesson meta `_lms_drip_days` (falls back to legacy `_lms_enrolled_at` user meta).
+    - State machine `get_course_state()` → `guest | not_enrolled | not_started | in_progress | completed`; plus `get_first_incomplete_lesson()`, `get_continue_url()`, `get_progress_stats()`, `is_course_complete()`.
+    - `get_cta()` returns the state-aware CTA descriptor (label/url/classes) shared by the grid + CTA modules; `get_checkout_url()` builds the PMPro checkout URL for the course's mapped level; `format_price()` wraps `pmpro_formatPrice`.
+    - `set_lesson_progress()` is the single completion code path used by both REST `/progress` and quiz auto-completion (writes `_lms_progress`, fires `Certificates::check_course_completion`).
+    - `get_enrolled_courses_with_progress()` shared by `lms-my-courses` and the dashboard "My Courses" tab.
+  - **New meta (`class-cpt.php`):** `_lms_drip_days` (lesson), `_lms_completion_redirect` (course), `_lms_quiz_pass_field` + `_lms_quiz_pass_min` (lesson), `_lms_video_gate_pct` (lesson). `Relationships::get_enrolled_at()` / `is_enrolled()` added.
+  - **Quiz-gated completion (`includes/class-quiz.php`):** `gform_after_submission` (priority 5, before Certificates at 10) auto-completes quiz-type lessons whose `_lms_gravity_form` matches the submitted form, for every enrolled course. Optional passing-score gate via `_lms_quiz_pass_field` + `_lms_quiz_pass_min`. Routes through `Access::set_lesson_progress`. `GFAPI::add_entry` does not re-fire submission hooks, so no loop.
+  - **Completion redirect:** REST `/progress` returns `redirect` (from `_lms_completion_redirect`) + `course_complete` when the course just completed — keyed off `_lms_completed_at` because certificate automation wipes `_lms_progress` on completion. Frontend JS follows the redirect.
+  - **Four new self-contained BB modules** (category `SimpleLMS`, per the STATE.md architecture rule — own `css/frontend.css`, `includes/frontend.php`, `includes/frontend.css.php`, inline JS where needed):
+    - `lms-course-grid` — card grid of `slms_course` (category slug filter, columns, price, enrolled badge, progress bar, state-aware CTA).
+    - `lms-lesson-nav` — prev/next within `_simple_lms_order` + "Back to Course"; drip/guard-locked targets render disabled with a lock icon + unlock date.
+    - `lms-my-courses` — session user's enrollments with progress bars + Continue/Start.
+    - `lms-course-cta` — single state-machine button (Login/Buy · Buy · Start · Continue · View Certificate).
+  - **Drip rendering:** `lms-outline` renders drip-locked lessons as non-links with lock icon + unlock date.
+  - **Complete button (`lms-complete-button`):** hidden on quiz lessons (auto-complete notice); video-gated (starts `disabled` with `data-video-gate`/`data-video-id` when `_lms_video_gate_pct` set on a video lesson).
+  - **Frontend JS (`assets/js/frontend.js`, now enqueued globally as `slms-frontend`):** rewritten to (1) follow the completion redirect, (2) video gating — poll for the Presto/HTML5 media element and enable the Complete button at N% watched (fail-open after ~20s), (3) quiz countdown timer — injected on quiz lessons by `lms-content` (`_lms_quiz_timer`), disables the GF submit button + shows a retake notice on expiry. Per-module enqueue removed from `lms-complete-button` to avoid double-loading.
+  - **Student Dashboard:** new "My Courses" tab inserted before Purchase History, reusing `Access::get_enrolled_courses_with_progress()`.
+  - **Admin React:** `LessonSettings.js` gains drip days, quiz passing-score field/min, and video-gate percent; `CourseEditor.js` gains the completion redirect URL. Bundle rebuilt (`npm run build`).
 - **UI Cleanup:** Removed the legacy global admin migration nag banner in favor of the dedicated React Migration Tool UI.
 - **Rebranding:** Renamed plugin to "One Dog Solutions".
 - **API Migration:** Moved from jQuery AJAX to WP REST API.

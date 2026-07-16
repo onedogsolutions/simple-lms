@@ -53,8 +53,18 @@ if (!$post || 'slms_lesson' !== $post->post_type) {
     <?php
     $quiz_form_id = get_post_meta($post->ID, '_lms_gravity_form', true);
     if ('quiz' === $lesson_type && $quiz_form_id) :
+        $quiz_timer = (int) get_post_meta($post->ID, '_lms_quiz_timer', true);
         ?>
         <div class="slms-lesson-quiz-container">
+            <?php if ($quiz_timer > 0) : ?>
+                <div class="slms-quiz-timer" data-minutes="<?php echo esc_attr($quiz_timer); ?>" role="timer" aria-live="polite">
+                    <span class="slms-quiz-timer-label"><?php esc_html_e('Time remaining:', 'simple-lms-bridge'); ?></span>
+                    <span class="slms-quiz-timer-clock">--:--</span>
+                </div>
+                <div class="slms-quiz-expired-notice" hidden>
+                    <?php esc_html_e('Time is up. Please reload the page to retake the quiz.', 'simple-lms-bridge'); ?>
+                </div>
+            <?php endif; ?>
             <?php echo do_shortcode('[gravityform id="' . absint($quiz_form_id) . '" title="true" description="false" ajax="true"]'); ?>
         </div>
     <?php endif; ?>

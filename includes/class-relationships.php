@@ -288,6 +288,47 @@ class Relationships
     }
 
     /**
+     * Get the enrollment timestamp for a user in a specific course.
+     *
+     * @param int $user_id   User ID.
+     * @param int $course_id Course ID.
+     * @return string|null MySQL datetime string or null if not enrolled.
+     */
+    public static function get_enrolled_at($user_id, $course_id)
+    {
+        global $wpdb;
+        self::init();
+
+        $user_id   = absint($user_id);
+        $course_id = absint($course_id);
+
+        if (!$user_id || !$course_id) {
+            return null;
+        }
+
+        $value = $wpdb->get_var($wpdb->prepare(
+            "SELECT enrolled_at FROM " . self::$user_course_table . "
+			 WHERE user_id = %d AND course_id = %d LIMIT 1",
+            $user_id,
+            $course_id
+        ));
+
+        return $value ? $value : null;
+    }
+
+    /**
+     * Whether a user is enrolled in a course (enrollment row exists).
+     *
+     * @param int $user_id   User ID.
+     * @param int $course_id Course ID.
+     * @return bool
+     */
+    public static function is_enrolled($user_id, $course_id)
+    {
+        return null !== self::get_enrolled_at($user_id, $course_id);
+    }
+
+    /**
      * Get all students for a specific course.
      *
      * @param int $course_id Course ID.

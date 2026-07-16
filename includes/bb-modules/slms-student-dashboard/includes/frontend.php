@@ -130,6 +130,8 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 	<ul class="slms-tabs-nav" role="tablist">
 		<li class="slms-tab-link active" data-tab="profile" role="tab" aria-selected="true">
 			<?php esc_html_e('User Profile', 'simple-lms'); ?></li>
+		<li class="slms-tab-link" data-tab="courses" role="tab" aria-selected="false">
+			<?php esc_html_e('My Courses', 'simple-lms'); ?></li>
 		<li class="slms-tab-link" data-tab="history" role="tab" aria-selected="false">
 			<?php esc_html_e('Purchase History', 'simple-lms'); ?></li>
 		<li class="slms-tab-link" data-tab="certificates" role="tab" aria-selected="false">
@@ -272,6 +274,56 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 
 			</form>
 		</div><!-- #slms-tab-profile -->
+
+		<?php /* ──────────────────────────────────────────────────────────────
+		  * TAB – My Courses (reuses the lms-my-courses query logic)
+		  * ────────────────────────────────────────────────────────────── */ ?>
+		<div id="slms-tab-courses" class="slms-tab-pane" role="tabpanel">
+			<?php
+			$my_courses = class_exists('\\SimpleLMS\\Access')
+				? \SimpleLMS\Access::get_enrolled_courses_with_progress($current_user->ID)
+				: array();
+			?>
+			<?php if (!empty($my_courses)): ?>
+				<div class="slms-dashboard-courses">
+					<?php foreach ($my_courses as $course):
+						$is_complete = ('completed' === $course['state']);
+						$btn_label = $is_complete
+							? __('Review', 'simple-lms')
+							: ($course['completed'] > 0 ? __('Continue', 'simple-lms') : __('Start', 'simple-lms'));
+						?>
+						<div class="slms-dc-item<?php echo $is_complete ? ' is-complete' : ''; ?>">
+							<div class="slms-dc-body">
+								<h3 class="slms-dc-title">
+									<a href="<?php echo esc_url($course['permalink']); ?>"><?php echo esc_html($course['title']); ?></a>
+								</h3>
+								<div class="slms-dc-progress">
+									<div class="slms-progress-bar-container">
+										<div class="slms-progress-bar-fill" style="width: <?php echo esc_attr($course['percent']); ?>%;"></div>
+									</div>
+									<span class="slms-progress-label">
+										<?php
+										printf(
+											/* translators: 1: completed, 2: total, 3: percent */
+											esc_html__('%1$d of %2$d lessons · %3$d%% complete', 'simple-lms'),
+											(int) $course['completed'],
+											(int) $course['total'],
+											(int) $course['percent']
+										);
+										?>
+									</span>
+								</div>
+							</div>
+							<div class="slms-dc-action">
+								<a class="slms-cta-button" href="<?php echo esc_url($course['continue_url']); ?>"><?php echo esc_html($btn_label); ?></a>
+							</div>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			<?php else: ?>
+				<p class="slms-empty-message"><?php esc_html_e('You are not enrolled in any courses yet.', 'simple-lms'); ?></p>
+			<?php endif; ?>
+		</div><!-- #slms-tab-courses -->
 
 		<?php /* ──────────────────────────────────────────────────────────────
 		  * TAB 2 – Purchase History
