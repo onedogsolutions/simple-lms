@@ -1,0 +1,71 @@
+includes:
+    - vendor/szepeviktor/phpstan-wordpress/extension.neon
+
+parameters:
+    level: 5
+    paths:
+        - simple-lms-bridge.php
+        - includes
+    excludePaths:
+        - build/*
+        - node_modules/*
+        - vendor/*
+        - src/*
+        - dist/*
+        # Beaver Builder module classes extend FLBuilderModule, a third-party
+        # page-builder class with no Composer package or public stub set. PHPStan
+        # cannot resolve it (or the $settings/$id it injects into templates at
+        # runtime), and "extends unknown class" cannot be suppressed via
+        # ignoreErrors — it must be excluded at the path level.
+        - includes/bb-modules/*
+    # Pre-existing findings in code this ruleset newly covers. None of these are
+    # introduced by Stage 0; they're tracked here as a baseline so new code is
+    # held to the level-5 bar without failing CI on legacy debt. Revisit and
+    # narrow/remove entries as the underlying code is touched.
+    ignoreErrors:
+        -
+            message: '#^Parameter \#3 \$args of function register_taxonomy expects#'
+            path: includes/class-cpt.php
+        -
+            message: '#^Comparison operation ">" between int<1, 100> and 0 is always true\.$#'
+            path: includes/class-migration.php
+        -
+            message: '#^Variable \$post_key on left side of \?\? always exists and is not nullable\.$#'
+            path: includes/class-migration.php
+        -
+            message: '#^Offset .completed. on array on left side of \?\? always exists and is not nullable\.$#'
+            path: includes/class-migration.php
+        -
+            message: '#^Else branch is unreachable because ternary operator condition is always true\.$#'
+            path: includes/class-migration.php
+        -
+            message: '#^Function gform_(get|update)_meta not found\.$#'
+            path: includes/class-migration.php
+        -
+            message: '#^Function rgar not found\.$#'
+            path: includes/class-migration.php
+        -
+            message: '#^Function rgar not found\.$#'
+            path: includes/class-rest.php
+        -
+            message: '#^Variable \$entries in empty\(\) always exists and is not falsy\.$#'
+            path: includes/class-migration.php
+        -
+            message: '#^(Call to function is_wp_error\(\)|is_wp_error\(int<0, max>\)).*will always evaluate to false\.$#'
+            path: includes/class-migration.php
+        -
+            message: '#^Unreachable statement - code above always terminates\.$#'
+            path: includes/class-migration.php
+        -
+            message: '#^Call to function method_exists\(\) with .*PMPro_Group_Account.* will always evaluate to false\.$#'
+            path: includes/class-pmpro.php
+        -
+            message: '#^Variable \$name on left side of \?\? always exists and is not nullable\.$#'
+            path: includes/class-rest.php
+        -
+            message: '#^Property WP_Screen::\$id \(string\) on left side of \?\? is not nullable\.$#'
+            path: simple-lms-bridge.php
+        -
+            message: '#^Variable \$screen_id on left side of \?\? always exists and is not nullable\.$#'
+            path: simple-lms-bridge.php
+    reportUnmatchedIgnoredErrors: false
