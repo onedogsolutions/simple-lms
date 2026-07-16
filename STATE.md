@@ -23,6 +23,15 @@ certificates on completion.
   compliance-table DDL, fixed a fatal typo, rewrote expiration to cover all
   enrollments, removed the Tailwind CDN, untracked build output, added schema
   versioning, and stood up CI. See `CHANGELOG.md` for details.
+- **Known follow-up:** the PHPCS (WordPress-Extra) CI job is currently
+  non-blocking (`continue-on-error`). The pre-existing codebase uses spaces for
+  indentation and double quotes throughout, which conflicts with
+  WordPress-Extra's tabs/single-quote conventions across essentially every file
+  — a dedicated formatting pass (`composer phpcbf`, reviewed by hand for the
+  handful of non-auto-fixable `WordPress.DB.PreparedSQL.NotPrepared` sniffs) is
+  needed before this can be a hard gate. PHPStan (level 5) is a hard gate; its
+  pre-existing, out-of-scope findings are tracked in `phpstan.neon`'s
+  `ignoreErrors` as a baseline rather than silently disabled.
 
 ## Architecture
 
