@@ -19,6 +19,7 @@ import LessonSettings from './components/LessonSettings';
 import StudentManager from './components/StudentManager';
 import MigrationTool from './components/MigrationTool';
 import DebugLog from './components/DebugLog';
+import Analytics from './components/Analytics';
 
 const mount = () => {
 	const postId = window.slmsAdmin?.postId;
@@ -47,6 +48,8 @@ const mount = () => {
 		App = <MigrationTool />;
 	} else if ( page === 'slms-debug-log' ) {
 		App = <DebugLog />;
+	} else if ( page === 'slms-analytics' ) {
+		App = <Analytics />;
 	}
 
 	if ( ! App ) {

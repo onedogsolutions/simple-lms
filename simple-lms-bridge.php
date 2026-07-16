@@ -37,6 +37,7 @@ require_once SLMS_PLUGIN_DIR . 'includes/class-certificates.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-migration.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-user-meta.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-relationships.php';
+require_once SLMS_PLUGIN_DIR . 'includes/class-analytics.php';
 // class-account-dashboard.php intentionally not loaded.
 // The [simple_lms_account] shortcode has been replaced by the native
 // lms-account-dashboard Beaver Builder module. Shortcode-based rendering
@@ -61,6 +62,7 @@ function slms_init()
     Certificates::init();
     Migration::init();
     Relationships::init();
+    Analytics::init();
 
     // Conditionally boot PMPro integration.
     if (function_exists('pmpro_getMembershipLevelForUser')) {
@@ -74,6 +76,9 @@ function slms_init()
 
     // Handle log download action
     add_action( 'admin_post_slms_download_log', array(__NAMESPACE__ . '\\REST', 'handle_log_download') );
+
+    // Handle analytics CSV export.
+    add_action( 'admin_post_slms_analytics_export', array(__NAMESPACE__ . '\\REST', 'handle_analytics_export') );
 }
 add_action('init', __NAMESPACE__ . '\\slms_init');
 
@@ -104,6 +109,17 @@ function slms_admin_menu()
         'manage_options',
         'slms-students',
         array(__NAMESPACE__ . '\\MetaBoxes', 'render_students_page')
+    );
+
+    add_submenu_page(
+        'simple-lms',
+        __('Analytics', 'simple-lms-bridge'),
+        __('Analytics', 'simple-lms-bridge'),
+        'manage_options',
+        'slms-analytics',
+        function () {
+        echo '<div class="wrap slms-admin-wrap tw-preflight"><div id="slms-admin-root"></div></div>';
+    }
     );
 
     add_submenu_page(
@@ -141,6 +157,7 @@ function slms_activate()
     CPT::register_post_types();
     Relationships::create_table();
     CourseHistory::create_table();
+    Analytics::create_table();
     flush_rewrite_rules();
 }
 register_activation_hook(__FILE__, __NAMESPACE__ . '\\slms_activate');
@@ -238,6 +255,14 @@ function slms_enqueue_admin_assets($hook_suffix)
             ),
             admin_url('admin-post.php')
         ),
+        'analyticsExportUrl' => add_query_arg(
+            array(
+                'action' => 'slms_analytics_export',
+                '_wpnonce' => wp_create_nonce('slms_analytics_export'),
+            ),
+            admin_url('admin-post.php')
+        ),
+        'studentsUrl' => admin_url('admin.php?page=slms-students'),
     ));
 }
 add_action('admin_enqueue_scripts', __NAMESPACE__ . '\\slms_enqueue_admin_assets');
