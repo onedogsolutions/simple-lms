@@ -37,6 +37,11 @@ require_once SLMS_PLUGIN_DIR . 'includes/class-certificates.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-migration.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-user-meta.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-relationships.php';
+require_once SLMS_PLUGIN_DIR . 'includes/class-progress.php';
+require_once SLMS_PLUGIN_DIR . 'includes/class-access.php';
+require_once SLMS_PLUGIN_DIR . 'includes/class-guard.php';
+require_once SLMS_PLUGIN_DIR . 'includes/class-settings.php';
+require_once SLMS_PLUGIN_DIR . 'includes/class-upgrades.php';
 // class-account-dashboard.php intentionally not loaded.
 // The [simple_lms_account] shortcode has been replaced by the native
 // lms-account-dashboard Beaver Builder module. Shortcode-based rendering
@@ -61,6 +66,10 @@ function slms_init()
     Certificates::init();
     Migration::init();
     Relationships::init();
+    Progress::init();
+    Guard::init();
+    Settings::init();
+    Upgrades::init();
 
     // Conditionally boot PMPro integration.
     if (function_exists('pmpro_getMembershipLevelForUser')) {
@@ -68,6 +77,19 @@ function slms_init()
     }
 
     UserMeta::init();
+
+    // WP-CLI command for backfilling the progress table.
+    if (defined('WP_CLI') && WP_CLI) {
+        \WP_CLI::add_command('slms progress-backfill', function () {
+            $result = Progress::backfill();
+            \WP_CLI::success(sprintf(
+                'Backfilled %d rows across %d user(s). Table now holds %d row(s).',
+                $result['rows'],
+                $result['users'],
+                Progress::row_count()
+            ));
+        });
+    }
 
     // Admin Menus
     add_action('admin_menu', __NAMESPACE__ . '\\slms_admin_menu');
@@ -127,6 +149,17 @@ function slms_admin_menu()
         echo '<div class="wrap slms-admin-wrap tw-preflight"><div id="slms-admin-root"></div></div>';
     }
     );
+
+    add_submenu_page(
+        'simple-lms',
+        __('Settings', 'simple-lms-bridge'),
+        __('Settings', 'simple-lms-bridge'),
+        'manage_options',
+        'slms-settings',
+        function () {
+        echo '<div class="wrap slms-admin-wrap tw-preflight"><div id="slms-admin-root"></div></div>';
+    }
+    );
 }
 
 /* ─── Activation ─────────────────────────────────────────────────────── */
@@ -141,6 +174,9 @@ function slms_activate()
     CPT::register_post_types();
     Relationships::create_table();
     CourseHistory::create_table();
+    // Run the schema upgrade runner so all versioned tables (incl. the
+    // lesson-progress table) exist immediately on activation.
+    Upgrades::run_all();
     flush_rewrite_rules();
 }
 register_activation_hook(__FILE__, __NAMESPACE__ . '\\slms_activate');

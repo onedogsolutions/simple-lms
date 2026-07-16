@@ -161,6 +161,49 @@ class CPT
         },
         ));
 
+        // Guard mode: public | enrolled | level (controls content protection).
+        register_post_meta('slms_course', '_lms_guard_mode', array(
+            'type' => 'string',
+            'description' => 'Access guard mode: public, enrolled, or level.',
+            'single' => true,
+            'show_in_rest' => true,
+            'default' => 'enrolled',
+            'sanitize_callback' => function ($value) {
+                return in_array($value, array('public', 'enrolled', 'level'), true) ? $value : 'enrolled';
+            },
+            'auth_callback' => function () {
+                return current_user_can('edit_posts');
+            },
+        ));
+
+        // Denial behavior: redirect | message.
+        register_post_meta('slms_course', '_lms_denial_behavior', array(
+            'type' => 'string',
+            'description' => 'What to do when access is denied: redirect or inline message.',
+            'single' => true,
+            'show_in_rest' => true,
+            'default' => 'redirect',
+            'sanitize_callback' => function ($value) {
+                return in_array($value, array('redirect', 'message'), true) ? $value : 'redirect';
+            },
+            'auth_callback' => function () {
+                return current_user_can('edit_posts');
+            },
+        ));
+
+        // Per-course checkout page override (0 = use site default / PMPro).
+        register_post_meta('slms_course', '_lms_checkout_override', array(
+            'type' => 'integer',
+            'description' => 'Page ID to send denied users to (overrides PMPro checkout).',
+            'single' => true,
+            'show_in_rest' => true,
+            'default' => 0,
+            'sanitize_callback' => 'absint',
+            'auth_callback' => function () {
+                return current_user_can('edit_posts');
+            },
+        ));
+
         // PMPro membership level IDs that grant access.
         register_post_meta('slms_course', '_lms_pmpro_levels', array(
             'type' => 'array',

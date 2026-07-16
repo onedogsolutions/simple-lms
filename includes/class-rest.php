@@ -90,6 +90,62 @@ class REST
             ),
         ));
 
+        /* ── Student-scoped progress (session user only) ────────────── */
+
+        // GET /me/progress
+        register_rest_route(self::NAMESPACE , '/me/progress', array(
+            'methods' => 'GET',
+            'callback' => array(__CLASS__, 'get_my_progress'),
+            'permission_callback' => 'is_user_logged_in',
+        ));
+
+        // POST /me/progress
+        register_rest_route(self::NAMESPACE , '/me/progress', array(
+            'methods' => 'POST',
+            'callback' => array(__CLASS__, 'update_my_progress'),
+            'permission_callback' => 'is_user_logged_in',
+            'args' => array(
+                'course_id' => array(
+                    'required' => true,
+                    'sanitize_callback' => 'absint',
+                ),
+                'lesson_id' => array(
+                    'required' => true,
+                    'sanitize_callback' => 'absint',
+                ),
+                'completed' => array(
+                    'required' => true,
+                    'sanitize_callback' => 'rest_sanitize_boolean',
+                ),
+            ),
+        ));
+
+        // GET /me/courses
+        register_rest_route(self::NAMESPACE , '/me/courses', array(
+            'methods' => 'GET',
+            'callback' => array(__CLASS__, 'get_my_courses'),
+            'permission_callback' => 'is_user_logged_in',
+        ));
+
+        // POST /progress/backfill (admin Tools: import meta into the table)
+        register_rest_route(self::NAMESPACE , '/progress/backfill', array(
+            'methods' => 'POST',
+            'callback' => function ($request) {
+                $limit = absint($request->get_param('limit'));
+                $offset = absint($request->get_param('offset'));
+                $result = Progress::backfill($limit, $offset);
+                $result['total_rows'] = Progress::row_count();
+                return rest_ensure_response($result);
+            },
+            'args' => array(
+                'limit' => array('sanitize_callback' => 'absint', 'default' => 0),
+                'offset' => array('sanitize_callback' => 'absint', 'default' => 0),
+            ),
+            'permission_callback' => function () {
+                return current_user_can('manage_options');
+            },
+        ));
+
         /* ── Forms ─────────────────────────────────────────────────── */
 
         register_rest_route(self::NAMESPACE , '/forms', array(
@@ -455,13 +511,38 @@ class REST
     public static function get_progress($request)
     {
         $user_id = $request->get_param('user_id');
-        $progress = get_user_meta($user_id, '_lms_progress', true);
 
-        if (!is_array($progress)) {
-            $progress = array();
+        return rest_ensure_response(self::build_progress_map($user_id));
+    }
+
+    /**
+     * Build a [ course_id => [ lesson_id => ts ] ] map for a user from the
+     * queryable progress table (table-first, meta fallback per course).
+     *
+     * @param int $user_id User ID.
+     * @return array
+     */
+    private static function build_progress_map($user_id)
+    {
+        global $wpdb;
+
+        $user_id = absint($user_id);
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT course_id, lesson_id, completed_at FROM " . $wpdb->prefix . "slms_lesson_progress WHERE user_id = %d",
+            $user_id
+        ));
+
+        if ($rows) {
+            $map = array();
+            foreach ($rows as $row) {
+                $map[(int) $row->course_id][(int) $row->lesson_id] = strtotime($row->completed_at . ' UTC');
+            }
+            return $map;
         }
 
-        return rest_ensure_response($progress);
+        // Migration-window fallback.
+        $meta = get_user_meta($user_id, '_lms_progress', true);
+        return is_array($meta) ? $meta : array();
     }
 
     /**
@@ -484,36 +565,102 @@ class REST
             return new \WP_Error('invalid_user', __('User not found.', 'simple-lms-bridge'), array('status' => 404));
         }
 
-        $progress = get_user_meta($user_id, '_lms_progress', true);
-
-        if (!is_array($progress)) {
-            $progress = array();
-        }
-
-        if ($completed) {
-            if (!isset($progress[$course_id])) {
-                $progress[$course_id] = array();
-            }
-            $progress[$course_id][$lesson_id] = time();
-        } else {
-            unset($progress[$course_id][$lesson_id]);
-
-            // Clean up empty course arrays.
-            if (isset($progress[$course_id]) && empty($progress[$course_id])) {
-                unset($progress[$course_id]);
-            }
-        }
-
-        update_user_meta($user_id, '_lms_progress', $progress);
+        // Dual-write: queryable table + legacy meta compat layer.
+        Progress::set($user_id, $course_id, $lesson_id, (bool) $completed);
 
         // Check for course completion.
         Certificates::check_course_completion($user_id, $course_id);
 
-
         return rest_ensure_response(array(
             'success' => true,
-            'progress' => $progress,
+            'progress' => self::build_progress_map($user_id),
         ));
+    }
+
+    /* ───────────────────────────────────────────────────────────────────
+     * Student-scoped ( /me/* ) callbacks — session user only.
+     * ─────────────────────────────────────────────────────────────────── */
+
+    /**
+     * GET /me/progress
+     *
+     * Returns the current session user's own progress map.
+     *
+     * @return \WP_REST_Response
+     */
+    public static function get_my_progress()
+    {
+        return rest_ensure_response(self::build_progress_map(get_current_user_id()));
+    }
+
+    /**
+     * POST /me/progress
+     *
+     * Records completion for the session user only. Any user_id in the payload
+     * is ignored; enrollment and lesson∈course membership are validated.
+     *
+     * @param \WP_REST_Request $request Request object.
+     * @return \WP_REST_Response|\WP_Error
+     */
+    public static function update_my_progress($request)
+    {
+        $user_id   = get_current_user_id();
+        $course_id = $request->get_param('course_id');
+        $lesson_id = $request->get_param('lesson_id');
+        $completed = $request->get_param('completed');
+
+        if (!$user_id) {
+            return new \WP_Error('not_logged_in', __('You must be logged in.', 'simple-lms-bridge'), array('status' => 401));
+        }
+
+        // 1. Validate the lesson actually belongs to the course (join table).
+        if (!self::lesson_in_course($lesson_id, $course_id)) {
+            return new \WP_Error('invalid_lesson', __('Lesson does not belong to this course.', 'simple-lms-bridge'), array('status' => 400));
+        }
+
+        // 2. Validate the user may access this course's content.
+        if (!Access::can_view($user_id, $lesson_id)) {
+            return new \WP_Error('not_enrolled', __('You are not enrolled in this course.', 'simple-lms-bridge'), array('status' => 403));
+        }
+
+        Progress::set($user_id, $course_id, $lesson_id, (bool) $completed);
+
+        Certificates::check_course_completion($user_id, $course_id);
+
+        return rest_ensure_response(array(
+            'success'  => true,
+            'progress' => self::build_progress_map($user_id),
+        ));
+    }
+
+    /**
+     * GET /me/courses
+     *
+     * Returns the session user's enrolled courses.
+     *
+     * @return \WP_REST_Response
+     */
+    public static function get_my_courses()
+    {
+        return rest_ensure_response(Relationships::get_courses_for_user(get_current_user_id()));
+    }
+
+    /**
+     * Whether a lesson is a member of a course per the join table.
+     *
+     * @param int $lesson_id Lesson post ID.
+     * @param int $course_id Course post ID.
+     * @return bool
+     */
+    private static function lesson_in_course($lesson_id, $course_id)
+    {
+        $courses = Relationships::get_courses_for_lesson($lesson_id);
+        foreach ($courses as $course) {
+            if ((int) $course->id === (int) $course_id) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -606,10 +753,8 @@ class REST
         $result = array();
 
         foreach ($users as $user) {
-            $progress = get_user_meta($user->ID, '_lms_progress', true);
-            if (!is_array($progress)) {
-                $progress = array();
-            }
+            // Read completion from the queryable progress table (meta fallback).
+            $progress = self::build_progress_map($user->ID);
 
             $course_completion = get_user_meta($user->ID, '_lms_completed_at', true);
             if (!is_array($course_completion)) {
@@ -1125,6 +1270,10 @@ class REST
 
         $student_state = (string) get_user_meta($user_id, 'billing_state', true);
 
+        // Certificate GF field IDs are configurable via Settings.
+        $state_field  = (string) Settings::get('cert_state_field_id', 6);
+        $course_field = (string) Settings::get('cert_course_field_id', 18);
+
         foreach ($all_pdfs as $id => $pdf_config) {
             if (empty($pdf_config['active'])) {
                 continue;
@@ -1144,11 +1293,11 @@ class REST
                 $op  = isset($rule['operator']) ? $rule['operator'] : 'is';
                 $val = isset($rule['value']) ? $rule['value'] : '';
 
-                if ('6' === $fid) {
+                if ($state_field === $fid) {
                     $match = ('is' === $op)
                         ? ($student_state === $val)
                         : ($student_state !== $val);
-                } elseif ('18' === $fid) {
+                } elseif ($course_field === $fid) {
                     $cond_path  = (string) parse_url($val, PHP_URL_PATH);
                     $cond_parts = array_values(array_filter(explode('/', trim($cond_path, '/'))));
                     $cidx        = array_search('course', $cond_parts, true);

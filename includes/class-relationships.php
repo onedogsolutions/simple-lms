@@ -265,6 +265,68 @@ class Relationships
     }
 
     /**
+     * Check whether an enrollment row exists for a user/course.
+     *
+     * @param int $user_id   User ID.
+     * @param int $course_id Course ID.
+     * @return bool
+     */
+    public static function is_enrolled($user_id, $course_id)
+    {
+        global $wpdb;
+        self::init();
+
+        $user_id   = absint($user_id);
+        $course_id = absint($course_id);
+
+        if (!$user_id || !$course_id) {
+            return false;
+        }
+
+        $found = $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM " . self::$user_course_table . " WHERE user_id = %d AND course_id = %d LIMIT 1",
+            $user_id,
+            $course_id
+        ));
+
+        return (bool) $found;
+    }
+
+    /**
+     * Get the enrollment timestamp (unix) for a user/course, or null.
+     *
+     * @param int $user_id   User ID.
+     * @param int $course_id Course ID.
+     * @return int|null Unix timestamp, or null if not enrolled.
+     */
+    public static function get_enrolled_at($user_id, $course_id)
+    {
+        global $wpdb;
+        self::init();
+
+        $user_id   = absint($user_id);
+        $course_id = absint($course_id);
+
+        if (!$user_id || !$course_id) {
+            return null;
+        }
+
+        $value = $wpdb->get_var($wpdb->prepare(
+            "SELECT enrolled_at FROM " . self::$user_course_table . " WHERE user_id = %d AND course_id = %d LIMIT 1",
+            $user_id,
+            $course_id
+        ));
+
+        if (!$value) {
+            return null;
+        }
+
+        // Stored via current_time('mysql') (site-local), so parse in server TZ.
+        $ts = strtotime($value);
+        return $ts ?: null;
+    }
+
+    /**
      * Get all courses for a specific user.
      *
      * @param int $user_id User ID.

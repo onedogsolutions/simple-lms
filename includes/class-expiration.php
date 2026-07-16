@@ -90,6 +90,11 @@ class Expiration
                 unset($progress[$course_id]);
                 $changed = true;
 
+                // Clear the queryable progress table too.
+                if (class_exists(__NAMESPACE__ . '\\Progress')) {
+                    Progress::clear_course($user_id, $course_id);
+                }
+
                 // Optional: log or trigger hook for expiration.
                 do_action('slms_course_access_expired', $user_id, $course_id);
             }

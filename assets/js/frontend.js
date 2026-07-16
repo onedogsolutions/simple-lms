@@ -11,8 +11,9 @@ document.addEventListener('DOMContentLoaded', function () {
             e.preventDefault();
 
             const btn = e.currentTarget;
+            // User is resolved server-side from the session at /me/progress;
+            // never trust a client-supplied user_id.
             const data = {
-                user_id: parseInt(btn.dataset.userId, 10),
                 course_id: parseInt(btn.dataset.courseId, 10),
                 lesson_id: parseInt(btn.dataset.lessonId, 10),
                 completed: !btn.classList.contains('is-completed')

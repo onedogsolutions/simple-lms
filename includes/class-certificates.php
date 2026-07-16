@@ -125,8 +125,7 @@ class Certificates
             return;
         }
 
-        $progress = get_user_meta($user_id, '_lms_progress', true);
-        $course_progress = isset($progress[$course_id]) ? $progress[$course_id] : array();
+        $course_progress = Progress::get_course_progress($user_id, $course_id);
 
         $all_done = true;
         foreach ($lesson_ids as $lesson_id) {
@@ -167,12 +166,14 @@ class Certificates
                     if (empty($entries)) {
                         // Populate field 6 (State) and field 18 (Course URL) so GravityPDF
                         // conditional logic can match the correct PDF template immediately.
+                        $state_field  = (string) Settings::get('cert_state_field_id', 6);
+                        $course_field = (string) Settings::get('cert_course_field_id', 18);
                         $result = \GFAPI::add_entry(array(
-                            'form_id'    => $form_id,
-                            'created_by' => $user_id,
-                            'status'     => 'active',
-                            '6'          => (string) get_user_meta($user_id, 'billing_state', true),
-                            '18'         => (string) get_permalink($course_id),
+                            'form_id'      => $form_id,
+                            'created_by'   => $user_id,
+                            'status'       => 'active',
+                            $state_field   => (string) get_user_meta($user_id, 'billing_state', true),
+                            $course_field  => (string) get_permalink($course_id),
                         ));
                         if (!is_wp_error($result)) {
                             $linked_entry_id = (int) $result;

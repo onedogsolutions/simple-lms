@@ -224,3 +224,32 @@
     color: #6c757d;
     font-style: italic;
 }
+/* ─── Access Denied (guarded content CTA) ───────────────────────────── */
+.slms-access-denied {
+    max-width: 640px;
+    margin: 2rem auto;
+}
+
+.slms-access-excerpt {
+    color: #495057;
+    margin-bottom: 1.5rem;
+}
+
+.slms-access-cta {
+    padding: 2rem;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 12px;
+    text-align: center;
+}
+
+.slms-access-message {
+    margin: 0 0 1rem;
+    font-size: 1.05rem;
+    color: #343a40;
+}
+
+.slms-access-button {
+    display: inline-block;
+    text-decoration: none;
+}

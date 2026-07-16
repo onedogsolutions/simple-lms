@@ -45,8 +45,7 @@ if (!is_array($lesson_ids) || empty($lesson_ids)) {
 }
 
 $user_id = get_current_user_id();
-$progress = $user_id ? get_user_meta($user_id, '_lms_progress', true) : array();
-$course_progress = isset($progress[$course_id]) ? $progress[$course_id] : array();
+$course_progress = $user_id ? \SimpleLMS\Progress::get_course_progress($user_id, $course_id) : array();
 
 
 ?>

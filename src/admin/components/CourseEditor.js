@@ -37,6 +37,10 @@ const CourseEditor = ({ postId }) => {
 	const [certificateForm, setCertificateForm] = useState(0);
 	const [pmproLevels, setPmproLevels] = useState([]);
 	const [allPMProLevels, setAllPMProLevels] = useState([]);
+	const [guardMode, setGuardMode] = useState('enrolled');
+	const [denialBehavior, setDenialBehavior] = useState('redirect');
+	const [checkoutOverride, setCheckoutOverride] = useState(0);
+	const [pages, setPages] = useState([]);
 	const [enrolledStudents, setEnrolledStudents] = useState([]);
 	const [saving, setSaving] = useState(false);
 	const [notice, setNotice] = useState(null);
@@ -54,6 +58,7 @@ const CourseEditor = ({ postId }) => {
 					postRes,
 					relationshipsRes,
 					studentsRes,
+					pagesRes,
 				] = await Promise.all([
 					apiFetch({ path: '/simple-lms/v1/lessons' }),
 					apiFetch({ path: '/simple-lms/v1/forms' }),
@@ -65,17 +70,29 @@ const CourseEditor = ({ postId }) => {
 					apiFetch({
 						path: `/simple-lms/v1/enrollments/course/${postId}/students`,
 					}),
+					apiFetch({
+						path: '/wp/v2/pages?per_page=100&_fields=id,title&orderby=title&order=asc',
+					}).catch(() => []),
 				]);
 
 				setAllLessons(lessonsRes);
 				setForms(formsRes);
 				setAllPMProLevels(levelsRes);
 				setEnrolledStudents(studentsRes || []);
+				setPages(
+					(pagesRes || []).map((p) => ({
+						id: p.id,
+						title: p.title?.rendered || `#${p.id}`,
+					}))
+				);
 
 				const meta = postRes.meta || {};
 				setLessonOrder(relationshipsRes.map((l) => l.id) || []);
 				setCertificateForm(meta._lms_certificate_form || 0);
 				setPmproLevels(meta._lms_pmpro_levels || []);
+				setGuardMode(meta._lms_guard_mode || 'enrolled');
+				setDenialBehavior(meta._lms_denial_behavior || 'redirect');
+				setCheckoutOverride(meta._lms_checkout_override || 0);
 			} catch (err) {
 				setNotice({ status: 'error', message: err.message });
 			} finally {
@@ -99,6 +116,10 @@ const CourseEditor = ({ postId }) => {
 							_lms_certificate_form:
 								parseInt(certificateForm, 10) || 0,
 							_lms_pmpro_levels: pmproLevels,
+							_lms_guard_mode: guardMode,
+							_lms_denial_behavior: denialBehavior,
+							_lms_checkout_override:
+								parseInt(checkoutOverride, 10) || 0,
 						},
 					},
 				}),
@@ -119,7 +140,15 @@ const CourseEditor = ({ postId }) => {
 		} finally {
 			setSaving(false);
 		}
-	}, [postId, lessonOrder, certificateForm, pmproLevels]);
+	}, [
+		postId,
+		lessonOrder,
+		certificateForm,
+		pmproLevels,
+		guardMode,
+		denialBehavior,
+		checkoutOverride,
+	]);
 
 	// ── Add lesson to order ───────────────────────────────────────
 	const addLesson = (lessonId) => {
@@ -237,6 +266,99 @@ const CourseEditor = ({ postId }) => {
 						</div>
 					)}
 				</div>
+			</PanelBody>
+
+			{ /* ── Access Control ────────────────────────────────── */}
+			<PanelBody
+				title={__('Access Control', 'simple-lms-bridge')}
+				initialOpen={false}
+			>
+				<SelectControl
+					label={__('Guard Mode', 'simple-lms-bridge')}
+					help={__(
+						'Who can view this course and its lessons.',
+						'simple-lms-bridge'
+					)}
+					value={guardMode}
+					options={[
+						{
+							label: __(
+								'Public — anyone can view',
+								'simple-lms-bridge'
+							),
+							value: 'public',
+						},
+						{
+							label: __(
+								'Enrolled — enrollment row required',
+								'simple-lms-bridge'
+							),
+							value: 'enrolled',
+						},
+						{
+							label: __(
+								'Membership level — PMPro level required',
+								'simple-lms-bridge'
+							),
+							value: 'level',
+						},
+					]}
+					onChange={(val) => setGuardMode(val)}
+				/>
+
+				<SelectControl
+					label={__('When Access Is Denied', 'simple-lms-bridge')}
+					help={__(
+						'Redirect visitors to login/checkout, or keep them on the page with an inline message and call-to-action.',
+						'simple-lms-bridge'
+					)}
+					value={denialBehavior}
+					options={[
+						{
+							label: __(
+								'Redirect (login / checkout)',
+								'simple-lms-bridge'
+							),
+							value: 'redirect',
+						},
+						{
+							label: __(
+								'Inline message + CTA',
+								'simple-lms-bridge'
+							),
+							value: 'message',
+						},
+					]}
+					onChange={(val) => setDenialBehavior(val)}
+				/>
+
+				<SelectControl
+					label={__(
+						'Checkout Page Override',
+						'simple-lms-bridge'
+					)}
+					help={__(
+						'Send denied users to this page instead of the PMPro checkout. Leave as default to use the mapped membership level.',
+						'simple-lms-bridge'
+					)}
+					value={checkoutOverride}
+					options={[
+						{
+							label: __(
+								'— Default (PMPro checkout) —',
+								'simple-lms-bridge'
+							),
+							value: 0,
+						},
+						...pages.map((p) => ({
+							label: p.title,
+							value: p.id,
+						})),
+					]}
+					onChange={(val) =>
+						setCheckoutOverride(parseInt(val, 10) || 0)
+					}
+				/>
 			</PanelBody>
 
 			{ /* ── Certificate Form ──────────────────────────────── */}

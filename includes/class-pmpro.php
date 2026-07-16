@@ -352,11 +352,15 @@ class PMPro
         // 1. Sync to Join Table.
         Relationships::unenroll_user($user_id, $course_id);
 
-        // 2. Clear progress meta.
-        $progress = get_user_meta($user_id, '_lms_progress', true);
-        if (is_array($progress) && isset($progress[$course_id])) {
-            unset($progress[$course_id]);
-            update_user_meta($user_id, '_lms_progress', $progress);
+        // 2. Clear progress (queryable table + legacy meta).
+        if (class_exists(__NAMESPACE__ . '\\Progress')) {
+            Progress::clear_course($user_id, $course_id);
+        } else {
+            $progress = get_user_meta($user_id, '_lms_progress', true);
+            if (is_array($progress) && isset($progress[$course_id])) {
+                unset($progress[$course_id]);
+                update_user_meta($user_id, '_lms_progress', $progress);
+            }
         }
 
         // 3. Clear enrollment timestamp.

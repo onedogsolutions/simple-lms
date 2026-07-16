@@ -8,6 +8,41 @@ The project has been moved to a private GitHub repository. Core features are in 
 
 ## Accomplishments (Recent)
 
+- **Stage 1 — Content Guarding & Student Access Model (Jul 2026):**
+  - **`Access` authority (`class-access.php`):** Single source of truth for view
+    decisions. `Access::can_view($user_id, $post_id)` resolves lesson → course
+    (`Relationships::get_courses_for_lesson`), reads guard mode `_lms_guard_mode`
+    (`public | enrolled | level`, default `enrolled`), checks enrollment /
+    PMPro level, applies `_lms_access_days` expiration, and returns through the
+    now-wired `simple_lms_check_access` filter. Editors bypass via `edit_post`.
+    `Access::denial_reason()` returns `not_logged_in | not_enrolled | expired`.
+  - **Enforcement (`class-guard.php`), three layers:** `template_redirect`
+    guard on course/lesson singles (logged-out → login or checkout per Settings;
+    logged-in → PMPro checkout for the course's first mapped level, with a
+    `slms_return` param); `the_content` @99 excerpt + CTA fallback (bypassed in
+    Beaver Builder); and `rest_prepare_slms_course/lesson` filters that strip
+    `content.rendered` from the public API.
+  - **Guard config UI:** `_lms_guard_mode`, `_lms_denial_behavior`
+    (redirect | message), `_lms_checkout_override` post meta (REST-exposed) plus
+    an "Access Control" panel in `CourseEditor.js`.
+  - **Student `/me/*` REST namespace:** `GET/POST /me/progress`, `GET /me/courses`
+    (permission = `is_user_logged_in`); user is taken from the session so a
+    forged `user_id` in the payload is ignored. `frontend.js` +
+    `lms-complete-button` now target `/me/progress` and no longer emit
+    `data-user-id`.
+  - **Progress table (`wp_slms_lesson_progress`):** New queryable table created
+    via the Stage 0 upgrade runner (`class-upgrades.php`, `slms_db_version`
+    option). `class-progress.php` dual-writes the table + legacy `_lms_progress`
+    meta; readers (`get_students`, `get_progress`, `lms-outline`,
+    `lms-complete-button`, `Certificates::check_course_completion`) read the
+    table with a meta fallback during the migration window. Idempotent backfill
+    via WP-CLI (`wp slms progress-backfill`) and the Settings → Tools button.
+  - **Settings (`class-settings.php`):** `slms_settings` option + React "Settings"
+    screen (default guard mode, checkout/levels page, login redirect behavior,
+    certificate GF field IDs replacing hardcoded `6`/`18`).
+  - **Behavioral note:** Courses now default to `enrolled` guard mode; set the
+    site-wide default to `public` under SimpleLMS → Settings to opt out globally.
+
 - **UI Cleanup:** Removed the legacy global admin migration nag banner in favor of the dedicated React Migration Tool UI.
 - **Rebranding:** Renamed plugin to "One Dog Solutions".
 - **API Migration:** Moved from jQuery AJAX to WP REST API.
