@@ -68,7 +68,7 @@ class REST
             'methods' => 'POST',
             'callback' => array(__CLASS__, 'update_progress'),
             'permission_callback' => function () {
-                return current_user_can('edit_users');
+                return is_user_logged_in();
             },
             'args' => array(
                 'user_id' => array(
@@ -479,9 +479,27 @@ class REST
         $lesson_id = $request->get_param('lesson_id');
         $completed = $request->get_param('completed');
 
+        // Non-privileged users may only update their own progress. Ignore the
+        // supplied user_id and force the acting user when they lack edit_users.
+        if (!current_user_can('edit_users')) {
+            $user_id = get_current_user_id();
+        }
+
         // Validate the user exists.
         if (!get_userdata($user_id)) {
             return new \WP_Error('invalid_user', __('User not found.', 'simple-lms-bridge'), array('status' => 404));
+        }
+
+        // Validate the lesson belongs to the course.
+        $lessons = Relationships::get_lessons_for_course($course_id);
+        $course_lesson_ids = array_map('absint', wp_list_pluck($lessons, 'id'));
+        if (!in_array((int) $lesson_id, $course_lesson_ids, true)) {
+            return new \WP_Error('invalid_lesson', __('Lesson does not belong to this course.', 'simple-lms-bridge'), array('status' => 400));
+        }
+
+        // Validate the user is enrolled in the course before writing progress.
+        if (!Relationships::is_user_enrolled($user_id, $course_id)) {
+            return new \WP_Error('not_enrolled', __('User is not enrolled in this course.', 'simple-lms-bridge'), array('status' => 403));
         }
 
         $progress = get_user_meta($user_id, '_lms_progress', true);
@@ -1078,7 +1096,7 @@ class REST
                 $slug = basename(rtrim($path, '/'));
                 if ($slug) {
                     // Try to find a post by slug.
-                    $by_slug = \get_page_to_path($slug, array('slms_course', 'slms_lesson', 'course', 'page', 'post')); // Note: get_page_by_path is deprecated in newer WP but I'll stick to the user's logic if possible or use a safer way. Actually let's just append the method as requested.
+                    $by_slug = get_page_by_path($slug, OBJECT, array('slms_course', 'slms_lesson', 'page', 'post'));
                     if ($by_slug) {
                         return $by_slug->post_title;
                     }

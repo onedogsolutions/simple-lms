@@ -1,0 +1,26 @@
+includes:
+    - vendor/szepeviktor/phpstan-wordpress/extension.neon
+
+parameters:
+    level: 5
+    paths:
+        - simple-lms-bridge.php
+        - includes
+    excludePaths:
+        - build/*
+        - node_modules/*
+        - vendor/*
+        - src/*
+        - dist/*
+    # Third-party integrations (PMPro, Gravity Forms, GravityPDF, Beaver Builder)
+    # are optional runtime dependencies with no Composer packages / stubs here.
+    # Their symbols are guarded by class_exists()/function_exists() at call sites,
+    # so ignore "unknown symbol" noise rather than vendoring full stub sets.
+    ignoreErrors:
+        - identifier: function.notFound
+          message: '#Function (pmpro_|gravity|gf_|rgar|GFCommon)[a-zA-Z_]* not found\.#'
+        - '#(static method|method|constant|property) [a-zA-Z0-9_]+.* on an unknown class (GFAPI|GPDFAPI|GFCommon|GFFormsModel|FLBuilder|FLBuilderModule|FLBuilderCSS|FLBuilderColor|MemberOrder|PMProGateway)#'
+        - '#Instantiated class (MemberOrder|GF_Field|FLBuilderModule) not found\.#'
+        - '#extends unknown class .*FLBuilderModule#'
+        - '#Access to (property|constant) .* on an unknown class (MemberOrder|GFAPI|GPDFAPI)#'
+    reportUnmatchedIgnoredErrors: false

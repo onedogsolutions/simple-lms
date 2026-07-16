@@ -83,13 +83,12 @@ class Certificates
      */
     private static function remove_course_access($user_id, $course_id)
     {
-        // Use the PMPro class helpers if available since they already handle this logic cleanly.
+        // Use the PMPro class helpers if available since they already handle this
+        // logic cleanly — de_enroll_user() removes only the course's mapped PMPro
+        // level when it matches the user's current level, clears progress, and
+        // clears the enrollment timestamp.
         if (class_exists(__NAMESPACE__ . '\PMPro')) {
             PMPro::de_enroll_user($user_id, $course_id);
-        }
-
-        if (function_exists('\pmpro_changeMembershipLevel')) {
-            \pmpro_changeMembershipLevel(0, $user_id);
         }
         else {
             // Fallback if PMPro class is missing (should not happen in this plugin).
