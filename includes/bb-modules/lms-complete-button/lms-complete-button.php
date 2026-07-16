@@ -33,24 +33,9 @@ class LMSCompleteButtonModule extends \FLBuilderModule
             'partial_refresh' => true,
         ));
 
-        // Enqueue frontend scripts.
-        add_action('wp_enqueue_scripts', array($this, 'enqueue_frontend_scripts'));
-    }
-
-    /**
-     * Enqueue frontend scripts.
-     */
-    public function enqueue_frontend_scripts()
-    {
-        if (!\FLBuilderModel::is_builder_active()) {
-            wp_enqueue_script(
-                'slms-complete-button',
-                SLMS_PLUGIN_URL . 'assets/js/frontend.js',
-                array(),
-                SLMS_VERSION,
-                true
-            );
-        }
+        // The frontend script (assets/js/frontend.js) is enqueued globally by
+        // the plugin bootstrap (handle: slms-frontend), so no per-module
+        // enqueue is needed here.
     }
 }
 
