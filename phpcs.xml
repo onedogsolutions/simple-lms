@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<ruleset name="SimpleLMS Bridge">
+    <description>WordPress-Extra coding standards for SimpleLMS Bridge.</description>
+
+    <!-- Scan the plugin root and includes; exclude generated / vendored code. -->
+    <file>simple-lms-bridge.php</file>
+    <file>includes</file>
+
+    <arg name="extensions" value="php"/>
+    <arg name="colors"/>
+    <arg value="sp"/>
+    <arg name="parallel" value="8"/>
+
+    <exclude-pattern>*/build/*</exclude-pattern>
+    <exclude-pattern>*/node_modules/*</exclude-pattern>
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+    <exclude-pattern>*/src/*</exclude-pattern>
+    <exclude-pattern>*/dist/*</exclude-pattern>
+
+    <rule ref="WordPress-Extra">
+        <!-- The plugin already ships an established text domain and prefixes;
+             leave stylistic-only sniffs advisory rather than failing CI. -->
+        <exclude name="WordPress.Files.FileName"/>
+    </rule>
+
+    <config name="minimum_supported_wp_version" value="6.0"/>
+    <config name="testVersion" value="7.4-"/>
+
+    <rule ref="WordPress.WP.I18n">
+        <properties>
+            <property name="text_domain" type="array">
+                <element value="simple-lms-bridge"/>
+            </property>
+        </properties>
+    </rule>
+</ruleset>

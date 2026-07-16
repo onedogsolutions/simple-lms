@@ -58,21 +58,11 @@ class Analytics
     private static $history_table;
 
     /**
-     * Schema version for the rollup table. Bump to trigger dbDelta upgrades.
-     *
-     * @var string
-     */
-    const DB_VERSION = '1.0.0';
-
-    /**
-     * Option key holding the installed rollup schema version.
-     *
-     * @var string
-     */
-    const DB_VERSION_OPTION = 'slms_analytics_db_version';
-
-    /**
      * Hook into WordPress.
+     *
+     * The rollup table itself is provisioned by the central Upgrade runner
+     * (see class-upgrade.php, step 2). Live queries fall back gracefully when
+     * the rollup table is absent, so no schema work happens here.
      *
      * @return void
      */
@@ -82,9 +72,6 @@ class Analytics
         self::$rollup_table      = $wpdb->prefix . 'slms_analytics_daily';
         self::$user_course_table = $wpdb->prefix . 'slms_user_course';
         self::$history_table     = $wpdb->prefix . 'slms_course_history';
-
-        // Ensure the rollup table exists even without a plugin re-activation.
-        self::maybe_upgrade_db();
 
         // Nightly rollup cron — mirrors the Expiration daily-cron pattern.
         add_action('slms_daily_analytics_rollup', array(__CLASS__, 'run_daily_rollup'));
@@ -132,22 +119,6 @@ class Analytics
         dbDelta($sql);
     }
 
-    /**
-     * Run dbDelta when the stored schema version differs from the code version.
-     *
-     * @return void
-     */
-    private static function maybe_upgrade_db()
-    {
-        $installed = get_option(self::DB_VERSION_OPTION);
-        if ($installed === self::DB_VERSION) {
-            return;
-        }
-
-        self::create_table();
-        update_option(self::DB_VERSION_OPTION, self::DB_VERSION);
-    }
-
     /* ───────────────────────────────────────────────────────────────────
      * Public query methods
      * ─────────────────────────────────────────────────────────────────── */
@@ -165,8 +136,8 @@ class Analytics
     {
         list($from, $to) = self::normalize_range($from, $to);
 
-        $from_ts = strtotime($from . ' 00:00:00');
-        $to_ts   = strtotime($to . ' 23:59:59');
+        $from_ts = (int) strtotime($from . ' 00:00:00');
+        $to_ts   = (int) strtotime($to . ' 23:59:59');
         $span     = max(1, (int) ceil(($to_ts - $from_ts) / DAY_IN_SECONDS));
 
         // Preceding period of equal length for delta comparison.
@@ -399,7 +370,7 @@ class Analytics
             $enrolled_meta = maybe_unserialize($row->enrolled_meta);
             $enrolled_ts = (is_array($enrolled_meta) && isset($enrolled_meta[$course_id]))
                 ? (int) $enrolled_meta[$course_id]
-                : strtotime($row->enrolled_at);
+                : (int) strtotime((string) $row->enrolled_at);
 
             // Last activity = latest lesson-completion timestamp for this course,
             // falling back to enrollment time when nothing has been completed.
@@ -601,11 +572,11 @@ class Analytics
      */
     private static function normalize_range($from, $to)
     {
-        $to   = $to ? gmdate('Y-m-d', strtotime($to)) : current_time('Y-m-d');
-        $from = $from ? gmdate('Y-m-d', strtotime($from)) : gmdate('Y-m-d', strtotime($to . ' -29 days'));
+        $to   = $to ? gmdate('Y-m-d', (int) strtotime($to)) : (string) current_time('Y-m-d');
+        $from = $from ? gmdate('Y-m-d', (int) strtotime($from)) : gmdate('Y-m-d', (int) strtotime($to . ' -29 days'));
 
         // Guard against inverted ranges.
-        if (strtotime($from) > strtotime($to)) {
+        if ((int) strtotime($from) > (int) strtotime($to)) {
             $tmp = $from;
             $from = $to;
             $to = $tmp;
@@ -691,8 +662,8 @@ class Analytics
         ), OBJECT_K);
 
         $series = array();
-        $cursor = strtotime($from);
-        $end = strtotime($to);
+        $cursor = (int) strtotime($from);
+        $end = (int) strtotime($to);
         while ($cursor <= $end) {
             $day = gmdate('Y-m-d', $cursor);
             if (isset($rollup[$day])) {
@@ -893,7 +864,7 @@ class Analytics
      *
      * @param string $report  Report key: overview|course|at-risk.
      * @param array  $args     Report arguments (course_id, from, to, days).
-     * @return array{filename:string, header:array, rows:array}
+     * @return array { filename, header, rows }
      */
     public static function build_csv($report, $args = array())
     {

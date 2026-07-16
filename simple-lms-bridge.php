@@ -22,6 +22,8 @@ if (!defined('ABSPATH')) {
 
 /* ─── Constants ─────────────────────────────────────────────────────── */
 define('SLMS_VERSION', '1.0.0');
+// Integer schema version. Bump when adding an Upgrade step (see class-upgrade.php).
+define('SLMS_DB_VERSION', 2);
 define('SLMS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SLMS_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SLMS_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -38,10 +40,10 @@ require_once SLMS_PLUGIN_DIR . 'includes/class-migration.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-user-meta.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-relationships.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-analytics.php';
-// class-account-dashboard.php intentionally not loaded.
-// The [simple_lms_account] shortcode has been replaced by the native
-// lms-account-dashboard Beaver Builder module. Shortcode-based rendering
-// of BB module content is no longer used.
+require_once SLMS_PLUGIN_DIR . 'includes/class-upgrade.php';
+// The legacy [simple_lms_account] shortcode (formerly class-account-dashboard.php)
+// has been removed. The native lms-account-dashboard Beaver Builder module renders
+// the account dashboard; shortcode-based rendering of BB module content is not used.
 
 
 /* ─── Boot ───────────────────────────────────────────────────────────── */
@@ -63,6 +65,7 @@ function slms_init()
     Migration::init();
     Relationships::init();
     Analytics::init();
+    Upgrade::init();
 
     // Conditionally boot PMPro integration.
     if (function_exists('pmpro_getMembershipLevelForUser')) {
@@ -155,9 +158,9 @@ function slms_admin_menu()
 function slms_activate()
 {
     CPT::register_post_types();
-    Relationships::create_table();
-    CourseHistory::create_table();
-    Analytics::create_table();
+    // Run pending schema steps (creates/updates custom tables). Fresh installs and
+    // in-place updates both converge here rather than in activation-only DDL.
+    Upgrade::run();
     flush_rewrite_rules();
 }
 register_activation_hook(__FILE__, __NAMESPACE__ . '\\slms_activate');
@@ -208,15 +211,6 @@ function slms_enqueue_admin_assets($hook_suffix)
     }
 
     $asset = require $asset_file;
-
-    // Tailwind CDN fallback — ensures admin UI renders even if local build is stale.
-    wp_enqueue_script(
-        'slms-tailwind-cdn',
-        'https://cdn.tailwindcss.com',
-        array(),
-        null,
-        false
-    );
 
     if ($is_slms_page) {
         wp_enqueue_style(
