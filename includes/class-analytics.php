@@ -10,8 +10,7 @@
  *    enrolled_at, source). When a course is completed the row is DELETED and the
  *    per-lesson progress / enrolled_at user-meta is wiped, so the enrollment
  *    table only ever reflects *in-progress* learners.
- *  - Per-lesson progress lives in the `_lms_progress` user-meta as
- *    [course_id][lesson_id] => unix-timestamp (also wiped on completion).
+ *  - Per-lesson progress lives in the `{prefix}slms_lesson_progress` database table.
  *  - Completions are durably recorded in {prefix}slms_course_history
  *    (course_name, completed_date, gf_entry_id, cert_data) and in the
  *    `_lms_completed_at` user-meta ([course_id] => unix-timestamp).
@@ -134,6 +133,8 @@ class Analytics
      */
     public static function overview($from = null, $to = null)
     {
+        global $wpdb;
+
         list($from, $to) = self::normalize_range($from, $to);
 
         $from_ts = (int) strtotime($from . ' 00:00:00');
@@ -147,8 +148,13 @@ class Analytics
         $current = self::period_totals($from, $to);
         $previous = self::period_totals($prev_from, $prev_to);
 
+        $progress_rows = class_exists(__NAMESPACE__ . '\Progress') ? Progress::row_count() : 0;
+        $enrollment_count = (int) $wpdb->get_var("SELECT COUNT(*) FROM " . self::$user_course_table);
+        $needs_backfill = ($progress_rows === 0 && $enrollment_count > 0);
+
         return array(
             'range' => array('from' => $from, 'to' => $to),
+            'needs_backfill' => $needs_backfill,
             'kpis'  => array(
                 'active_students' => self::active_students_count(),
                 'enrollments'     => $current['enrollments'],
@@ -348,16 +354,20 @@ class Analytics
         $now = time();
         $threshold = $now - ($days_inactive * DAY_IN_SECONDS);
 
-        // All active enrollments, joined to progress + enrolled-at meta.
+        $progress_table = $wpdb->prefix . 'slms_lesson_progress';
+
+        // All active enrollments, joined to progress table + enrolled-at meta.
         $rows = $wpdb->get_results(
             "SELECT uc.user_id, uc.course_id, uc.enrolled_at,
                     u.display_name, u.user_email,
-                    pm.meta_value AS progress_meta,
-                    em.meta_value AS enrolled_meta
+                    em.meta_value AS enrolled_meta,
+                    COUNT(lp.id) AS lessons_completed,
+                    MAX(lp.completed_at) AS last_activity_date
              FROM " . self::$user_course_table . " uc
              JOIN {$wpdb->users} u ON u.ID = uc.user_id
-             LEFT JOIN {$wpdb->usermeta} pm ON pm.user_id = uc.user_id AND pm.meta_key = '_lms_progress'
-             LEFT JOIN {$wpdb->usermeta} em ON em.user_id = uc.user_id AND em.meta_key = '_lms_enrolled_at'"
+             LEFT JOIN {$wpdb->usermeta} em ON em.user_id = uc.user_id AND em.meta_key = '_lms_enrolled_at'
+             LEFT JOIN {$progress_table} lp ON lp.user_id = uc.user_id AND lp.course_id = uc.course_id
+             GROUP BY uc.user_id, uc.course_id, uc.enrolled_at, u.display_name, u.user_email, em.meta_value"
         );
 
         $result = array();
@@ -374,11 +384,7 @@ class Analytics
 
             // Last activity = latest lesson-completion timestamp for this course,
             // falling back to enrollment time when nothing has been completed.
-            $progress = maybe_unserialize($row->progress_meta);
-            $course_progress = (is_array($progress) && isset($progress[$course_id]) && is_array($progress[$course_id]))
-                ? $progress[$course_id]
-                : array();
-            $last_activity = !empty($course_progress) ? max(array_map('intval', $course_progress)) : $enrolled_ts;
+            $last_activity = $row->last_activity_date ? strtotime($row->last_activity_date . ' UTC') : $enrolled_ts;
 
             $is_inactive = ($last_activity !== 0 && $last_activity < $threshold);
 
@@ -419,7 +425,7 @@ class Analytics
                 'days_inactive'     => $last_activity ? (int) floor(($now - $last_activity) / DAY_IN_SECONDS) : null,
                 'access_expires'    => $expires_ts ? gmdate('c', $expires_ts) : null,
                 'days_until_expiry' => $days_until_expiry,
-                'lessons_completed' => count($course_progress),
+                'lessons_completed' => (int) $row->lessons_completed,
                 'reasons'           => $reasons,
             );
         }
@@ -722,22 +728,27 @@ class Analytics
     {
         global $wpdb;
 
+        $progress_table = $wpdb->prefix . 'slms_lesson_progress';
+
         $rows = $wpdb->get_results($wpdb->prepare(
-            "SELECT uc.user_id, pm.meta_value AS progress_meta
+            "SELECT uc.user_id, lp.lesson_id, lp.completed_at
              FROM " . self::$user_course_table . " uc
-             LEFT JOIN {$wpdb->usermeta} pm ON pm.user_id = uc.user_id AND pm.meta_key = '_lms_progress'
+             LEFT JOIN {$progress_table} lp ON lp.user_id = uc.user_id AND lp.course_id = uc.course_id
              WHERE uc.course_id = %d",
             $course_id
         ));
 
         $maps = array();
         foreach ((array) $rows as $row) {
-            $progress = maybe_unserialize($row->progress_meta);
-            $maps[] = (is_array($progress) && isset($progress[$course_id]) && is_array($progress[$course_id]))
-                ? $progress[$course_id]
-                : array();
+            $user_id = (int) $row->user_id;
+            if (!isset($maps[$user_id])) {
+                $maps[$user_id] = array();
+            }
+            if ($row->lesson_id !== null) {
+                $maps[$user_id][(int) $row->lesson_id] = strtotime($row->completed_at . ' UTC');
+            }
         }
-        return $maps;
+        return array_values($maps);
     }
 
     /**

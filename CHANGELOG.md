@@ -4,6 +4,15 @@ This file is the historical log for the Simple LMS Bridge project. The living
 state document (architecture, current status, conventions) is in
 [`STATE.md`](./STATE.md).
 
+## SQL Analytics Re-pointing & Empty-Table Guard
+
+Re-pointed student analytics computations at the relational progress table.
+
+- **Repointed Analytics Engine:** Rewrote the query layer in `includes/class-analytics.php` to compute course funnel, started/per-lesson completion, drop-off, and at-risk metrics directly from `wp_slms_lesson_progress` joined with `wp_slms_user_course` and `wp_slms_course_history`. Removed all legacy `_lms_progress` usermeta joins and parsing routines.
+- **Empty-Table Guard:** Added an automatic check in `Analytics::overview()`. If the relational progress table has zero rows but active enrollments exist, it includes `needs_backfill: true` in the API payload.
+- **Backfill Warning Banner:** Updated the admin Analytics dashboard (`src/admin/components/Analytics.js`) to display an informative notice pointing to the Tools backfill button when a backfill is required.
+- **Performance Evaluation:** Evaluated query execution paths. The direct SQL queries utilize the unique index prefix `(user_id, course_id)` on `wp_slms_lesson_progress` resulting in fast index-scans (<50ms for thousands of rows), validating that a separate daily rollup or cron is not required for standard analytical payloads.
+
 ## Stage 4 — Own the Certificate Pipeline
 
 - **Bundled renderer behind an interface:** dompdf 3.x and

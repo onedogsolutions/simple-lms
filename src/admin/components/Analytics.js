@@ -707,6 +707,22 @@ const Analytics = () => {
 				</Notice>
 			) }
 
+			{ overview && overview.needs_backfill && (
+				<Notice status="warning" isDismissible={ false }>
+					{ __(
+						'Historical lesson progress needs to be backfilled for accurate analytics reporting. Please run the backfill from the Tools page.',
+						'simple-lms-bridge'
+					) }
+					{ ' ' }
+					<a
+						href={ window.slmsAdmin?.studentsUrl ? window.slmsAdmin.studentsUrl.replace('page=slms-students', 'page=slms-tools') : '#' }
+						className="tw-font-semibold tw-underline"
+					>
+						{ __( 'Go to Tools Screen', 'simple-lms-bridge' ) }
+					</a>
+				</Notice>
+			) }
+
 			{ /* ── Header + range presets ── */ }
 			<div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
 				<div>
