@@ -51,6 +51,9 @@ require_once SLMS_PLUGIN_DIR . 'includes/class-guard.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-progress.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-settings.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-course-display.php';
+if ( defined( 'WP_CLI' ) && WP_CLI ) {
+	require_once SLMS_PLUGIN_DIR . 'includes/class-cli.php';
+}
 // The legacy [simple_lms_account] shortcode (formerly class-account-dashboard.php)
 // has been removed. The native lms-account-dashboard Beaver Builder module renders
 // the account dashboard; shortcode-based rendering of BB module content is not used.

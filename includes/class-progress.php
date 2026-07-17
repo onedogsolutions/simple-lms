@@ -380,15 +380,18 @@ class Progress {
 	/**
 	 * Backfill the progress table from legacy `_lms_progress` user meta.
 	 *
-	 * Idempotent: uses INSERT ... ON DUPLICATE KEY UPDATE so re-running never
-	 * creates duplicate rows.
+	 * Idempotent: uses INSERT IGNORE against the table's unique key so
+	 * re-running never creates duplicate rows.
 	 *
-	 * @param int $limit  Max users to process (0 = all).
-	 * @param int $offset User query offset.
-	 * @return array { users, rows, done }
+	 * @param int $batch_size Max users to process per batch.
+	 * @param int $offset     User query offset.
+	 * @return array{processed_users:int, inserted_rows:int, skipped_entries:int, next_offset:int, complete:bool}
 	 */
-	public static function backfill( $limit = 0, $offset = 0 ) {
+	public static function backfill( $batch_size = 100, $offset = 0 ) {
 		global $wpdb;
+
+		$batch_size = absint( $batch_size );
+		$offset     = absint( $offset );
 
 		$args = array(
 			'meta_key'     => '_lms_progress',
@@ -396,21 +399,101 @@ class Progress {
 			'fields'       => 'ID',
 			'orderby'      => 'ID',
 			'order'        => 'ASC',
-			'offset'       => absint( $offset ),
+			'offset'       => $offset,
+			'number'       => $batch_size,
 		);
 
-		if ( $limit > 0 ) {
-			$args['number'] = absint( $limit );
-		}
-
-		$user_ids = get_users( $args );
-		$rows     = 0;
-		$table    = self::table();
+		$user_ids        = get_users( $args );
+		$processed_users = count( $user_ids );
+		$inserted_rows   = 0;
+		$skipped_entries = 0;
+		$table           = self::table();
 
 		foreach ( $user_ids as $user_id ) {
 			$user_id  = (int) $user_id;
 			$progress = get_user_meta( $user_id, '_lms_progress', true );
 
+			if ( ! is_array( $progress ) ) {
+				++$skipped_entries;
+				continue;
+			}
+
+			foreach ( $progress as $course_id => $lessons ) {
+				if ( ! is_array( $lessons ) ) {
+					++$skipped_entries;
+					continue;
+				}
+
+				foreach ( $lessons as $lesson_id => $ts ) {
+					$course_id = absint( $course_id );
+					$lesson_id = absint( $lesson_id );
+					if ( ! $course_id || ! $lesson_id ) {
+						++$skipped_entries;
+						continue;
+					}
+
+					$timestamp = self::normalize_timestamp( $ts );
+					if ( $timestamp <= 0 ) {
+						++$skipped_entries;
+						continue;
+					}
+
+					$inserted = $wpdb->query(
+						$wpdb->prepare(
+							'INSERT IGNORE INTO ' . $table . ' (user_id, course_id, lesson_id, completed_at)
+                         VALUES (%d, %d, %d, %s)',
+							$user_id,
+							$course_id,
+							$lesson_id,
+							gmdate( 'Y-m-d H:i:s', $timestamp )
+						)
+					);
+
+					if ( $inserted ) {
+						++$inserted_rows;
+					}
+				}
+			}
+		}
+
+		$remaining_users = get_users(
+			array(
+				'meta_key'     => '_lms_progress',
+				'meta_compare' => 'EXISTS',
+				'fields'       => 'ID',
+				'offset'       => $offset + $processed_users,
+				'number'       => 1,
+			)
+		);
+
+		return array(
+			'processed_users' => $processed_users,
+			'inserted_rows'   => $inserted_rows,
+			'skipped_entries' => $skipped_entries,
+			'next_offset'     => $offset + $processed_users,
+			'complete'        => empty( $remaining_users ),
+		);
+	}
+
+	/**
+	 * Compare distinct completion tuples in legacy metadata vs the table.
+	 *
+	 * @return array{meta_tuples:int, table_rows:int, in_sync:bool}
+	 */
+	public static function get_parity() {
+		$table_rows  = self::row_count();
+		$meta_tuples = 0;
+
+		$user_ids = get_users(
+			array(
+				'meta_key'     => '_lms_progress',
+				'meta_compare' => 'EXISTS',
+				'fields'       => 'ID',
+			)
+		);
+
+		foreach ( $user_ids as $user_id ) {
+			$progress = get_user_meta( (int) $user_id, '_lms_progress', true );
 			if ( ! is_array( $progress ) ) {
 				continue;
 			}
@@ -426,32 +509,34 @@ class Progress {
 					if ( ! $course_id || ! $lesson_id ) {
 						continue;
 					}
-
-					$timestamp = is_numeric( $ts ) ? (int) $ts : ( strtotime( (string) $ts ) ?: time() );
-
-					$wpdb->query(
-						$wpdb->prepare(
-							"INSERT INTO {$table} (user_id, course_id, lesson_id, completed_at)
-                         VALUES (%d, %d, %d, %s)
-                         ON DUPLICATE KEY UPDATE completed_at = VALUES(completed_at)",
-							$user_id,
-							$course_id,
-							$lesson_id,
-							gmdate( 'Y-m-d H:i:s', $timestamp )
-						)
-					);
-					++$rows;
+					if ( self::normalize_timestamp( $ts ) > 0 ) {
+						++$meta_tuples;
+					}
 				}
 			}
 		}
 
-		$done = ( $limit === 0 ) || ( count( $user_ids ) < $limit );
-
 		return array(
-			'users' => count( $user_ids ),
-			'rows'  => $rows,
-			'done'  => $done,
+			'meta_tuples' => $meta_tuples,
+			'table_rows'  => $table_rows,
+			'in_sync'     => ( $meta_tuples === $table_rows ),
 		);
+	}
+
+	/**
+	 * Normalize a legacy `_lms_progress` timestamp value to a Unix timestamp.
+	 *
+	 * @param mixed $ts Raw timestamp value from user meta.
+	 * @return int Unix timestamp, or 0 if unparseable.
+	 */
+	private static function normalize_timestamp( $ts ) {
+		if ( is_numeric( $ts ) ) {
+			return (int) $ts;
+		}
+		if ( is_string( $ts ) ) {
+			return (int) strtotime( $ts );
+		}
+		return 0;
 	}
 
 	/**

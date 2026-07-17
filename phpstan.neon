@@ -68,4 +68,7 @@ parameters:
         -
             message: '#^Variable \$screen_id on left side of \?\? always exists and is not nullable\.$#'
             path: simple-lms-bridge.php
+        -
+            message: '#^Call to static method .* on an unknown class WP_CLI\.$#'
+            path: includes/class-cli.php
     reportUnmatchedIgnoredErrors: false
