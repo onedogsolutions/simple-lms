@@ -13,275 +13,268 @@
 
 namespace SimpleLMS;
 
-if (!defined('ABSPATH')) {
-    exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
 /**
  * Class Guard
  */
-class Guard
-{
+class Guard {
 
-    /**
-     * LMS post types that are guarded.
-     *
-     * @var string[]
-     */
-    private static $post_types = array('slms_course', 'slms_lesson');
 
-    /**
-     * Hook into WordPress.
-     *
-     * @return void
-     */
-    public static function init()
-    {
-        add_action('template_redirect', array(__CLASS__, 'guard_singular'));
-        add_filter('the_content', array(__CLASS__, 'guard_content'), 99);
-        add_filter('rest_prepare_slms_course', array(__CLASS__, 'guard_rest'), 10, 3);
-        add_filter('rest_prepare_slms_lesson', array(__CLASS__, 'guard_rest'), 10, 3);
-    }
+	/**
+	 * LMS post types that are guarded.
+	 *
+	 * @var string[]
+	 */
+	private static $post_types = array( 'slms_course', 'slms_lesson' );
 
-    /* ───────────────────────────────────────────────────────────────────
-     * Layer 1: template_redirect
-     * ─────────────────────────────────────────────────────────────────── */
+	/**
+	 * Hook into WordPress.
+	 *
+	 * @return void
+	 */
+	public static function init() {
+		add_action( 'template_redirect', array( __CLASS__, 'guard_singular' ) );
+		add_filter( 'the_content', array( __CLASS__, 'guard_content' ), 99 );
+		add_filter( 'rest_prepare_slms_course', array( __CLASS__, 'guard_rest' ), 10, 3 );
+		add_filter( 'rest_prepare_slms_lesson', array( __CLASS__, 'guard_rest' ), 10, 3 );
+	}
 
-    /**
-     * Full-page guard for single course / lesson views.
-     *
-     * @return void
-     */
-    public static function guard_singular()
-    {
-        if (!is_singular(self::$post_types)) {
-            return;
-        }
+	/* ───────────────────────────────────────────────────────────────────
+	 * Layer 1: template_redirect
+	 * ─────────────────────────────────────────────────────────────────── */
 
-        // Never redirect inside the Beaver Builder editor.
-        if (self::is_builder_active()) {
-            return;
-        }
+	/**
+	 * Full-page guard for single course / lesson views.
+	 *
+	 * @return void
+	 */
+	public static function guard_singular() {
+		if ( ! is_singular( self::$post_types ) ) {
+			return;
+		}
 
-        $post_id = get_queried_object_id();
-        $user_id = get_current_user_id();
+		// Never redirect inside the Beaver Builder editor.
+		if ( self::is_builder_active() ) {
+			return;
+		}
 
-        $post = get_post($post_id);
-        $course_id = Access::resolve_course_id($post_id);
+		$post_id = get_queried_object_id();
+		$user_id = get_current_user_id();
 
-        $can_view = false;
-        if ($post && $post->post_type === 'slms_course') {
-            $can_view = Access::can_view_course($user_id, $course_id);
-        } else {
-            $can_view = Access::can_view($user_id, $post_id, $course_id);
-        }
+		$post      = get_post( $post_id );
+		$course_id = Access::resolve_course_id( $post_id );
 
-        if ($can_view) {
-            return;
-        }
+		$can_view = false;
+		if ( $post && $post->post_type === 'slms_course' ) {
+			$can_view = Access::can_view_course( $user_id, $course_id );
+		} else {
+			$can_view = Access::can_view( $user_id, $post_id, $course_id );
+		}
 
-        // Respect the course's denial behavior: 'message' leaves the request on
-        // the page so the the_content CTA renders instead of redirecting.
-        if (!$course_id) {
-            $course_id = $post_id;
-        }
-        if ('message' === get_post_meta($course_id, '_lms_denial_behavior', true)) {
-            return;
-        }
+		if ( $can_view ) {
+			return;
+		}
 
-        $current_url = self::current_url();
+		// Respect the course's denial behavior: 'message' leaves the request on
+		// the page so the the_content CTA renders instead of redirecting.
+		if ( ! $course_id ) {
+			$course_id = $post_id;
+		}
+		if ( 'message' === get_post_meta( $course_id, '_lms_denial_behavior', true ) ) {
+			return;
+		}
 
-        // Logged out → login (default) or checkout, per Settings.
-        if (!$user_id) {
-            $behavior = class_exists(__NAMESPACE__ . '\\Settings')
-                ? Settings::get('login_redirect', 'login')
-                : 'login';
+		$current_url = self::current_url();
 
-            if ('checkout' === $behavior) {
-                wp_safe_redirect(Access::get_checkout_url($course_id, $current_url));
-            } else {
-                wp_safe_redirect(wp_login_url($current_url));
-            }
-            exit;
-        }
+		// Logged out → login (default) or checkout, per Settings.
+		if ( ! $user_id ) {
+			$behavior = class_exists( __NAMESPACE__ . '\\Settings' )
+				? Settings::get( 'login_redirect', 'login' )
+				: 'login';
 
-        // Logged in but not entitled → PMPro checkout for the course's level.
-        $target = Access::get_checkout_url($course_id, $current_url);
+			if ( 'checkout' === $behavior ) {
+				wp_safe_redirect( Access::get_checkout_url( $course_id, $current_url ) );
+			} else {
+				wp_safe_redirect( wp_login_url( $current_url ) );
+			}
+			exit;
+		}
 
-        // get_checkout_url() may return an internal URL; wp_safe_redirect is fine.
-        wp_safe_redirect($target);
-        exit;
-    }
+		// Logged in but not entitled → PMPro checkout for the course's level.
+		$target = Access::get_checkout_url( $course_id, $current_url );
 
-    /* ───────────────────────────────────────────────────────────────────
-     * Layer 2: the_content
-     * ─────────────────────────────────────────────────────────────────── */
+		// get_checkout_url() may return an internal URL; wp_safe_redirect is fine.
+		wp_safe_redirect( $target );
+		exit;
+	}
 
-    /**
-     * Replace guarded content with an excerpt + CTA when access is denied.
-     *
-     * Covers archives, search results and builder-rendered contexts where the
-     * template_redirect guard does not fire.
-     *
-     * @param string $content Post content.
-     * @return string
-     */
-    public static function guard_content($content)
-    {
-        // Do not interfere with the Beaver Builder editing experience.
-        if (self::is_builder_active()) {
-            return $content;
-        }
+	/* ───────────────────────────────────────────────────────────────────
+	 * Layer 2: the_content
+	 * ─────────────────────────────────────────────────────────────────── */
 
-        $post = get_post();
-        if (!$post || !in_array($post->post_type, self::$post_types, true)) {
-            return $content;
-        }
+	/**
+	 * Replace guarded content with an excerpt + CTA when access is denied.
+	 *
+	 * Covers archives, search results and builder-rendered contexts where the
+	 * template_redirect guard does not fire.
+	 *
+	 * @param string $content Post content.
+	 * @return string
+	 */
+	public static function guard_content( $content ) {
+		// Do not interfere with the Beaver Builder editing experience.
+		if ( self::is_builder_active() ) {
+			return $content;
+		}
 
-        $user_id = get_current_user_id();
-        $course_id = Access::resolve_course_id($post->ID);
+		$post = get_post();
+		if ( ! $post || ! in_array( $post->post_type, self::$post_types, true ) ) {
+			return $content;
+		}
 
-        $can_view = false;
-        if ($post->post_type === 'slms_course') {
-            $can_view = Access::can_view_course($user_id, $course_id);
-        } else {
-            $can_view = Access::can_view($user_id, $post->ID, $course_id);
-        }
+		$user_id   = get_current_user_id();
+		$course_id = Access::resolve_course_id( $post->ID );
 
-        if ($can_view) {
-            return $content;
-        }
+		$can_view = false;
+		if ( $post->post_type === 'slms_course' ) {
+			$can_view = Access::can_view_course( $user_id, $course_id );
+		} else {
+			$can_view = Access::can_view( $user_id, $post->ID, $course_id );
+		}
 
-        return self::denied_markup($post);
-    }
+		if ( $can_view ) {
+			return $content;
+		}
 
-    /**
-     * Build the excerpt + call-to-action markup shown in place of content.
-     *
-     * @param \WP_Post $post The guarded post.
-     * @return string
-     */
-    private static function denied_markup($post)
-    {
-        $course_id = Access::resolve_course_id($post->ID);
-        if (!$course_id) {
-            $course_id = $post->ID;
-        }
+		return self::denied_markup( $post );
+	}
 
-        $reason = Access::denial_reason(get_current_user_id(), $post->ID, $course_id);
+	/**
+	 * Build the excerpt + call-to-action markup shown in place of content.
+	 *
+	 * @param \WP_Post $post The guarded post.
+	 * @return string
+	 */
+	private static function denied_markup( $post ) {
+		$course_id = Access::resolve_course_id( $post->ID );
+		if ( ! $course_id ) {
+			$course_id = $post->ID;
+		}
 
-        $excerpt = has_excerpt($post) ? get_the_excerpt($post) : wp_trim_words(wp_strip_all_tags($post->post_content), 40);
+		$reason = Access::denial_reason( get_current_user_id(), $post->ID, $course_id );
 
-        if ('not_logged_in' === $reason) {
-            $cta_url  = wp_login_url(self::current_url());
-            $cta_text = __('Log in to continue', 'simple-lms-bridge');
-            $message  = __('This content is available to enrolled students. Please log in to continue.', 'simple-lms-bridge');
-        } elseif ('expired' === $reason) {
-            $cta_url  = Access::get_checkout_url($course_id, self::current_url());
-            $cta_text = __('Renew access', 'simple-lms-bridge');
-            $message  = __('Your access to this course has expired.', 'simple-lms-bridge');
-        } else {
-            $cta_url  = Access::get_checkout_url($course_id, self::current_url());
-            $cta_text = __('Enroll now', 'simple-lms-bridge');
-            $message  = __('This content is available to enrolled students.', 'simple-lms-bridge');
-        }
+		$excerpt = has_excerpt( $post ) ? get_the_excerpt( $post ) : wp_trim_words( wp_strip_all_tags( $post->post_content ), 40 );
 
-        $html  = '<div class="slms-access-denied">';
-        if ($excerpt) {
-            $html .= '<div class="slms-access-excerpt">' . wpautop(esc_html($excerpt)) . '</div>';
-        }
-        $html .= '<div class="slms-access-cta">';
-        $html .= '<p class="slms-access-message">' . esc_html($message) . '</p>';
-        $html .= '<a class="slms-access-button button button-primary" href="' . esc_url($cta_url) . '">' . esc_html($cta_text) . '</a>';
-        $html .= '</div>';
-        $html .= '</div>';
+		if ( 'not_logged_in' === $reason ) {
+			$cta_url  = wp_login_url( self::current_url() );
+			$cta_text = __( 'Log in to continue', 'simple-lms-bridge' );
+			$message  = __( 'This content is available to enrolled students. Please log in to continue.', 'simple-lms-bridge' );
+		} elseif ( 'expired' === $reason ) {
+			$cta_url  = Access::get_checkout_url( $course_id, self::current_url() );
+			$cta_text = __( 'Renew access', 'simple-lms-bridge' );
+			$message  = __( 'Your access to this course has expired.', 'simple-lms-bridge' );
+		} else {
+			$cta_url  = Access::get_checkout_url( $course_id, self::current_url() );
+			$cta_text = __( 'Enroll now', 'simple-lms-bridge' );
+			$message  = __( 'This content is available to enrolled students.', 'simple-lms-bridge' );
+		}
 
-        /**
-         * Filter the access-denied markup.
-         *
-         * @param string   $html   Rendered CTA markup.
-         * @param \WP_Post $post   The guarded post.
-         * @param string   $reason Denial reason.
-         */
-        return apply_filters('simple_lms_access_denied_markup', $html, $post, $reason);
-    }
+		$html = '<div class="slms-access-denied">';
+		if ( $excerpt ) {
+			$html .= '<div class="slms-access-excerpt">' . wpautop( esc_html( $excerpt ) ) . '</div>';
+		}
+		$html .= '<div class="slms-access-cta">';
+		$html .= '<p class="slms-access-message">' . esc_html( $message ) . '</p>';
+		$html .= '<a class="slms-access-button button button-primary" href="' . esc_url( $cta_url ) . '">' . esc_html( $cta_text ) . '</a>';
+		$html .= '</div>';
+		$html .= '</div>';
 
-    /* ───────────────────────────────────────────────────────────────────
-     * Layer 3: REST
-     * ─────────────────────────────────────────────────────────────────── */
+		/**
+		 * Filter the access-denied markup.
+		 *
+		 * @param string   $html   Rendered CTA markup.
+		 * @param \WP_Post $post   The guarded post.
+		 * @param string   $reason Denial reason.
+		 */
+		return apply_filters( 'simple_lms_access_denied_markup', $html, $post, $reason );
+	}
 
-    /**
-     * Strip rendered content from the REST response when access is denied.
-     *
-     * @param \WP_REST_Response $response The response object.
-     * @param \WP_Post          $post     The post.
-     * @param \WP_REST_Request  $request  The request.
-     * @return \WP_REST_Response
-     */
-    public static function guard_rest($response, $post, $request)
-    {
-        $user_id = get_current_user_id();
-        $course_id = Access::resolve_course_id($post->ID);
+	/* ───────────────────────────────────────────────────────────────────
+	 * Layer 3: REST
+	 * ─────────────────────────────────────────────────────────────────── */
 
-        $can_view = false;
-        if ($post->post_type === 'slms_course') {
-            $can_view = Access::can_view_course($user_id, $course_id);
-        } else {
-            $can_view = Access::can_view($user_id, $post->ID, $course_id);
-        }
+	/**
+	 * Strip rendered content from the REST response when access is denied.
+	 *
+	 * @param \WP_REST_Response $response The response object.
+	 * @param \WP_Post          $post     The post.
+	 * @param \WP_REST_Request  $request  The request.
+	 * @return \WP_REST_Response
+	 */
+	public static function guard_rest( $response, $post, $request ) {
+		$user_id   = get_current_user_id();
+		$course_id = Access::resolve_course_id( $post->ID );
 
-        if ($can_view) {
-            return $response;
-        }
+		$can_view = false;
+		if ( $post->post_type === 'slms_course' ) {
+			$can_view = Access::can_view_course( $user_id, $course_id );
+		} else {
+			$can_view = Access::can_view( $user_id, $post->ID, $course_id );
+		}
 
-        $data = $response->get_data();
+		if ( $can_view ) {
+			return $response;
+		}
 
-        if (isset($data['content']) && is_array($data['content'])) {
-            $data['content']['rendered']  = '';
-            $data['content']['protected'] = true;
+		$data = $response->get_data();
 
-            // Also drop the raw block/content field if present (edit context).
-            if (isset($data['content']['raw'])) {
-                $data['content']['raw'] = '';
-            }
-        } elseif (isset($data['content'])) {
-            $data['content'] = '';
-        }
+		if ( isset( $data['content'] ) && is_array( $data['content'] ) ) {
+			$data['content']['rendered']  = '';
+			$data['content']['protected'] = true;
 
-        $response->set_data($data);
+			// Also drop the raw block/content field if present (edit context).
+			if ( isset( $data['content']['raw'] ) ) {
+				$data['content']['raw'] = '';
+			}
+		} elseif ( isset( $data['content'] ) ) {
+			$data['content'] = '';
+		}
 
-        return $response;
-    }
+		$response->set_data( $data );
 
-    /* ───────────────────────────────────────────────────────────────────
-     * Helpers
-     * ─────────────────────────────────────────────────────────────────── */
+		return $response;
+	}
 
-    /**
-     * Whether the Beaver Builder editor/preview is active.
-     *
-     * @return bool
-     */
-    private static function is_builder_active()
-    {
-        return class_exists('FLBuilderModel') && \FLBuilderModel::is_builder_active();
-    }
+	/* ───────────────────────────────────────────────────────────────────
+	 * Helpers
+	 * ─────────────────────────────────────────────────────────────────── */
 
-    /**
-     * Best-effort current front-end URL.
-     *
-     * @return string
-     */
-    private static function current_url()
-    {
-        $host = isset($_SERVER['HTTP_HOST']) ? sanitize_text_field(wp_unslash($_SERVER['HTTP_HOST'])) : '';
-        $uri  = isset($_SERVER['REQUEST_URI']) ? esc_url_raw(wp_unslash($_SERVER['REQUEST_URI'])) : '';
+	/**
+	 * Whether the Beaver Builder editor/preview is active.
+	 *
+	 * @return bool
+	 */
+	private static function is_builder_active() {
+		return class_exists( 'FLBuilderModel' ) && \FLBuilderModel::is_builder_active();
+	}
 
-        if ($host && $uri) {
-            $scheme = is_ssl() ? 'https' : 'http';
-            return $scheme . '://' . $host . $uri;
-        }
+	/**
+	 * Best-effort current front-end URL.
+	 *
+	 * @return string
+	 */
+	private static function current_url() {
+		$host = isset( $_SERVER['HTTP_HOST'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_HOST'] ) ) : '';
+		$uri  = isset( $_SERVER['REQUEST_URI'] ) ? esc_url_raw( wp_unslash( $_SERVER['REQUEST_URI'] ) ) : '';
 
-        return home_url('/');
-    }
+		if ( $host && $uri ) {
+			$scheme = is_ssl() ? 'https' : 'http';
+			return $scheme . '://' . $host . $uri;
+		}
+
+		return home_url( '/' );
+	}
 }

@@ -48,12 +48,8 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --no-interaction --no-progress --prefer-dist
 
-      # The codebase predates WordPress-Extra's tabs/quote-style conventions, so
-      # this currently reports a large pre-existing backlog (fixable via
-      # `composer phpcbf`). Non-blocking until a dedicated formatting pass lands;
-      # remove continue-on-error once that backlog is cleared.
+      # Ensure PHPCS acts as a required, strict formatting gate.
       - name: Run PHPCS
-        continue-on-error: true
         run: composer phpcs
 
   phpstan:

@@ -7,8 +7,8 @@
 
 namespace SimpleLMS\Certificates;
 
-if (!defined('ABSPATH')) {
-    exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
 /**
@@ -23,81 +23,78 @@ if (!defined('ABSPATH')) {
  * build time (Dompdf\ -> SimpleLMS\Vendor\Dompdf\); the interface indirection
  * here means only this class would change.
  */
-class DompdfRenderer implements Renderer
-{
-    /**
-     * Whether the bundled autoloader has been required this request.
-     *
-     * @var bool
-     */
-    private static $booted = false;
+class DompdfRenderer implements Renderer {
 
-    /**
-     * Load the bundled Composer autoloader once, if dompdf isn't already present.
-     *
-     * @return void
-     */
-    private static function boot(): void
-    {
-        if (self::$booted) {
-            return;
-        }
-        self::$booted = true;
+	/**
+	 * Whether the bundled autoloader has been required this request.
+	 *
+	 * @var bool
+	 */
+	private static $booted = false;
 
-        if (class_exists('\\Dompdf\\Dompdf')) {
-            return; // Already provided by another plugin / a prefixed build.
-        }
+	/**
+	 * Load the bundled Composer autoloader once, if dompdf isn't already present.
+	 *
+	 * @return void
+	 */
+	private static function boot(): void {
+		if ( self::$booted ) {
+			return;
+		}
+		self::$booted = true;
 
-        $autoload = dirname(__DIR__, 2) . '/vendor/autoload.php';
-        if (is_readable($autoload)) {
-            require_once $autoload;
-        }
-    }
+		if ( class_exists( '\\Dompdf\\Dompdf' ) ) {
+			return; // Already provided by another plugin / a prefixed build.
+		}
 
-    /**
-     * {@inheritDoc}
-     */
-    public function is_available(): bool
-    {
-        self::boot();
-        return class_exists('\\Dompdf\\Dompdf');
-    }
+		$autoload = dirname( __DIR__, 2 ) . '/vendor/autoload.php';
+		if ( is_readable( $autoload ) ) {
+			require_once $autoload;
+		}
+	}
 
-    /**
-     * {@inheritDoc}
-     */
-    public function render(string $html, array $options = array()): string
-    {
-        if (!$this->is_available()) {
-            throw new \RuntimeException('dompdf is not available.');
-        }
+	/**
+	 * {@inheritDoc}
+	 */
+	public function is_available(): bool {
+		self::boot();
+		return class_exists( '\\Dompdf\\Dompdf' );
+	}
 
-        $orientation = (isset($options['orientation']) && 'portrait' === $options['orientation'])
-            ? 'portrait'
-            : 'landscape';
-        $paper = isset($options['paper']) ? (string) $options['paper'] : 'letter';
+	/**
+	 * {@inheritDoc}
+	 */
+	public function render( string $html, array $options = array() ): string {
+		if ( ! $this->is_available() ) {
+			throw new \RuntimeException( 'dompdf is not available.' );
+		}
 
-        $dompdf_options = new \Dompdf\Options();
-        $dompdf_options->set('isRemoteEnabled', true); // Allow the background image URL.
-        $dompdf_options->set('isHtml5ParserEnabled', true);
-        $dompdf_options->set('defaultFont', 'DejaVu Sans');
-        // Cache generated font metrics inside uploads, not the read-only plugin dir.
-        $tmp = get_temp_dir();
-        if ($tmp && is_writable($tmp)) {
-            $dompdf_options->set('tempDir', $tmp);
-            $dompdf_options->set('fontCache', $tmp);
-        }
+		$orientation = ( isset( $options['orientation'] ) && 'portrait' === $options['orientation'] )
+			? 'portrait'
+			: 'landscape';
+		$paper       = isset( $options['paper'] ) ? (string) $options['paper'] : 'letter';
 
-        $dompdf = new \Dompdf\Dompdf($dompdf_options);
-        $dompdf->loadHtml($html);
-        $dompdf->setPaper($paper, $orientation);
-        $dompdf->render();
+		$dompdf_options = new \Dompdf\Options();
+		$dompdf_options->set( 'isRemoteEnabled', true ); // Allow the background image URL.
+		$dompdf_options->set( 'isHtml5ParserEnabled', true );
+		$dompdf_options->set( 'defaultFont', 'DejaVu Sans' );
+		// Cache generated font metrics inside uploads, not the read-only plugin dir.
+		$tmp = get_temp_dir();
+		if ( $tmp && is_writable( $tmp ) ) {
+			$dompdf_options->set( 'tempDir', $tmp );
+			$dompdf_options->set( 'fontCache', $tmp );
+		}
 
-        $output = $dompdf->output();
-        if (!is_string($output) || '' === $output) {
-            throw new \RuntimeException('dompdf produced empty output.');
-        }
+		$dompdf = new \Dompdf\Dompdf( $dompdf_options );
+		$dompdf->loadHtml( $html );
+		$dompdf->setPaper( $paper, $orientation );
+		$dompdf->render();
 
-        return $output;
-    }
+		$output = $dompdf->output();
+		if ( ! is_string( $output ) || '' === $output ) {
+			throw new \RuntimeException( 'dompdf produced empty output.' );
+		}
+
+		return $output;
+	}
 }

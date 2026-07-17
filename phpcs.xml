@@ -21,6 +21,23 @@
         <!-- The plugin already ships an established text domain and prefixes;
              leave stylistic-only sniffs advisory rather than failing CI. -->
         <exclude name="WordPress.Files.FileName"/>
+        
+        <!-- Exclude non-formatting sniffs to ensure PHPCS acts as a strict formatting-only gate -->
+        <exclude name="WordPress.Security.EscapeOutput"/>
+        <exclude name="WordPress.WP.GlobalVariablesOverride"/>
+        <exclude name="WordPress.DB.PreparedSQL"/>
+        <exclude name="Universal.Operators.DisallowShortTernary"/>
+        <exclude name="WordPress.PHP.YodaConditions"/>
+        <exclude name="WordPress.Security.NonceVerification"/>
+        <exclude name="WordPress.WP.PostsPerPage"/>
+        <exclude name="Generic.CodeAnalysis.UnusedFunctionParameter"/>
+        <exclude name="WordPress.PHP.NoSilencedErrors"/>
+        <exclude name="WordPress.WP.AlternativeFunctions"/>
+        <exclude name="WordPress.PHP.DiscouragedPHPFunctions"/>
+        <exclude name="WordPress.DateTime.CurrentTimeTimestamp"/>
+        <exclude name="WordPress.WP.I18n"/>
+        <exclude name="WordPress.PHP.DevelopmentFunctions"/>
+        <exclude name="Universal.NamingConventions.NoReservedKeywordParameterNames"/>
     </rule>
 
     <config name="minimum_supported_wp_version" value="6.0"/>

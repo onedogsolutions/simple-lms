@@ -32,53 +32,63 @@ if ( ! function_exists( 'slms_color' ) ) {
 // ════════════════════════════════════════════════════════════════════════════
 
 // ── 1a. Tab typography ───────────────────────────────────────────────────────
-FLBuilderCSS::typography_field_rule( array(
-	'settings'     => $settings,
-	'setting_name' => 'tab_typography',
-	'selector'     => ".fl-node-$id .slms-tabs-nav .slms-tab-link",
-) );
+FLBuilderCSS::typography_field_rule(
+	array(
+		'settings'     => $settings,
+		'setting_name' => 'tab_typography',
+		'selector'     => ".fl-node-$id .slms-tabs-nav .slms-tab-link",
+	)
+);
 
 // ── 1b. Tab padding ──────────────────────────────────────────────────────────
-FLBuilderCSS::dimension_field_rule( array(
-	'settings'     => $settings,
-	'setting_name' => 'tab_padding',
-	'selector'     => ".fl-node-$id .slms-tabs-nav .slms-tab-link",
-	'unit'         => 'px',
-	'props'        => array(
-		'padding-top'    => 'tab_padding_top',
-		'padding-right'  => 'tab_padding_right',
-		'padding-bottom' => 'tab_padding_bottom',
-		'padding-left'   => 'tab_padding_left',
-	),
-) );
+FLBuilderCSS::dimension_field_rule(
+	array(
+		'settings'     => $settings,
+		'setting_name' => 'tab_padding',
+		'selector'     => ".fl-node-$id .slms-tabs-nav .slms-tab-link",
+		'unit'         => 'px',
+		'props'        => array(
+			'padding-top'    => 'tab_padding_top',
+			'padding-right'  => 'tab_padding_right',
+			'padding-bottom' => 'tab_padding_bottom',
+			'padding-left'   => 'tab_padding_left',
+		),
+	)
+);
 
 // ── 1c. Tab margin ───────────────────────────────────────────────────────────
-FLBuilderCSS::dimension_field_rule( array(
-	'settings'     => $settings,
-	'setting_name' => 'tab_margin',
-	'selector'     => ".fl-node-$id .slms-tabs-nav .slms-tab-link",
-	'unit'         => 'px',
-	'props'        => array(
-		'margin-top'    => 'tab_margin_top',
-		'margin-right'  => 'tab_margin_right',
-		'margin-bottom' => 'tab_margin_bottom',
-		'margin-left'   => 'tab_margin_left',
-	),
-) );
+FLBuilderCSS::dimension_field_rule(
+	array(
+		'settings'     => $settings,
+		'setting_name' => 'tab_margin',
+		'selector'     => ".fl-node-$id .slms-tabs-nav .slms-tab-link",
+		'unit'         => 'px',
+		'props'        => array(
+			'margin-top'    => 'tab_margin_top',
+			'margin-right'  => 'tab_margin_right',
+			'margin-bottom' => 'tab_margin_bottom',
+			'margin-left'   => 'tab_margin_left',
+		),
+	)
+);
 
 // ── 1d. Tab border (default/inactive state) ──────────────────────────────────
-FLBuilderCSS::border_field_rule( array(
-	'settings'     => $settings,
-	'setting_name' => 'tab_border_group',
-	'selector'     => ".fl-node-$id .slms-tabs-nav .slms-tab-link",
-) );
+FLBuilderCSS::border_field_rule(
+	array(
+		'settings'     => $settings,
+		'setting_name' => 'tab_border_group',
+		'selector'     => ".fl-node-$id .slms-tabs-nav .slms-tab-link",
+	)
+);
 
 // ── 1e. Active tab border ────────────────────────────────────────────────────
-FLBuilderCSS::border_field_rule( array(
-	'settings'     => $settings,
-	'setting_name' => 'tab_active_border_group',
-	'selector'     => ".fl-node-$id .slms-tabs-nav .slms-tab-link.active",
-) );
+FLBuilderCSS::border_field_rule(
+	array(
+		'settings'     => $settings,
+		'setting_name' => 'tab_active_border_group',
+		'selector'     => ".fl-node-$id .slms-tabs-nav .slms-tab-link.active",
+	)
+);
 
 // ── 1f. Tab color rules (inline output pattern from pp-advanced-tabs) ────────
 ?>
@@ -117,32 +127,38 @@ FLBuilderCSS::border_field_rule( array(
 // ════════════════════════════════════════════════════════════════════════════
 
 // ── 2a. Input typography ─────────────────────────────────────────────────────
-FLBuilderCSS::typography_field_rule( array(
-	'settings'     => $settings,
-	'setting_name' => 'input_typography',
-	'selector'     => ".fl-node-$id .slms-profile-form .slms-input",
-) );
+FLBuilderCSS::typography_field_rule(
+	array(
+		'settings'     => $settings,
+		'setting_name' => 'input_typography',
+		'selector'     => ".fl-node-$id .slms-profile-form .slms-input",
+	)
+);
 
 // ── 2b. Input padding ────────────────────────────────────────────────────────
-FLBuilderCSS::dimension_field_rule( array(
-	'settings'     => $settings,
-	'setting_name' => 'input_padding',
-	'selector'     => ".fl-node-$id .slms-profile-form .slms-input",
-	'unit'         => 'px',
-	'props'        => array(
-		'padding-top'    => 'input_padding_top',
-		'padding-right'  => 'input_padding_right',
-		'padding-bottom' => 'input_padding_bottom',
-		'padding-left'   => 'input_padding_left',
-	),
-) );
+FLBuilderCSS::dimension_field_rule(
+	array(
+		'settings'     => $settings,
+		'setting_name' => 'input_padding',
+		'selector'     => ".fl-node-$id .slms-profile-form .slms-input",
+		'unit'         => 'px',
+		'props'        => array(
+			'padding-top'    => 'input_padding_top',
+			'padding-right'  => 'input_padding_right',
+			'padding-bottom' => 'input_padding_bottom',
+			'padding-left'   => 'input_padding_left',
+		),
+	)
+);
 
 // ── 2c. Input border & shadow ────────────────────────────────────────────────
-FLBuilderCSS::border_field_rule( array(
-	'settings'     => $settings,
-	'setting_name' => 'input_border_group',
-	'selector'     => ".fl-node-$id .slms-profile-form .slms-input",
-) );
+FLBuilderCSS::border_field_rule(
+	array(
+		'settings'     => $settings,
+		'setting_name' => 'input_border_group',
+		'selector'     => ".fl-node-$id .slms-profile-form .slms-input",
+	)
+);
 ?>
 
 .fl-node-<?php echo $id; ?> .slms-profile-form .slms-input {
@@ -180,32 +196,38 @@ FLBuilderCSS::border_field_rule( array(
 // ════════════════════════════════════════════════════════════════════════════
 
 // ── 3a. Button typography ────────────────────────────────────────────────────
-FLBuilderCSS::typography_field_rule( array(
-	'settings'     => $settings,
-	'setting_name' => 'button_typography',
-	'selector'     => ".fl-node-$id .slms-profile-form .slms-submit-btn",
-) );
+FLBuilderCSS::typography_field_rule(
+	array(
+		'settings'     => $settings,
+		'setting_name' => 'button_typography',
+		'selector'     => ".fl-node-$id .slms-profile-form .slms-submit-btn",
+	)
+);
 
 // ── 3b. Button padding ───────────────────────────────────────────────────────
-FLBuilderCSS::dimension_field_rule( array(
-	'settings'     => $settings,
-	'setting_name' => 'button_padding',
-	'selector'     => ".fl-node-$id .slms-profile-form .slms-submit-btn",
-	'unit'         => 'px',
-	'props'        => array(
-		'padding-top'    => 'button_padding_top',
-		'padding-right'  => 'button_padding_right',
-		'padding-bottom' => 'button_padding_bottom',
-		'padding-left'   => 'button_padding_left',
-	),
-) );
+FLBuilderCSS::dimension_field_rule(
+	array(
+		'settings'     => $settings,
+		'setting_name' => 'button_padding',
+		'selector'     => ".fl-node-$id .slms-profile-form .slms-submit-btn",
+		'unit'         => 'px',
+		'props'        => array(
+			'padding-top'    => 'button_padding_top',
+			'padding-right'  => 'button_padding_right',
+			'padding-bottom' => 'button_padding_bottom',
+			'padding-left'   => 'button_padding_left',
+		),
+	)
+);
 
 // ── 3c. Button border ────────────────────────────────────────────────────────
-FLBuilderCSS::border_field_rule( array(
-	'settings'     => $settings,
-	'setting_name' => 'button_border_group',
-	'selector'     => ".fl-node-$id .slms-profile-form .slms-submit-btn",
-) );
+FLBuilderCSS::border_field_rule(
+	array(
+		'settings'     => $settings,
+		'setting_name' => 'button_border_group',
+		'selector'     => ".fl-node-$id .slms-profile-form .slms-submit-btn",
+	)
+);
 ?>
 
 .fl-node-<?php echo $id; ?> .slms-profile-form .slms-submit-btn {
