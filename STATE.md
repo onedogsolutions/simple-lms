@@ -10,8 +10,9 @@ Simple LMS Bridge is a lightweight, CPT-based LMS for WordPress with a React
 admin UI and native Beaver Builder integration. Courses and lessons are custom
 post types linked through many-to-many join tables; enrollments, progress, and
 9-year compliance history are tracked in custom tables. Paid Memberships Pro
-(PMPro) drives course enrollment, and Gravity Forms + GravityPDF issue
-certificates on completion.
+(PMPro) drives course enrollment. Certificates are issued natively on
+completion by a bundled dompdf renderer (Stage 4); pre-Stage-4 completions
+still resolve through the legacy Gravity Forms + GravityPDF path.
 
 ## Current Status
 
@@ -23,14 +24,28 @@ certificates on completion.
   compliance-table DDL, fixed a fatal typo, rewrote expiration to cover all
   enrollments, removed the Tailwind CDN, untracked build output, added schema
   versioning, and stood up CI. See `CHANGELOG.md` for details.
+- **Stage 4 (Native Certificate Pipeline)** replaced Gravity Forms / GravityPDF
+  certificate issuance with a native, dompdf-backed renderer bundled via
+  Composer behind a `SimpleLMS\Certificates\Renderer` interface. New completions
+  allocate a `cert_uuid`, render a branded PDF (with an embedded QR verify code)
+  cached under `uploads/slms-certs/`, and drop the GF entry synthesis; legacy
+  migrated links still resolve (native path checked first). Adds public
+  `/certificate/{uuid}/download` and `/certificate/verify/{uuid}` routes, an
+  admin-only compliance export (CSV / ZIP), and a `SimpleLMS > Tools` screen.
+  Certificate assets ship via `deploy.sh` (which now runs `composer install
+  --no-dev`). See `CHANGELOG.md` for details.
 - **Core/Migrator Split:** the one-time WP Complete/Pods/GF→PMPro migration
-  machinery (engine, Migration Tool, Debug Log, and their REST routes) now
-  lives in a separate, deletable companion plugin, `simple-lms-migrator/`,
-  which depends on core. `class-user-meta.php` (a redundant native WP
-  user-profile screen) was removed — legacy user-meta editing lives in the
-  Student Manager admin and the dashboard profile tab. Duplicated two-stage
-  GravityPDF URL resolution was centralized into `Certificates::pdf_url()`.
-  See `CHANGELOG.md` for details.
+  machinery (engine, Migration Tool, Debug Log, and their `/migration/*` +
+  `/debug-log` REST routes) now lives in a separate, deletable companion
+  plugin, `simple-lms-migrator/`, which depends on core.
+  `/course-history/repair-form-ids` and `/course-history/purge-corrupted`
+  stay in core (Stage 4's permanent Tools screen, not one-time migration).
+  `class-user-meta.php` (a redundant native WP user-profile screen) was
+  removed — legacy user-meta editing lives in the Student Manager admin and
+  the dashboard profile tab. The duplicated two-stage GravityPDF URL
+  resolution (both the legacy fallback path here and in Stage 4's
+  native-first check) is centralized into `Certificates::pdf_url()`. See
+  `CHANGELOG.md` for details.
 - **Known follow-up:** the PHPCS (WordPress-Extra) CI job is currently
   non-blocking (`continue-on-error`). The pre-existing codebase uses spaces for
   indentation and double quotes throughout, which conflicts with
@@ -70,10 +85,11 @@ certificates on completion.
   can only write their own progress; the endpoint validates lesson-in-course
   and enrollment before writing.
 - `GET /progress/{user_id}`, `/students`, `/forms`, `/videos`, `/analytics/*`,
-  and `GET /student/{id}/history` require `edit_users`/`edit_posts` as
-  appropriate. Migration endpoints (`/migration/*`, `/debug-log`,
-  `/course-history/repair-form-ids`) are registered by the `simple-lms-migrator`
-  plugin under the same `simple-lms/v1` namespace.
+  `/course-history/repair-form-ids`, `/course-history/purge-corrupted`, and
+  `GET /student/{id}/history` require `edit_users`/`edit_posts`/
+  `manage_options` as appropriate. Migration endpoints (`/migration/*`,
+  `/debug-log`) are registered by the `simple-lms-migrator` plugin under the
+  same `simple-lms/v1` namespace.
 
 ### Enrollment & expiration
 
@@ -87,9 +103,22 @@ certificates on completion.
 ### Certificates
 
 - `Certificates::check_course_completion()` fires when the final lesson is
-  marked complete: records completion, creates/links a Gravity Forms entry
-  (populating field 6 State and field 18 Course URL), writes a
-  `CourseHistory` row, and calls `remove_course_access()`.
+  marked complete: records completion, then calls
+  `Certificates\Issuer::issue()` to allocate a `cert_uuid`, write a
+  `CourseHistory` row, and render/cache a native branded PDF (dompdf, with an
+  embedded QR verify code) to `uploads/slms-certs/{uuid}.pdf` (`.htaccess`
+  protected). No Gravity Forms / GravityPDF involvement for new completions.
+  Finally it calls `remove_course_access()`.
+- **Renderer abstraction:** `Certificates\Renderer` (interface) →
+  `DompdfRenderer` (bundled under `vendor/`, loaded lazily and
+  `class_exists`-guarded; swap via the `slms_certificate_renderer` filter).
+  `Certificates\Template` holds the per-course `_lms_cert_template` meta and
+  builds the HTML; `Certificates\Routes` serves the public download/verify
+  URLs. The schema `cert_uuid` column + backfill is Upgrade step 2.
+- **Legacy fallback:** rows with a `gf_entry_id` and no native PDF still resolve
+  through `Certificates::pdf_url()` (two-stage GravityPDF logic, shared with
+  the `slms-student-dashboard` certificates tab); the native cached PDF is
+  always checked first.
 - `remove_course_access()` delegates to `PMPro::de_enroll_user()`, which removes
   **only** the course's mapped PMPro level when it matches the user's current
   level (no unconditional level reset).

@@ -176,17 +176,6 @@ class REST
                 return current_user_can('manage_options');
             },
         ));
-
-        register_rest_route(self::NAMESPACE, '/course-history/repair-form-ids', array(
-            'methods' => 'POST',
-            'callback' => function () {
-                $result = \SimpleLMS\CourseHistory::repair_form_ids();
-                return rest_ensure_response($result);
-            },
-            'permission_callback' => function () {
-                return current_user_can('manage_options');
-            },
-        ));
     }
 
     /**

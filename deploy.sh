@@ -3,11 +3,11 @@
 # deploy.sh — Build and package the SimpleLMS Bridge plugin into an installable zip.
 #
 # Steps:
-#   1. Install dependencies deterministically (npm ci).
+#   1. Install dependencies deterministically (npm ci + composer install --no-dev).
 #   2. Compile the React admin bundle and Tailwind CSS (npm run build).
 #   3. Verify the enqueued build artifacts exist; fail loudly if any are missing.
 #   4. Stage the plugin into a clean directory, excluding dev/source files.
-#   5. Zip the staged plugin.
+#   5. Zip the staged plugin (including the bundled certificate vendor tree).
 #
 # Usage: ./deploy.sh [output-dir]
 #   output-dir defaults to ./dist
@@ -32,6 +32,9 @@ REQUIRED_ARTIFACTS=(
 
 echo "==> Installing dependencies (npm ci)"
 npm ci
+
+echo "==> Installing PHP runtime dependencies (composer install --no-dev)"
+composer install --no-dev --optimize-autoloader --no-interaction --no-progress
 
 echo "==> Building assets (npm run build)"
 npm run build

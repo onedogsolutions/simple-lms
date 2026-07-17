@@ -18,9 +18,11 @@ core's `Relationships` and `CourseHistory` classes.
 
 - `includes/class-migration.php` — the migration engine (CPTs, progress,
   compliance history, PMPro registrations).
-- `includes/class-rest.php` — `/migration/*`, `/debug-log`, and
-  `/course-history/repair-form-ids` REST routes, plus the migration-log
-  download handler.
+- `includes/class-rest.php` — `/migration/*` and `/debug-log` REST routes,
+  plus the migration-log download handler. (`/course-history/repair-form-ids`
+  and `/course-history/purge-corrupted` stay in core — they're part of the
+  permanent compliance-table maintenance Tools screen, not one-time WP
+  Complete migration.)
 - `src/admin/components/MigrationTool.js`, `DebugLog.js` — the React admin UI
   for the Migration Tool and Debug Log submenus under SimpleLMS → in wp-admin.
 

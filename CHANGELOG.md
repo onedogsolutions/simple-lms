@@ -4,6 +4,52 @@ This file is the historical log for the Simple LMS Bridge project. The living
 state document (architecture, current status, conventions) is in
 [`STATE.md`](./STATE.md).
 
+## Stage 4 — Own the Certificate Pipeline
+
+- **Bundled renderer behind an interface:** dompdf 3.x and
+  chillerlan/php-qrcode are declared as Composer runtime dependencies and used
+  through a `SimpleLMS\Certificates\Renderer` interface. `DompdfRenderer` loads
+  the autoloader lazily and `class_exists`-guards `Dompdf\Dompdf` so a copy
+  loaded by another plugin (or a php-scoper-prefixed build) is never
+  redeclared. Swap engines via the `slms_certificate_renderer` filter.
+- **Per-course template:** new `_lms_cert_template` object meta —
+  background image (media ID), layout preset (classic/modern/minimal),
+  orientation, and per-placeholder position/size/color/align/weight for
+  `{student_name}`, `{course_title}`, `{completed_date}`, `{license_number}`,
+  `{cert_uuid}`. `Certificates\Template::build_html()` /
+  `placeholder_css()` define the anchoring model; the `CourseEditor.js` live
+  preview (`CertificateTemplate.js`) mirrors it exactly, with a wp.media
+  background picker.
+- **Native issuance:** `Certificates::check_course_completion()` calls
+  `Certificates\Issuer::issue()` — allocates a `cert_uuid`, inserts the
+  `CourseHistory` row with it, and renders/caches a branded PDF (embedded QR
+  verify code) to `wp-content/uploads/slms-certs/{uuid}.pdf` (`.htaccess deny
+  from all`, same pattern as `slms-logs`). The old `GFAPI::add_entry`
+  fields-6/18 synthesis is removed for new completions.
+- **Schema:** Upgrade step 2 adds `cert_uuid varchar(36)` + a unique key to
+  `slms_course_history` and backfills UUIDs for all existing rows, so legacy
+  certificates are verifiable too. `SLMS_DB_VERSION` bumped to 2.
+- **Native-first resolution:** `REST::get_student_history()` and the
+  `slms-student-dashboard` certificates tab check the cached native PDF first
+  (`Issuer::pdf_exists()`), falling back to the two-stage GravityPDF logic for
+  migrated rows — centralized into `Certificates::pdf_url()` (see
+  "Core/Migrator Split" below) rather than duplicated per call site.
+- **Public routes (`Certificates\Routes`):** rewrite rules
+  `GET /certificate/{uuid}/download` (streams the PDF; permission = row owner
+  OR `edit_users`; regenerates on demand; legacy redirect fallback) and
+  `GET /certificate/verify/{uuid}` (login-free verification page: student,
+  course, date, validity). Rules auto-flush via `slms_cert_rewrite_version`.
+- **Compliance export:** admin-post `slms_export_certificates` streams a CSV
+  summary or a ZIP of PDFs (rendered on demand) filtered by course/date range.
+- **Admin Tools screen (`Tools.js`, `SimpleLMS > Tools`):** compliance export
+  plus explicit `repair_form_ids()` and `purge_corrupted_records()` actions; the
+  purge is guarded by a typed `DELETE CORRUPTED` confirmation and a matching
+  `POST /course-history/purge-corrupted` endpoint that rejects any request
+  without the exact phrase (never automatic).
+- **Packaging:** `deploy.sh` now runs `composer install --no-dev
+  --optimize-autoloader` before staging so the bundled certificate
+  dependencies ship in the release zip.
+
 ## Core/Migrator Split
 
 Streamlined the plugin into a clean LMS connector by extracting one-time
@@ -12,13 +58,15 @@ data-migration machinery into a separate, deletable companion plugin.
 - **`simple-lms-migrator/` (new plugin):** the migration engine
   (`class-migration.php`), the Migration Tool and Debug Log admin
   pages/React components, and their REST routes (`/migration/*`,
-  `/debug-log`, `/course-history/repair-form-ids`) moved out of core into a
-  standalone plugin that depends on core (checks `class_exists('\SimpleLMS\
-  Relationships')` and declares `Requires Plugins: simple-lms-bridge`). It's
-  deletable once a site's historical data is fully migrated; the REST routes
-  stay under the same `simple-lms/v1` namespace so existing frontends keep
-  working. `deploy.sh` excludes it from the core zip; it's packaged/built
-  independently.
+  `/debug-log`) moved out of core into a standalone plugin that depends on
+  core (checks `class_exists('\SimpleLMS\Relationships')` and declares
+  `Requires Plugins: simple-lms-bridge`). It's deletable once a site's
+  historical data is fully migrated; the REST routes stay under the same
+  `simple-lms/v1` namespace so existing frontends keep working. `deploy.sh`
+  excludes it from the core zip; it's packaged/built independently.
+  `/course-history/repair-form-ids` and `/course-history/purge-corrupted`
+  stay in core — they're permanent compliance-table maintenance tools (the
+  Stage 4 Tools screen), not one-time WP Complete migration.
 - **Dead code removed:** `includes/class-account-dashboard.php` (the
   `[simple_lms_account]` shortcode, never loaded — superseded by the native
   `lms-account-dashboard` BB module), the orphan
@@ -33,10 +81,11 @@ data-migration machinery into a separate, deletable companion plugin.
   resolution (Stage 1: `GPDFAPI::get_entry_pdfs()` with a field 6/18 backfill
   retry; Stage 2: manual conditional-logic evaluation) that lived separately
   in `slms-student-dashboard/includes/frontend.php` and
-  `REST::get_student_history()`'s private `resolve_pdf_url()` is now one
-  helper, `Certificates::pdf_url(int $gf_entry_id, int $form_id, string
-  $raw_course, int $user_id): string`, called from both places. The
-  `/student/{id}/history` response shape (`pdf_url` key) is unchanged.
+  `REST::get_student_history()` is now one helper,
+  `Certificates::pdf_url(int $gf_entry_id, int $form_id, string $raw_course,
+  int $user_id): string`, called from both places (and from the Stage 4
+  native-first fallback path). The `/student/{id}/history` response shape
+  (`pdf_url` key, plus Stage 4's `cert_uuid`/`verify_url` keys) is unchanged.
 
 ## Stage 2 — Frontend Course Experience
 

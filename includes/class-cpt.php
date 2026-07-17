@@ -191,6 +191,20 @@ class CPT
         },
         ));
 
+        // Per-course native certificate template (background, preset, placeholders).
+        register_post_meta('slms_course', \SimpleLMS\Certificates\Template::META_KEY, array(
+            'type' => 'object',
+            'description' => 'Native certificate template configuration.',
+            'single' => true,
+            'show_in_rest' => array(
+                'schema' => \SimpleLMS\Certificates\Template::rest_schema(),
+            ),
+            'default' => \SimpleLMS\Certificates\Template::defaults(),
+            'auth_callback' => function () {
+            return current_user_can('edit_posts');
+        },
+        ));
+
         /* ── Lesson Meta ────────────────────────────────────────────── */
 
         // Lesson type: video | quiz.

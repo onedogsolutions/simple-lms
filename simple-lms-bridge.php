@@ -23,7 +23,7 @@ if (!defined('ABSPATH')) {
 /* ─── Constants ─────────────────────────────────────────────────────── */
 define('SLMS_VERSION', '1.0.0');
 // Integer schema version. Bump when adding an Upgrade step (see class-upgrade.php).
-define('SLMS_DB_VERSION', 2);
+define('SLMS_DB_VERSION', 3);
 define('SLMS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SLMS_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SLMS_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -35,6 +35,12 @@ require_once SLMS_PLUGIN_DIR . 'includes/class-metaboxes.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-pmpro.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-expiration.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-course-history.php';
+// Native certificate pipeline (dompdf-backed).
+require_once SLMS_PLUGIN_DIR . 'includes/certificates/interface-renderer.php';
+require_once SLMS_PLUGIN_DIR . 'includes/certificates/class-dompdf-renderer.php';
+require_once SLMS_PLUGIN_DIR . 'includes/certificates/class-template.php';
+require_once SLMS_PLUGIN_DIR . 'includes/certificates/class-issuer.php';
+require_once SLMS_PLUGIN_DIR . 'includes/certificates/class-routes.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-certificates.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-relationships.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-analytics.php';
@@ -62,6 +68,7 @@ function slms_init()
     MetaBoxes::init();
     Expiration::init();
     Certificates::init();
+    Certificates\Routes::init();
     Quiz::init();
     Relationships::init();
     Analytics::init();
@@ -74,6 +81,9 @@ function slms_init()
 
     // Admin Menus
     add_action('admin_menu', __NAMESPACE__ . '\\slms_admin_menu');
+
+    // Handle compliance certificate export.
+    add_action( 'admin_post_slms_export_certificates', array(__NAMESPACE__ . '\\REST', 'handle_certificate_export') );
 
     // Handle analytics CSV export.
     add_action( 'admin_post_slms_analytics_export', array(__NAMESPACE__ . '\\REST', 'handle_analytics_export') );
@@ -119,6 +129,17 @@ function slms_admin_menu()
         echo '<div class="wrap slms-admin-wrap tw-preflight"><div id="slms-admin-root"></div></div>';
     }
     );
+
+    add_submenu_page(
+        'simple-lms',
+        __('Tools', 'simple-lms-bridge'),
+        __('Tools', 'simple-lms-bridge'),
+        'manage_options',
+        'slms-tools',
+        function () {
+        echo '<div class="wrap slms-admin-wrap tw-preflight"><div id="slms-admin-root"></div></div>';
+    }
+    );
 }
 
 /* ─── Activation ─────────────────────────────────────────────────────── */
@@ -131,9 +152,13 @@ function slms_admin_menu()
 function slms_activate()
 {
     CPT::register_post_types();
-    // Run pending schema steps (creates/updates custom tables). Fresh installs and
-    // in-place updates both converge here rather than in activation-only DDL.
+    // Run pending schema steps (creates/updates custom tables, incl. the
+    // certificate cert_uuid column). Fresh installs and in-place updates both
+    // converge here rather than in activation-only DDL.
     Upgrade::run();
+    // Register + force a re-flush of the certificate rewrite rules on next load.
+    Certificates\Routes::add_rewrite_rules();
+    delete_option('slms_cert_rewrite_version');
     flush_rewrite_rules();
 }
 register_activation_hook(__FILE__, __NAMESPACE__ . '\\slms_activate');
@@ -167,10 +192,10 @@ function slms_enqueue_admin_assets($hook_suffix)
         return;
     }
 
-    // Load on our CPT edit screens and the Student Manager / Analytics pages.
+    // Load on our CPT edit screens and the Student Manager / Analytics / Tools pages.
     $is_lms_cpt = in_array($screen->post_type, array('slms_course', 'slms_lesson'), true);
     $screen_id = (string)($screen->id ?? '');
-    $is_slms_page = (strpos($screen_id, 'slms-students') !== false || strpos($screen_id, 'slms-analytics') !== false || $screen_id === 'toplevel_page_simple-lms');
+    $is_slms_page = (strpos($screen_id, 'slms-students') !== false || strpos($screen_id, 'slms-analytics') !== false || strpos($screen_id, 'slms-tools') !== false || $screen_id === 'toplevel_page_simple-lms');
 
     if (!$is_lms_cpt && !$is_slms_page) {
         return;
@@ -183,6 +208,11 @@ function slms_enqueue_admin_assets($hook_suffix)
     }
 
     $asset = require $asset_file;
+
+    // Media library for the certificate template background picker.
+    if ($is_lms_cpt) {
+        wp_enqueue_media();
+    }
 
     if ($is_slms_page) {
         wp_enqueue_style(
@@ -214,6 +244,8 @@ function slms_enqueue_admin_assets($hook_suffix)
         'postId' => get_the_ID(),
         'postType' => $screen->post_type,
         'page' => isset($_GET['page']) ? sanitize_text_field(wp_unslash($_GET['page'])) : '',
+        'adminPost' => admin_url('admin-post.php'),
+        'exportNonce' => wp_create_nonce('slms_export_certificates'),
         'analyticsExportUrl' => add_query_arg(
             array(
                 'action' => 'slms_analytics_export',
