@@ -145,7 +145,7 @@ class Template
     }
 
     /**
-     * @param string $preset Raw preset.
+     * @param mixed $preset Raw preset (untrusted meta value).
      * @return string
      */
     private static function sanitise_preset($preset): string
@@ -155,7 +155,7 @@ class Template
     }
 
     /**
-     * @param string $color Raw hex color.
+     * @param mixed $color Raw hex color (untrusted meta value).
      * @return string
      */
     private static function sanitise_color($color): string

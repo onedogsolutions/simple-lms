@@ -105,7 +105,7 @@ class Routes
     }
 
     /**
-     * @param string $raw Raw UUID from the URL.
+     * @param mixed $raw Raw UUID from the URL (query var, untrusted).
      * @return string
      */
     private static function sanitise_uuid($raw): string

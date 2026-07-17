@@ -36,6 +36,7 @@ class Issuer
          *
          * @param Renderer $renderer Default dompdf renderer.
          */
+        /** @var mixed $renderer */
         $renderer = apply_filters('slms_certificate_renderer', new DompdfRenderer());
         return $renderer instanceof Renderer ? $renderer : new DompdfRenderer();
     }
@@ -235,7 +236,7 @@ class Issuer
             return '';
         }
 
-        $autoload = SLMS_PLUGIN_DIR . 'vendor/autoload.php';
+        $autoload = dirname(__DIR__, 2) . '/vendor/autoload.php';
         if (!class_exists('\\chillerlan\\QRCode\\QRCode') && is_readable($autoload)) {
             require_once $autoload;
         }

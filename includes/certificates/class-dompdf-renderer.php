@@ -48,7 +48,7 @@ class DompdfRenderer implements Renderer
             return; // Already provided by another plugin / a prefixed build.
         }
 
-        $autoload = SLMS_PLUGIN_DIR . 'vendor/autoload.php';
+        $autoload = dirname(__DIR__, 2) . '/vendor/autoload.php';
         if (is_readable($autoload)) {
             require_once $autoload;
         }
