@@ -161,6 +161,19 @@ class CPT
         },
         ));
 
+        // Completion redirect URL (fired when the final lesson is completed).
+        register_post_meta('slms_course', '_lms_completion_redirect', array(
+            'type' => 'string',
+            'description' => 'URL to redirect the student to when the course is completed.',
+            'single' => true,
+            'show_in_rest' => true,
+            'default' => '',
+            'sanitize_callback' => 'esc_url_raw',
+            'auth_callback' => function () {
+            return current_user_can('edit_posts');
+        },
+        ));
+
         // PMPro membership level IDs that grant access.
         register_post_meta('slms_course', '_lms_pmpro_levels', array(
             'type' => 'array',
@@ -239,6 +252,60 @@ class CPT
         register_post_meta('slms_lesson', '_lms_quiz_timer', array(
             'type' => 'integer',
             'description' => 'Quiz time limit in minutes (0 = unlimited).',
+            'single' => true,
+            'show_in_rest' => true,
+            'default' => 0,
+            'sanitize_callback' => 'absint',
+            'auth_callback' => function () {
+            return current_user_can('edit_posts');
+        },
+        ));
+
+        // Quiz passing-score gate: GF field ID holding the score.
+        register_post_meta('slms_lesson', '_lms_quiz_pass_field', array(
+            'type' => 'string',
+            'description' => 'Gravity Forms field ID containing the quiz score (empty = no score gate).',
+            'single' => true,
+            'show_in_rest' => true,
+            'default' => '',
+            'sanitize_callback' => 'sanitize_text_field',
+            'auth_callback' => function () {
+            return current_user_can('edit_posts');
+        },
+        ));
+
+        // Quiz passing-score gate: minimum score required to auto-complete.
+        register_post_meta('slms_lesson', '_lms_quiz_pass_min', array(
+            'type' => 'number',
+            'description' => 'Minimum quiz score required to auto-complete the lesson.',
+            'single' => true,
+            'show_in_rest' => true,
+            'default' => 0,
+            'sanitize_callback' => function ($value) {
+                return floatval($value);
+            },
+            'auth_callback' => function () {
+            return current_user_can('edit_posts');
+        },
+        ));
+
+        // Drip delay in days after enrollment (0 = immediate).
+        register_post_meta('slms_lesson', '_lms_drip_days', array(
+            'type' => 'integer',
+            'description' => 'Days after enrollment before this lesson unlocks (0 = immediate).',
+            'single' => true,
+            'show_in_rest' => true,
+            'default' => 0,
+            'sanitize_callback' => 'absint',
+            'auth_callback' => function () {
+            return current_user_can('edit_posts');
+        },
+        ));
+
+        // Video gating: minimum percent watched before completion is allowed.
+        register_post_meta('slms_lesson', '_lms_video_gate_pct', array(
+            'type' => 'integer',
+            'description' => 'Percent of the video that must be watched before the lesson can be completed (0 = disabled).',
             'single' => true,
             'show_in_rest' => true,
             'default' => 0,

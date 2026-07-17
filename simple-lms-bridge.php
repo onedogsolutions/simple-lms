@@ -23,7 +23,7 @@ if (!defined('ABSPATH')) {
 /* ─── Constants ─────────────────────────────────────────────────────── */
 define('SLMS_VERSION', '1.0.0');
 // Integer schema version. Bump when adding an Upgrade step (see class-upgrade.php).
-define('SLMS_DB_VERSION', 2);
+define('SLMS_DB_VERSION', 3);
 define('SLMS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SLMS_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SLMS_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -45,7 +45,10 @@ require_once SLMS_PLUGIN_DIR . 'includes/class-certificates.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-migration.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-user-meta.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-relationships.php';
+require_once SLMS_PLUGIN_DIR . 'includes/class-analytics.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-upgrade.php';
+require_once SLMS_PLUGIN_DIR . 'includes/class-access.php';
+require_once SLMS_PLUGIN_DIR . 'includes/class-quiz.php';
 // The legacy [simple_lms_account] shortcode (formerly class-account-dashboard.php)
 // has been removed. The native lms-account-dashboard Beaver Builder module renders
 // the account dashboard; shortcode-based rendering of BB module content is not used.
@@ -68,8 +71,10 @@ function slms_init()
     Expiration::init();
     Certificates::init();
     Certificates\Routes::init();
+    Quiz::init();
     Migration::init();
     Relationships::init();
+    Analytics::init();
     Upgrade::init();
 
     // Conditionally boot PMPro integration.
@@ -87,6 +92,9 @@ function slms_init()
 
     // Handle compliance certificate export.
     add_action( 'admin_post_slms_export_certificates', array(__NAMESPACE__ . '\\REST', 'handle_certificate_export') );
+
+    // Handle analytics CSV export.
+    add_action( 'admin_post_slms_analytics_export', array(__NAMESPACE__ . '\\REST', 'handle_analytics_export') );
 }
 add_action('init', __NAMESPACE__ . '\\slms_init');
 
@@ -117,6 +125,17 @@ function slms_admin_menu()
         'manage_options',
         'slms-students',
         array(__NAMESPACE__ . '\\MetaBoxes', 'render_students_page')
+    );
+
+    add_submenu_page(
+        'simple-lms',
+        __('Analytics', 'simple-lms-bridge'),
+        __('Analytics', 'simple-lms-bridge'),
+        'manage_options',
+        'slms-analytics',
+        function () {
+        echo '<div class="wrap slms-admin-wrap tw-preflight"><div id="slms-admin-root"></div></div>';
+    }
     );
 
     add_submenu_page(
@@ -265,6 +284,14 @@ function slms_enqueue_admin_assets($hook_suffix)
         ),
         'adminPost' => admin_url('admin-post.php'),
         'exportNonce' => wp_create_nonce('slms_export_certificates'),
+        'analyticsExportUrl' => add_query_arg(
+            array(
+                'action' => 'slms_analytics_export',
+                '_wpnonce' => wp_create_nonce('slms_analytics_export'),
+            ),
+            admin_url('admin-post.php')
+        ),
+        'studentsUrl' => admin_url('admin.php?page=slms-students'),
     ));
 }
 add_action('admin_enqueue_scripts', __NAMESPACE__ . '\\slms_enqueue_admin_assets');
@@ -282,6 +309,10 @@ function slms_load_bb_modules()
         require_once SLMS_PLUGIN_DIR . 'includes/bb-modules/lms-content/lms-content.php';
         require_once SLMS_PLUGIN_DIR . 'includes/bb-modules/lms-outline/lms-outline.php';
         require_once SLMS_PLUGIN_DIR . 'includes/bb-modules/lms-complete-button/lms-complete-button.php';
+        require_once SLMS_PLUGIN_DIR . 'includes/bb-modules/lms-course-grid/lms-course-grid.php';
+        require_once SLMS_PLUGIN_DIR . 'includes/bb-modules/lms-my-courses/lms-my-courses.php';
+        require_once SLMS_PLUGIN_DIR . 'includes/bb-modules/lms-course-cta/lms-course-cta.php';
+        require_once SLMS_PLUGIN_DIR . 'includes/bb-modules/lms-lesson-nav/lms-lesson-nav.php';
         require_once SLMS_PLUGIN_DIR . 'includes/bb-modules/slms-student-dashboard/slms-student-dashboard.php';
     }
 }
@@ -299,6 +330,17 @@ function slms_enqueue_frontend_assets()
         SLMS_PLUGIN_URL . 'assets/css/frontend.css',
         array(),
         SLMS_VERSION
+    );
+
+    // Single consolidated frontend script (complete button, video gating,
+    // quiz timer, completion redirect). Enqueued globally so every module can
+    // rely on it regardless of placement.
+    wp_enqueue_script(
+        'slms-frontend',
+        SLMS_PLUGIN_URL . 'assets/js/frontend.js',
+        array(),
+        SLMS_VERSION,
+        true
     );
 }
 add_action('wp_enqueue_scripts', __NAMESPACE__ . '\\slms_enqueue_frontend_assets');

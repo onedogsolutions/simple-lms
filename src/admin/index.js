@@ -20,6 +20,7 @@ import StudentManager from './components/StudentManager';
 import MigrationTool from './components/MigrationTool';
 import DebugLog from './components/DebugLog';
 import Tools from './components/Tools';
+import Analytics from './components/Analytics';
 
 const mount = () => {
 	const postId = window.slmsAdmin?.postId;
@@ -50,6 +51,8 @@ const mount = () => {
 		App = <DebugLog />;
 	} else if ( page === 'slms-tools' ) {
 		App = <Tools />;
+	} else if ( page === 'slms-analytics' ) {
+		App = <Analytics />;
 	}
 
 	if ( ! App ) {

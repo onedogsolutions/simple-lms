@@ -149,11 +149,27 @@ class Certificates
 
                 do_action('slms_course_completed', $user_id, $course_id);
 
+                // Capture enrollment→completion duration for analytics before
+                // remove_course_access() wipes the enrollment timestamp.
+                $enrolled = get_user_meta($user_id, '_lms_enrolled_at', true);
+                $enrolled_ts = (is_array($enrolled) && isset($enrolled[$course_id]))
+                    ? (int) $enrolled[$course_id]
+                    : 0;
+                $history_meta = array();
+                if ($enrolled_ts > 0) {
+                    $history_meta['enrolled_at'] = $enrolled_ts;
+                    $history_meta['days_to_complete'] = round(
+                        (time() - $enrolled_ts) / DAY_IN_SECONDS,
+                        2
+                    );
+                }
+
                 // Native certificate pipeline: allocate a UUID, persist the
-                // compliance row and render/cache a branded PDF. No Gravity
-                // Forms / GravityPDF involvement for new completions.
+                // compliance row (with analytics metadata) and render/cache a
+                // branded PDF. No Gravity Forms / GravityPDF involvement for new
+                // completions.
                 if (class_exists(__NAMESPACE__ . '\\Certificates\\Issuer')) {
-                    Certificates\Issuer::issue($user_id, $course_id, $completed_at);
+                    Certificates\Issuer::issue($user_id, $course_id, $completed_at, $history_meta);
                 } elseif (class_exists(__NAMESPACE__ . '\CourseHistory')) {
                     // Defensive fallback: still record the completion.
                     CourseHistory::insert(
@@ -162,7 +178,7 @@ class Certificates
                         $completed_at,
                         null,
                         null,
-                        array(),
+                        $history_meta,
                         wp_generate_uuid4()
                     );
                 }

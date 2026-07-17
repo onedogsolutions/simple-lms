@@ -114,12 +114,16 @@ class Issuer
      * @param int    $user_id        Student user ID.
      * @param int    $course_id      Course post ID.
      * @param string $completed_date MySQL datetime of completion.
+     * @param array  $extra_meta     Extra metadata to store on the history row
+     *                               (e.g. analytics enrolled_at/days_to_complete).
      * @return array{uuid:string,history_id:int,pdf:bool}
      */
-    public static function issue(int $user_id, int $course_id, string $completed_date): array
+    public static function issue(int $user_id, int $course_id, string $completed_date, array $extra_meta = array()): array
     {
         $uuid  = wp_generate_uuid4();
         $title = get_the_title($course_id);
+
+        $meta = array_merge(array('source' => 'native'), $extra_meta);
 
         $history_id = (int) CourseHistory::insert(
             $user_id,
@@ -127,7 +131,7 @@ class Issuer
             $completed_date,
             null,   // no GF entry — native pipeline
             null,   // no GF form
-            array('source' => 'native'),
+            $meta,
             $uuid
         );
 

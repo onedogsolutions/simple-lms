@@ -50,7 +50,8 @@ class Upgrade
     {
         return array(
             1 => array(__CLASS__, 'step_1_create_tables'),
-            2 => array(__CLASS__, 'step_2_certificate_uuid'),
+            2 => array(__CLASS__, 'step_2_create_analytics_table'),
+            3 => array(__CLASS__, 'step_3_certificate_uuid'),
         );
     }
 
@@ -94,13 +95,23 @@ class Upgrade
     }
 
     /**
-     * Step 2: Add the native-certificate cert_uuid column to slms_course_history
+     * Step 2: Create the analytics daily-rollup table (Stage 3 reporting).
+     *
+     * @return void
+     */
+    public static function step_2_create_analytics_table()
+    {
+        Analytics::create_table();
+    }
+
+    /**
+     * Step 3: Add the native-certificate cert_uuid column to slms_course_history
      * and backfill UUIDs for every existing row (so legacy certificates are
      * verifiable by URL too).
      *
      * @return void
      */
-    public static function step_2_certificate_uuid()
+    public static function step_3_certificate_uuid()
     {
         CourseHistory::add_cert_uuid_column();
     }
