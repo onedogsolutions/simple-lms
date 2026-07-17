@@ -262,6 +262,32 @@ class Access
     }
 
     /**
+     * Whether a user's access to a course has expired.
+     *
+     * @param int $user_id   User ID.
+     * @param int $course_id Course ID.
+     * @return bool
+     */
+    public static function is_expired($user_id, $course_id)
+    {
+        $access_days = (int) get_post_meta($course_id, '_lms_access_days', true);
+
+        if ($access_days <= 0) {
+            return false;
+        }
+
+        $enrolled_time = self::get_enrolled_timestamp($user_id, $course_id);
+
+        if (!$enrolled_time) {
+            return false;
+        }
+
+        $expiry_time = $enrolled_time + ($access_days * DAY_IN_SECONDS);
+
+        return time() > $expiry_time;
+    }
+
+    /**
      * Get the reason a user is denied access to a lesson.
      *
      * @param int $user_id   User ID.
@@ -282,7 +308,7 @@ class Access
         }
 
         if (!self::can_view_course($user_id, $course_id)) {
-            if (class_exists(__NAMESPACE__ . '\Expiration') && Expiration::is_expired($user_id, $course_id)) {
+            if (self::is_expired($user_id, $course_id)) {
                 return 'expired';
             }
             return 'not_enrolled';
