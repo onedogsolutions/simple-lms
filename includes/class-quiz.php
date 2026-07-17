@@ -12,162 +12,159 @@
 
 namespace SimpleLMS;
 
-if (!defined('ABSPATH')) {
-    exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
 /**
  * Class Quiz
  */
-class Quiz
-{
+class Quiz {
 
-    /**
-     * Hook into WordPress / Gravity Forms.
-     *
-     * @return void
-     */
-    public static function init()
-    {
-        // Priority 5 so this runs before the certificate submission handler.
-        add_action('gform_after_submission', array(__CLASS__, 'handle_quiz_submission'), 5, 2);
-    }
 
-    /**
-     * Handle a Gravity Forms submission and auto-complete matching quiz lessons.
-     *
-     * @param array $entry The entry object.
-     * @param array $form  The form object.
-     * @return void
-     */
-    public static function handle_quiz_submission($entry, $form)
-    {
-        if (empty($form['id'])) {
-            return;
-        }
+	/**
+	 * Hook into WordPress / Gravity Forms.
+	 *
+	 * @return void
+	 */
+	public static function init() {
+		// Priority 5 so this runs before the certificate submission handler.
+		add_action( 'gform_after_submission', array( __CLASS__, 'handle_quiz_submission' ), 5, 2 );
+	}
 
-        $form_id = (int) $form['id'];
+	/**
+	 * Handle a Gravity Forms submission and auto-complete matching quiz lessons.
+	 *
+	 * @param array $entry The entry object.
+	 * @param array $form  The form object.
+	 * @return void
+	 */
+	public static function handle_quiz_submission( $entry, $form ) {
+		if ( empty( $form['id'] ) ) {
+			return;
+		}
 
-        $user_id = isset($entry['created_by']) ? (int) $entry['created_by'] : get_current_user_id();
-        if (!$user_id) {
-            return;
-        }
+		$form_id = (int) $form['id'];
 
-        $lesson_ids = self::get_quiz_lessons_for_form($form_id);
-        if (empty($lesson_ids)) {
-            return;
-        }
+		$user_id = isset( $entry['created_by'] ) ? (int) $entry['created_by'] : get_current_user_id();
+		if ( ! $user_id ) {
+			return;
+		}
 
-        foreach ($lesson_ids as $lesson_id) {
-            // Enforce optional passing-score gate.
-            if (!self::passes_score_gate($lesson_id, $entry)) {
-                continue;
-            }
+		$lesson_ids = self::get_quiz_lessons_for_form( $form_id );
+		if ( empty( $lesson_ids ) ) {
+			return;
+		}
 
-            $courses = Relationships::get_courses_for_lesson($lesson_id);
-            if (empty($courses)) {
-                continue;
-            }
+		foreach ( $lesson_ids as $lesson_id ) {
+			// Enforce optional passing-score gate.
+			if ( ! self::passes_score_gate( $lesson_id, $entry ) ) {
+				continue;
+			}
 
-            foreach ($courses as $course) {
-                $course_id = (int) $course->id;
+			$courses = Relationships::get_courses_for_lesson( $lesson_id );
+			if ( empty( $courses ) ) {
+				continue;
+			}
 
-                // Only mark complete for courses the user actually belongs to.
-                if (!Access::is_enrolled($user_id, $course_id)) {
-                    continue;
-                }
+			foreach ( $courses as $course ) {
+				$course_id = (int) $course->id;
 
-                Access::set_lesson_progress($user_id, $course_id, $lesson_id, true);
-            }
+				// Only mark complete for courses the user actually belongs to.
+				if ( ! Access::is_enrolled( $user_id, $course_id ) ) {
+					continue;
+				}
 
-            /**
-             * Fires when a quiz lesson is auto-completed via form submission.
-             *
-             * @param int   $user_id   User ID.
-             * @param int   $lesson_id Lesson ID.
-             * @param array $entry     Gravity Forms entry.
-             */
-            do_action('slms_quiz_completed', $user_id, $lesson_id, $entry);
-        }
-    }
+				Access::set_lesson_progress( $user_id, $course_id, $lesson_id, true );
+			}
 
-    /**
-     * Find quiz-type lessons whose _lms_gravity_form matches the given form.
-     *
-     * @param int $form_id Gravity Form ID.
-     * @return int[] Lesson IDs.
-     */
-    private static function get_quiz_lessons_for_form($form_id)
-    {
-        $query = new \WP_Query(array(
-            'post_type'      => 'slms_lesson',
-            'posts_per_page' => -1,
-            'post_status'    => 'publish',
-            'no_found_rows'  => true,
-            'fields'         => 'ids',
-            'meta_query'     => array(
-                'relation' => 'AND',
-                array(
-                    'key'     => '_lms_gravity_form',
-                    'value'   => $form_id,
-                    'compare' => '=',
-                ),
-                array(
-                    'key'     => '_slms_lesson_type',
-                    'value'   => 'quiz',
-                    'compare' => '=',
-                ),
-            ),
-        ));
+			/**
+			 * Fires when a quiz lesson is auto-completed via form submission.
+			 *
+			 * @param int   $user_id   User ID.
+			 * @param int   $lesson_id Lesson ID.
+			 * @param array $entry     Gravity Forms entry.
+			 */
+			do_action( 'slms_quiz_completed', $user_id, $lesson_id, $entry );
+		}
+	}
 
-        $ids = array_map('intval', $query->posts);
-        wp_reset_postdata();
+	/**
+	 * Find quiz-type lessons whose _lms_gravity_form matches the given form.
+	 *
+	 * @param int $form_id Gravity Form ID.
+	 * @return int[] Lesson IDs.
+	 */
+	private static function get_quiz_lessons_for_form( $form_id ) {
+		$query = new \WP_Query(
+			array(
+				'post_type'      => 'slms_lesson',
+				'posts_per_page' => -1,
+				'post_status'    => 'publish',
+				'no_found_rows'  => true,
+				'fields'         => 'ids',
+				'meta_query'     => array(
+					'relation' => 'AND',
+					array(
+						'key'     => '_lms_gravity_form',
+						'value'   => $form_id,
+						'compare' => '=',
+					),
+					array(
+						'key'     => '_slms_lesson_type',
+						'value'   => 'quiz',
+						'compare' => '=',
+					),
+				),
+			)
+		);
 
-        return $ids;
-    }
+		$ids = array_map( 'intval', $query->posts );
+		wp_reset_postdata();
 
-    /**
-     * Whether a submission satisfies the lesson's optional passing-score gate.
-     *
-     * When no gate is configured (_lms_quiz_pass_field empty) the submission
-     * always passes.
-     *
-     * @param int   $lesson_id Lesson ID.
-     * @param array $entry     Gravity Forms entry.
-     * @return bool
-     */
-    private static function passes_score_gate($lesson_id, $entry)
-    {
-        $pass_field = trim((string) get_post_meta($lesson_id, '_lms_quiz_pass_field', true));
+		return $ids;
+	}
 
-        if ('' === $pass_field) {
-            return true;
-        }
+	/**
+	 * Whether a submission satisfies the lesson's optional passing-score gate.
+	 *
+	 * When no gate is configured (_lms_quiz_pass_field empty) the submission
+	 * always passes.
+	 *
+	 * @param int   $lesson_id Lesson ID.
+	 * @param array $entry     Gravity Forms entry.
+	 * @return bool
+	 */
+	private static function passes_score_gate( $lesson_id, $entry ) {
+		$pass_field = trim( (string) get_post_meta( $lesson_id, '_lms_quiz_pass_field', true ) );
 
-        $min_score = (float) get_post_meta($lesson_id, '_lms_quiz_pass_min', true);
+		if ( '' === $pass_field ) {
+			return true;
+		}
 
-        // Read the score value from the entry (supports GF quiz score fields).
-        $raw_score = self::get_entry_value($entry, $pass_field);
+		$min_score = (float) get_post_meta( $lesson_id, '_lms_quiz_pass_min', true );
 
-        // Strip any non-numeric decoration (e.g. "8/10", "80%").
-        $score = is_numeric($raw_score) ? (float) $raw_score : (float) preg_replace('/[^0-9.\-]/', '', (string) $raw_score);
+		// Read the score value from the entry (supports GF quiz score fields).
+		$raw_score = self::get_entry_value( $entry, $pass_field );
 
-        return $score >= $min_score;
-    }
+		// Strip any non-numeric decoration (e.g. "8/10", "80%").
+		$score = is_numeric( $raw_score ) ? (float) $raw_score : (float) preg_replace( '/[^0-9.\-]/', '', (string) $raw_score );
 
-    /**
-     * Read a field value from a Gravity Forms entry.
-     *
-     * GF entries are plain arrays keyed by field ID string (including sub-inputs
-     * like "3.1"), so direct access is equivalent to rgar() here without taking
-     * a dependency on the Gravity Forms helper being loaded.
-     *
-     * @param array  $entry    Entry array.
-     * @param string $field_id Field ID (may include sub-inputs like "3.1").
-     * @return mixed
-     */
-    private static function get_entry_value($entry, $field_id)
-    {
-        return isset($entry[$field_id]) ? $entry[$field_id] : '';
-    }
+		return $score >= $min_score;
+	}
+
+	/**
+	 * Read a field value from a Gravity Forms entry.
+	 *
+	 * GF entries are plain arrays keyed by field ID string (including sub-inputs
+	 * like "3.1"), so direct access is equivalent to rgar() here without taking
+	 * a dependency on the Gravity Forms helper being loaded.
+	 *
+	 * @param array  $entry    Entry array.
+	 * @param string $field_id Field ID (may include sub-inputs like "3.1").
+	 * @return mixed
+	 */
+	private static function get_entry_value( $entry, $field_id ) {
+		return isset( $entry[ $field_id ] ) ? $entry[ $field_id ] : '';
+	}
 }

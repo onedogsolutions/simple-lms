@@ -9,8 +9,8 @@
 
 namespace SimpleLMS;
 
-if (!defined('ABSPATH')) {
-    exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
 /**
@@ -18,317 +18,312 @@ if (!defined('ABSPATH')) {
  *
  * Hooks into Gravity Forms to handle certificate generation.
  */
-class Certificates
-{
-
-    /**
-     * Hook into WordPress.
-     *
-     * @return void
-     */
-    public static function init()
-    {
-        // Hook into Gravity Forms after submission.
-        add_action('gform_after_submission', array(__CLASS__, 'handle_certificate_submission'), 10, 2);
-    }
-
-    /**
-     * Handle certificate form submission.
-     *
-     * @param array $entry The entry object.
-     * @param array $form  The form object.
-     * @return void
-     */
-    public static function handle_certificate_submission($entry, $form)
-    {
-        $user_id = isset($entry['created_by']) ? (int)$entry['created_by'] : get_current_user_id();
-
-        if (!$user_id) {
-            return;
-        }
-
-        $form_id = (int)$form['id'];
-
-        // Find courses that use this form for certificates.
-        $query = new \WP_Query(array(
-            'post_type' => 'slms_course',
-            'posts_per_page' => -1,
-            'meta_query' => array(
-                    array(
-                    'key' => '_lms_certificate_form',
-                    'value' => $form_id,
-                    'compare' => '=',
-                ),
-            ),
-            'fields' => 'ids',
-        ));
-
-        if (!$query->have_posts()) {
-            return;
-        }
-
-        foreach ($query->posts as $course_id) {
-            self::remove_course_access($user_id, $course_id);
-        }
-
-        wp_reset_postdata();
-    }
-
-    /**
-     * Remove a user's access to a course and clear progress.
-     *
-     * @param int $user_id   User ID.
-     * @param int $course_id Course post ID.
-     * @return void
-     */
-    private static function remove_course_access($user_id, $course_id)
-    {
-        // Use the PMPro class helpers if available since they already handle this
-        // logic cleanly — de_enroll_user() removes only the course's mapped PMPro
-        // level when it matches the user's current level, clears progress, and
-        // clears the enrollment timestamp.
-        if (class_exists(__NAMESPACE__ . '\PMPro')) {
-            PMPro::de_enroll_user($user_id, $course_id);
-        }
-        else {
-            // Fallback if PMPro class is missing (should not happen in this plugin).
-            $progress = get_user_meta($user_id, '_lms_progress', true);
-            if (is_array($progress) && isset($progress[$course_id])) {
-                unset($progress[$course_id]);
-                update_user_meta($user_id, '_lms_progress', $progress);
-            }
-
-            $enrolled = get_user_meta($user_id, '_lms_enrolled_at', true);
-            if (is_array($enrolled) && isset($enrolled[$course_id])) {
-                unset($enrolled[$course_id]);
-                update_user_meta($user_id, '_lms_enrolled_at', $enrolled);
-            }
-        }
+class Certificates {
 
 
-        // Trigger action for others to hook into.
-        do_action('slms_certificate_generated', $user_id, $course_id);
-    }
+	/**
+	 * Hook into WordPress.
+	 *
+	 * @return void
+	 */
+	public static function init() {
+		// Hook into Gravity Forms after submission.
+		add_action( 'gform_after_submission', array( __CLASS__, 'handle_certificate_submission' ), 10, 2 );
+	}
 
-    /**
-     * Check if a course is completed and handle certificate automation.
-     *
-     * @param int $user_id   User ID.
-     * @param int $course_id Course post ID.
-     * @return void
-     */
-    public static function check_course_completion($user_id, $course_id)
-    {
-        $lesson_ids = get_post_meta($course_id, '_simple_lms_order', true);
-        if (!is_array($lesson_ids) || empty($lesson_ids)) {
-            return;
-        }
+	/**
+	 * Handle certificate form submission.
+	 *
+	 * @param array $entry The entry object.
+	 * @param array $form  The form object.
+	 * @return void
+	 */
+	public static function handle_certificate_submission( $entry, $form ) {
+		$user_id = isset( $entry['created_by'] ) ? (int) $entry['created_by'] : get_current_user_id();
 
-        $progress = get_user_meta($user_id, '_lms_progress', true);
-        $course_progress = isset($progress[$course_id]) ? $progress[$course_id] : array();
+		if ( ! $user_id ) {
+			return;
+		}
 
-        $all_done = true;
-        foreach ($lesson_ids as $lesson_id) {
-            if (!isset($course_progress[$lesson_id])) {
-                $all_done = false;
-                break;
-            }
-        }
+		$form_id = (int) $form['id'];
 
-        if ($all_done) {
-            // Check if we've already handled completion for this course.
-            $completion_recorded = get_user_meta($user_id, '_lms_completed_at', true);
-            if (!is_array($completion_recorded)) {
-                $completion_recorded = array();
-            }
+		// Find courses that use this form for certificates.
+		$query = new \WP_Query(
+			array(
+				'post_type'      => 'slms_course',
+				'posts_per_page' => -1,
+				'meta_query'     => array(
+					array(
+						'key'     => '_lms_certificate_form',
+						'value'   => $form_id,
+						'compare' => '=',
+					),
+				),
+				'fields'         => 'ids',
+			)
+		);
 
-            if (!isset($completion_recorded[$course_id])) {
-                $completed_at = current_time('mysql');
-                $completion_recorded[$course_id] = time();
-                update_user_meta($user_id, '_lms_completed_at', $completion_recorded);
+		if ( ! $query->have_posts() ) {
+			return;
+		}
 
-                do_action('slms_course_completed', $user_id, $course_id);
+		foreach ( $query->posts as $course_id ) {
+			self::remove_course_access( $user_id, $course_id );
+		}
 
-                // Capture enrollment→completion duration for analytics before
-                // remove_course_access() wipes the enrollment timestamp.
-                $enrolled = get_user_meta($user_id, '_lms_enrolled_at', true);
-                $enrolled_ts = (is_array($enrolled) && isset($enrolled[$course_id]))
-                    ? (int) $enrolled[$course_id]
-                    : 0;
-                $history_meta = array();
-                if ($enrolled_ts > 0) {
-                    $history_meta['enrolled_at'] = $enrolled_ts;
-                    $history_meta['days_to_complete'] = round(
-                        (time() - $enrolled_ts) / DAY_IN_SECONDS,
-                        2
-                    );
-                }
+		wp_reset_postdata();
+	}
 
-                // Native certificate pipeline: allocate a UUID, persist the
-                // compliance row (with analytics metadata) and render/cache a
-                // branded PDF. No Gravity Forms / GravityPDF involvement for new
-                // completions.
-                if (class_exists(__NAMESPACE__ . '\\Certificates\\Issuer')) {
-                    Certificates\Issuer::issue($user_id, $course_id, $completed_at, $history_meta);
-                } elseif (class_exists(__NAMESPACE__ . '\CourseHistory')) {
-                    // Defensive fallback: still record the completion.
-                    CourseHistory::insert(
-                        $user_id,
-                        get_the_title($course_id),
-                        $completed_at,
-                        null,
-                        null,
-                        $history_meta,
-                        wp_generate_uuid4()
-                    );
-                }
+	/**
+	 * Remove a user's access to a course and clear progress.
+	 *
+	 * @param int $user_id   User ID.
+	 * @param int $course_id Course post ID.
+	 * @return void
+	 */
+	private static function remove_course_access( $user_id, $course_id ) {
+		// Use the PMPro class helpers if available since they already handle this
+		// logic cleanly — de_enroll_user() removes only the course's mapped PMPro
+		// level when it matches the user's current level, clears progress, and
+		// clears the enrollment timestamp.
+		if ( class_exists( __NAMESPACE__ . '\PMPro' ) ) {
+			PMPro::de_enroll_user( $user_id, $course_id );
+		} else {
+			// Fallback if PMPro class is missing (should not happen in this plugin).
+			$progress = get_user_meta( $user_id, '_lms_progress', true );
+			if ( is_array( $progress ) && isset( $progress[ $course_id ] ) ) {
+				unset( $progress[ $course_id ] );
+				update_user_meta( $user_id, '_lms_progress', $progress );
+			}
 
-                // Revoke access automatically upon completion (if configured or standard behavior).
-                self::remove_course_access($user_id, $course_id);
-            }
-        }
-    }
+			$enrolled = get_user_meta( $user_id, '_lms_enrolled_at', true );
+			if ( is_array( $enrolled ) && isset( $enrolled[ $course_id ] ) ) {
+				unset( $enrolled[ $course_id ] );
+				update_user_meta( $user_id, '_lms_enrolled_at', $enrolled );
+			}
+		}
 
-    /**
-     * Resolve a GravityPDF download URL for a completion/compliance history row.
-     *
-     * Two-stage:
-     *  1. GPDFAPI::get_entry_pdfs() evaluates conditional logic against the GF
-     *     entry's actual field values. If it comes back empty, the entry is
-     *     likely missing field 6 (State) and/or field 18 (Course URL) — common
-     *     for entries migrated from the legacy system — so those fields are
-     *     backfilled from billing_state user meta and $raw_course via
-     *     GFAPI::update_entry_field(), then Stage 1 is retried.
-     *  2. If Stage 1 still comes back empty, manually evaluate each PDF
-     *     template's conditionalLogic using the same field 6 / field 18 values
-     *     (stripos + sanitize_title slug comparison, with a last-path-segment
-     *     fallback). This stage exists only because migrated GF entries lacked
-     *     fields 6/18; once the migrator backfills those fields for all
-     *     historical entries, Stage 2 can be removed. Do not remove it until
-     *     that backfill has run.
-     *
-     * @param int    $gf_entry_id GF entry ID stored in the history row.
-     * @param int    $form_id     GF form ID stored in the history row.
-     * @param string $raw_course  Best-known course URL or title (raw stored
-     *                            value, or a resolved permalink if the caller
-     *                            has one) — used both for the field 18 backfill
-     *                            and for the Stage 2 slug match.
-     * @param int    $user_id     Student user ID (for billing_state lookup).
-     * @return string Download URL or empty string.
-     */
-    public static function pdf_url(int $gf_entry_id, int $form_id, string $raw_course, int $user_id): string
-    {
-        if (!$gf_entry_id || !$form_id || !class_exists('GPDFAPI')) {
-            return '';
-        }
+		// Trigger action for others to hook into.
+		do_action( 'slms_certificate_generated', $user_id, $course_id );
+	}
 
-        $student_state = (string) get_user_meta($user_id, 'billing_state', true);
+	/**
+	 * Check if a course is completed and handle certificate automation.
+	 *
+	 * @param int $user_id   User ID.
+	 * @param int $course_id Course post ID.
+	 * @return void
+	 */
+	public static function check_course_completion( $user_id, $course_id ) {
+		$lesson_ids = get_post_meta( $course_id, '_simple_lms_order', true );
+		if ( ! is_array( $lesson_ids ) || empty( $lesson_ids ) ) {
+			return;
+		}
 
-        // ── Stage 1: get_entry_pdfs() ────────────────────────────────────────
-        $entry_pdfs = \GPDFAPI::get_entry_pdfs($gf_entry_id);
+		$progress        = get_user_meta( $user_id, '_lms_progress', true );
+		$course_progress = isset( $progress[ $course_id ] ) ? $progress[ $course_id ] : array();
 
-        // When Stage 1 returns empty the GF entry is likely missing field 6
-        // (State) and/or field 18 (Course URL). Backfill those fields so
-        // GravityPDF's server-side conditional check passes, then retry.
-        if (!is_wp_error($entry_pdfs) && empty($entry_pdfs) && class_exists('GFAPI')) {
-            $entry = \GFAPI::get_entry($gf_entry_id);
-            if (!is_wp_error($entry)) {
-                $backfilled = false;
-                if ($student_state) {
-                    \GFAPI::update_entry_field($gf_entry_id, 6, $student_state);
-                    $backfilled = true;
-                }
-                if ($raw_course && empty($entry['18'])) {
-                    \GFAPI::update_entry_field($gf_entry_id, 18, $raw_course);
-                    $backfilled = true;
-                }
-                if ($backfilled) {
-                    $entry_pdfs = \GPDFAPI::get_entry_pdfs($gf_entry_id);
-                }
-            }
-        }
+		$all_done = true;
+		foreach ( $lesson_ids as $lesson_id ) {
+			if ( ! isset( $course_progress[ $lesson_id ] ) ) {
+				$all_done = false;
+				break;
+			}
+		}
 
-        if (!is_wp_error($entry_pdfs) && !empty($entry_pdfs)) {
-            $hash_id = array_key_first($entry_pdfs);
-            return home_url('/pdf/' . $hash_id . '/' . $gf_entry_id . '/download/');
-        }
+		if ( $all_done ) {
+			// Check if we've already handled completion for this course.
+			$completion_recorded = get_user_meta( $user_id, '_lms_completed_at', true );
+			if ( ! is_array( $completion_recorded ) ) {
+				$completion_recorded = array();
+			}
 
-        // ── Stage 2: Manual conditional logic evaluation ─────────────────────
-        $all_pdfs = \GPDFAPI::get_form_pdfs($form_id);
-        if (is_wp_error($all_pdfs) || empty($all_pdfs)) {
-            return '';
-        }
+			if ( ! isset( $completion_recorded[ $course_id ] ) ) {
+				$completed_at                      = current_time( 'mysql' );
+				$completion_recorded[ $course_id ] = time();
+				update_user_meta( $user_id, '_lms_completed_at', $completion_recorded );
 
-        foreach ($all_pdfs as $id => $pdf_config) {
-            if (empty($pdf_config['active'])) {
-                continue;
-            }
+				do_action( 'slms_course_completed', $user_id, $course_id );
 
-            $logic = !empty($pdf_config['conditionalLogic']) ? $pdf_config['conditionalLogic'] : array();
+				// Capture enrollment→completion duration for analytics before
+				// remove_course_access() wipes the enrollment timestamp.
+				$enrolled     = get_user_meta( $user_id, '_lms_enrolled_at', true );
+				$enrolled_ts  = ( is_array( $enrolled ) && isset( $enrolled[ $course_id ] ) )
+					? (int) $enrolled[ $course_id ]
+					: 0;
+				$history_meta = array();
+				if ( $enrolled_ts > 0 ) {
+					$history_meta['enrolled_at']      = $enrolled_ts;
+					$history_meta['days_to_complete'] = round(
+						( time() - $enrolled_ts ) / DAY_IN_SECONDS,
+						2
+					);
+				}
 
-            if (empty($logic['rules'])) {
-                return home_url('/pdf/' . $id . '/' . $gf_entry_id . '/download/');
-            }
+				// Native certificate pipeline: allocate a UUID, persist the
+				// compliance row (with analytics metadata) and render/cache a
+				// branded PDF. No Gravity Forms / GravityPDF involvement for new
+				// completions.
+				if ( class_exists( __NAMESPACE__ . '\\Certificates\\Issuer' ) ) {
+					Certificates\Issuer::issue( $user_id, $course_id, $completed_at, $history_meta );
+				} elseif ( class_exists( __NAMESPACE__ . '\CourseHistory' ) ) {
+					// Defensive fallback: still record the completion.
+					CourseHistory::insert(
+						$user_id,
+						get_the_title( $course_id ),
+						$completed_at,
+						null,
+						null,
+						$history_meta,
+						wp_generate_uuid4()
+					);
+				}
 
-            $logic_type   = isset($logic['logicType']) ? $logic['logicType'] : 'all';
-            $rule_results = array();
+				// Revoke access automatically upon completion (if configured or standard behavior).
+				self::remove_course_access( $user_id, $course_id );
+			}
+		}
+	}
 
-            foreach ($logic['rules'] as $rule) {
-                $fid = (string)(isset($rule['fieldId']) ? $rule['fieldId'] : '');
-                $op  = isset($rule['operator']) ? $rule['operator'] : 'is';
-                $val = isset($rule['value']) ? $rule['value'] : '';
+	/**
+	 * Resolve a GravityPDF download URL for a completion/compliance history row.
+	 *
+	 * Two-stage:
+	 *  1. GPDFAPI::get_entry_pdfs() evaluates conditional logic against the GF
+	 *     entry's actual field values. If it comes back empty, the entry is
+	 *     likely missing field 6 (State) and/or field 18 (Course URL) — common
+	 *     for entries migrated from the legacy system — so those fields are
+	 *     backfilled from billing_state user meta and $raw_course via
+	 *     GFAPI::update_entry_field(), then Stage 1 is retried.
+	 *  2. If Stage 1 still comes back empty, manually evaluate each PDF
+	 *     template's conditionalLogic using the same field 6 / field 18 values
+	 *     (stripos + sanitize_title slug comparison, with a last-path-segment
+	 *     fallback). This stage exists only because migrated GF entries lacked
+	 *     fields 6/18; once the migrator backfills those fields for all
+	 *     historical entries, Stage 2 can be removed. Do not remove it until
+	 *     that backfill has run.
+	 *
+	 * @param int    $gf_entry_id GF entry ID stored in the history row.
+	 * @param int    $form_id     GF form ID stored in the history row.
+	 * @param string $raw_course  Best-known course URL or title (raw stored
+	 *                            value, or a resolved permalink if the caller
+	 *                            has one) — used both for the field 18 backfill
+	 *                            and for the Stage 2 slug match.
+	 * @param int    $user_id     Student user ID (for billing_state lookup).
+	 * @return string Download URL or empty string.
+	 */
+	public static function pdf_url( int $gf_entry_id, int $form_id, string $raw_course, int $user_id ): string {
+		if ( ! $gf_entry_id || ! $form_id || ! class_exists( 'GPDFAPI' ) ) {
+			return '';
+		}
 
-                if ('6' === $fid) {
-                    $match = ('is' === $op)
-                        ? ($student_state === $val)
-                        : ($student_state !== $val);
-                } elseif ('18' === $fid) {
-                    $cond_path  = (string) parse_url($val, PHP_URL_PATH);
-                    $cond_parts = array_values(array_filter(explode('/', trim($cond_path, '/'))));
-                    $cidx        = array_search('course', $cond_parts, true);
-                    // Use segment after "course/" if present; fall back to last segment.
-                    $course_slug = ($cidx !== false && isset($cond_parts[$cidx + 1]))
-                        ? $cond_parts[$cidx + 1]
-                        : (!empty($cond_parts) ? end($cond_parts) : '');
+		$student_state = (string) get_user_meta( $user_id, 'billing_state', true );
 
-                    if ($course_slug !== '') {
-                        // Case-insensitive match against the stored course value.
-                        $match = stripos($raw_course, $course_slug) !== false;
-                        // Also compare via a title-slug conversion (handles plain-text course_name).
-                        if (!$match) {
-                            $title_slug = sanitize_title($raw_course);
-                            $match = $title_slug !== '' && (
-                                stripos($title_slug, $course_slug) !== false ||
-                                stripos($course_slug, $title_slug) !== false
-                            );
-                        }
-                    } else {
-                        $match = false;
-                    }
+		// ── Stage 1: get_entry_pdfs() ────────────────────────────────────────
+		$entry_pdfs = \GPDFAPI::get_entry_pdfs( $gf_entry_id );
 
-                    if ('isnot' === $op) {
-                        $match = !$match;
-                    }
-                } else {
-                    continue;
-                }
+		// When Stage 1 returns empty the GF entry is likely missing field 6
+		// (State) and/or field 18 (Course URL). Backfill those fields so
+		// GravityPDF's server-side conditional check passes, then retry.
+		if ( ! is_wp_error( $entry_pdfs ) && empty( $entry_pdfs ) && class_exists( 'GFAPI' ) ) {
+			$entry = \GFAPI::get_entry( $gf_entry_id );
+			if ( ! is_wp_error( $entry ) ) {
+				$backfilled = false;
+				if ( $student_state ) {
+					\GFAPI::update_entry_field( $gf_entry_id, 6, $student_state );
+					$backfilled = true;
+				}
+				if ( $raw_course && empty( $entry['18'] ) ) {
+					\GFAPI::update_entry_field( $gf_entry_id, 18, $raw_course );
+					$backfilled = true;
+				}
+				if ( $backfilled ) {
+					$entry_pdfs = \GPDFAPI::get_entry_pdfs( $gf_entry_id );
+				}
+			}
+		}
 
-                $rule_results[] = $match;
-            }
+		if ( ! is_wp_error( $entry_pdfs ) && ! empty( $entry_pdfs ) ) {
+			$hash_id = array_key_first( $entry_pdfs );
+			return home_url( '/pdf/' . $hash_id . '/' . $gf_entry_id . '/download/' );
+		}
 
-            if (empty($rule_results)) {
-                continue;
-            }
+		// ── Stage 2: Manual conditional logic evaluation ─────────────────────
+		$all_pdfs = \GPDFAPI::get_form_pdfs( $form_id );
+		if ( is_wp_error( $all_pdfs ) || empty( $all_pdfs ) ) {
+			return '';
+		}
 
-            $passes = ('any' === $logic_type)
-                ? in_array(true, $rule_results, true)
-                : !in_array(false, $rule_results, true);
+		foreach ( $all_pdfs as $id => $pdf_config ) {
+			if ( empty( $pdf_config['active'] ) ) {
+				continue;
+			}
 
-            if ($passes) {
-                return home_url('/pdf/' . $id . '/' . $gf_entry_id . '/download/');
-            }
-        }
+			$logic = ! empty( $pdf_config['conditionalLogic'] ) ? $pdf_config['conditionalLogic'] : array();
 
-        return '';
-    }
+			if ( empty( $logic['rules'] ) ) {
+				return home_url( '/pdf/' . $id . '/' . $gf_entry_id . '/download/' );
+			}
+
+			$logic_type   = isset( $logic['logicType'] ) ? $logic['logicType'] : 'all';
+			$rule_results = array();
+
+			foreach ( $logic['rules'] as $rule ) {
+				$fid = (string) ( isset( $rule['fieldId'] ) ? $rule['fieldId'] : '' );
+				$op  = isset( $rule['operator'] ) ? $rule['operator'] : 'is';
+				$val = isset( $rule['value'] ) ? $rule['value'] : '';
+
+				if ( '6' === $fid ) {
+					$match = ( 'is' === $op )
+						? ( $student_state === $val )
+						: ( $student_state !== $val );
+				} elseif ( '18' === $fid ) {
+					$cond_path  = (string) parse_url( $val, PHP_URL_PATH );
+					$cond_parts = array_values( array_filter( explode( '/', trim( $cond_path, '/' ) ) ) );
+					$cidx       = array_search( 'course', $cond_parts, true );
+					// Use segment after "course/" if present; fall back to last segment.
+					$course_slug = ( $cidx !== false && isset( $cond_parts[ $cidx + 1 ] ) )
+						? $cond_parts[ $cidx + 1 ]
+						: ( ! empty( $cond_parts ) ? end( $cond_parts ) : '' );
+
+					if ( $course_slug !== '' ) {
+						// Case-insensitive match against the stored course value.
+						$match = stripos( $raw_course, $course_slug ) !== false;
+						// Also compare via a title-slug conversion (handles plain-text course_name).
+						if ( ! $match ) {
+							$title_slug = sanitize_title( $raw_course );
+							$match      = $title_slug !== '' && (
+								stripos( $title_slug, $course_slug ) !== false ||
+								stripos( $course_slug, $title_slug ) !== false
+							);
+						}
+					} else {
+						$match = false;
+					}
+
+					if ( 'isnot' === $op ) {
+						$match = ! $match;
+					}
+				} else {
+					continue;
+				}
+
+				$rule_results[] = $match;
+			}
+
+			if ( empty( $rule_results ) ) {
+				continue;
+			}
+
+			$passes = ( 'any' === $logic_type )
+				? in_array( true, $rule_results, true )
+				: ! in_array( false, $rule_results, true );
+
+			if ( $passes ) {
+				return home_url( '/pdf/' . $id . '/' . $gf_entry_id . '/download/' );
+			}
+		}
+
+		return '';
+	}
 }

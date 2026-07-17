@@ -7,8 +7,8 @@
 
 namespace SimpleLMS;
 
-if (!defined('ABSPATH')) {
-    exit;
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
 }
 
 /**
@@ -16,96 +16,91 @@ if (!defined('ABSPATH')) {
  *
  * Registers meta boxes on Course/Lesson edit screens and the Student Manager admin page.
  */
-class MetaBoxes
-{
+class MetaBoxes {
 
-    /**
-     * Hook into WordPress.
-     *
-     * @return void
-     */
-    public static function init()
-    {
-        add_action('add_meta_boxes', array(__CLASS__, 'register_meta_boxes'));
-    }
 
-    /* ───────────────────────────────────────────────────────────────────
-     * Meta Boxes
-     * ─────────────────────────────────────────────────────────────────── */
+	/**
+	 * Hook into WordPress.
+	 *
+	 * @return void
+	 */
+	public static function init() {
+		add_action( 'add_meta_boxes', array( __CLASS__, 'register_meta_boxes' ) );
+	}
 
-    /**
-     * Register meta boxes for Course and Lesson CPTs.
-     *
-     * @return void
-     */
-    public static function register_meta_boxes()
-    {
+	/* ───────────────────────────────────────────────────────────────────
+	 * Meta Boxes
+	 * ─────────────────────────────────────────────────────────────────── */
 
-        // Course Editor — Lesson Sorter & Settings.
-        add_meta_box(
-            'slms_course_editor',
-            __('Course Settings', 'simple-lms-bridge'),
-            array(__CLASS__, 'render_react_root'),
-            'slms_course',
-            'normal',
-            'high'
-        );
+	/**
+	 * Register meta boxes for Course and Lesson CPTs.
+	 *
+	 * @return void
+	 */
+	public static function register_meta_boxes() {
 
-        // Lesson Settings — Type, Video, Quiz, Timer.
-        add_meta_box(
-            'slms_lesson_settings',
-            __('Lesson Settings', 'simple-lms-bridge'),
-            array(__CLASS__, 'render_react_root'),
-            'slms_lesson',
-            'normal',
-            'high'
-        );
-    }
+		// Course Editor — Lesson Sorter & Settings.
+		add_meta_box(
+			'slms_course_editor',
+			__( 'Course Settings', 'simple-lms-bridge' ),
+			array( __CLASS__, 'render_react_root' ),
+			'slms_course',
+			'normal',
+			'high'
+		);
 
-    /**
-     * Render the React mount point.
-     *
-     * Both meta boxes share the same root div; the React app decides
-     * what to render based on slmsAdmin.postType.
-     *
-     * @param \WP_Post $post Current post object.
-     * @return void
-     */
-    public static function render_react_root($post)
-    {
-        echo '<div id="slms-admin-root"></div>';
-    }
+		// Lesson Settings — Type, Video, Quiz, Timer.
+		add_meta_box(
+			'slms_lesson_settings',
+			__( 'Lesson Settings', 'simple-lms-bridge' ),
+			array( __CLASS__, 'render_react_root' ),
+			'slms_lesson',
+			'normal',
+			'high'
+		);
+	}
 
-    /* ───────────────────────────────────────────────────────────────────
-     * Admin Pages
-     * ─────────────────────────────────────────────────────────────────── */
+	/**
+	 * Render the React mount point.
+	 *
+	 * Both meta boxes share the same root div; the React app decides
+	 * what to render based on slmsAdmin.postType.
+	 *
+	 * @param \WP_Post $post Current post object.
+	 * @return void
+	 */
+	public static function render_react_root( $post ) {
+		echo '<div id="slms-admin-root"></div>';
+	}
 
-    /**
-     * Register the Student Manager admin page.
-     *
-     * @return void
-     */
-    public static function register_admin_pages()
-    {
-        add_submenu_page(
-            'simple-lms',
-            __('Student Manager', 'simple-lms-bridge'),
-            __('Students', 'simple-lms-bridge'),
-            'edit_users',
-            'slms-students',
-            array(__CLASS__, 'render_students_page')
-        );
-    }
+	/* ───────────────────────────────────────────────────────────────────
+	 * Admin Pages
+	 * ─────────────────────────────────────────────────────────────────── */
 
-    /**
-     * Render the Student Manager page shell.
-     *
-     * @return void
-     */
-    public static function render_students_page()
-    {
-        echo '<div class="wrap slms-admin-wrap">';
-        echo '<div id="slms-admin-root" class="bg-white rounded-xl shadow-md p-8 border border-gray-200"></div>';
-        echo '</div>';
-    }
+	/**
+	 * Register the Student Manager admin page.
+	 *
+	 * @return void
+	 */
+	public static function register_admin_pages() {
+		add_submenu_page(
+			'simple-lms',
+			__( 'Student Manager', 'simple-lms-bridge' ),
+			__( 'Students', 'simple-lms-bridge' ),
+			'edit_users',
+			'slms-students',
+			array( __CLASS__, 'render_students_page' )
+		);
+	}
+
+	/**
+	 * Render the Student Manager page shell.
+	 *
+	 * @return void
+	 */
+	public static function render_students_page() {
+		echo '<div class="wrap slms-admin-wrap">';
+		echo '<div id="slms-admin-root" class="bg-white rounded-xl shadow-md p-8 border border-gray-200"></div>';
+		echo '</div>';
+	}
 }
