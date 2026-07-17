@@ -34,7 +34,7 @@ echo "==> Installing dependencies (npm ci)"
 npm ci
 
 echo "==> Installing PHP runtime dependencies (composer install --no-dev)"
-composer install --no-dev --optimize-autoloader --no-interaction --no-progress
+composer install --no-dev --optimize-autoloader --no-interaction --no-progress --prefer-dist
 
 echo "==> Building assets (npm run build)"
 npm run build
@@ -58,25 +58,93 @@ echo "==> Staging plugin into ${STAGE_DIR}"
 rm -rf "$OUTPUT_DIR"
 mkdir -p "$STAGE_DIR"
 
-# Copy the plugin, excluding development/source and VCS files.
-rsync -a \
-    --exclude='.git' \
-    --exclude='.git*' \
-    --exclude='.github' \
-    --exclude='node_modules' \
-    --exclude='src' \
-    --exclude='dist' \
-    --exclude='simple-lms-migrator' \
-    --exclude='*.md' \
-    --exclude='*.zip' \
-    --exclude='*.log' \
-    --exclude='deploy.sh' \
-    --exclude='package-lock.json' \
-    --exclude='phpcs.xml*' \
-    --exclude='phpstan.neon*' \
-    ./ "$STAGE_DIR/"
+if command -v rsync >/dev/null 2>&1; then
+    echo "==> Staging core plugin via rsync"
+    rsync -a \
+        --exclude='.git' \
+        --exclude='.git*' \
+        --exclude='.github' \
+        --exclude='node_modules' \
+        --exclude='src' \
+        --exclude='dist' \
+        --exclude='simple-lms-migrator' \
+        --exclude='*.md' \
+        --exclude='*.zip' \
+        --exclude='*.log' \
+        --exclude='deploy.sh' \
+        --exclude='package-lock.json' \
+        --exclude='phpcs.xml*' \
+        --exclude='phpstan.neon*' \
+        ./ "$STAGE_DIR/"
+else
+    echo "==> rsync not found; staging core plugin via tar fallback"
+    tar --exclude='.git' \
+        --exclude='.git*' \
+        --exclude='.github' \
+        --exclude='node_modules' \
+        --exclude='src' \
+        --exclude='dist' \
+        --exclude='simple-lms-migrator' \
+        --exclude='*.md' \
+        --exclude='*.zip' \
+        --exclude='*.log' \
+        --exclude='deploy.sh' \
+        --exclude='package-lock.json' \
+        --exclude='phpcs.xml*' \
+        --exclude='phpstan.neon*' \
+        -cf - . | (cd "$STAGE_DIR" && tar -xf -)
+fi
+
+if [[ -d "${STAGE_DIR}/vendor" ]]; then
+    echo "==> Pruning vendor cruft from stage"
+    find "${STAGE_DIR}/vendor" -type d \( -name .git -o -name tests -o -name Tests -o -name docs -o -name examples -o -name .github \) -prune -exec rm -rf {} +
+fi
 
 echo "==> Creating zip ${ZIP_PATH}"
 ( cd "$OUTPUT_DIR" && zip -r -q "${SLUG}.zip" "$SLUG" )
+rm -rf "$STAGE_DIR"
 
-echo "==> Done: ${ZIP_PATH}"
+ZIP_SIZE=$(wc -c < "${ZIP_PATH}")
+MAX_SIZE=$((10 * 1024 * 1024)) # 10MB
+if [[ "$ZIP_SIZE" -gt "$MAX_SIZE" ]]; then
+    echo "ERROR: Final zip ${ZIP_PATH} exceeds 10MB limit (size: $((ZIP_SIZE / 1024 / 1024))MB). Aborting." >&2
+    exit 1
+else
+    echo "==> Size guard passed: ${ZIP_PATH} is $((ZIP_SIZE / 1024))KB"
+fi
+
+MIGRATOR_SLUG="simple-lms-migrator"
+MIGRATOR_STAGE_DIR="${OUTPUT_DIR}/${MIGRATOR_SLUG}"
+MIGRATOR_ZIP_PATH="${OUTPUT_DIR}/${MIGRATOR_SLUG}.zip"
+
+if [[ -d "simple-lms-migrator" ]]; then
+    echo "==> Building simple-lms-migrator assets"
+    ( cd simple-lms-migrator && npm ci && npm run build )
+
+    echo "==> Staging simple-lms-migrator"
+    mkdir -p "$MIGRATOR_STAGE_DIR"
+
+    if command -v rsync >/dev/null 2>&1; then
+        rsync -a \
+            --exclude='.git' \
+            --exclude='.git*' \
+            --exclude='node_modules' \
+            --exclude='src' \
+            --exclude='package-lock.json' \
+            ./simple-lms-migrator/ "$MIGRATOR_STAGE_DIR/"
+    else
+        tar --exclude='.git' \
+            --exclude='.git*' \
+            --exclude='node_modules' \
+            --exclude='src' \
+            --exclude='package-lock.json' \
+            -cf - -C ./simple-lms-migrator . | (cd "$MIGRATOR_STAGE_DIR" && tar -xf -)
+    fi
+
+    echo "==> Creating simple-lms-migrator zip"
+    ( cd "$OUTPUT_DIR" && zip -r -q "${MIGRATOR_SLUG}.zip" "$MIGRATOR_SLUG" )
+    rm -rf "$MIGRATOR_STAGE_DIR"
+    echo "==> Done: ${MIGRATOR_ZIP_PATH}"
+fi
+
+echo "==> All plugins packaged successfully"

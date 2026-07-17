@@ -24,11 +24,15 @@ jobs:
       - name: Build and package plugin zip
         run: ./deploy.sh dist
 
-      - name: Verify zip exists
-        run: test -f dist/simple-lms-bridge.zip
+      - name: Verify zips exist
+        run: |
+          test -f dist/simple-lms-bridge.zip
+          test -f dist/simple-lms-migrator.zip
 
-      - name: Create GitHub Release and attach zip
+      - name: Create GitHub Release and attach zips
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/simple-lms-bridge.zip
+          files: |
+            dist/simple-lms-bridge.zip
+            dist/simple-lms-migrator.zip
           generate_release_notes: true
