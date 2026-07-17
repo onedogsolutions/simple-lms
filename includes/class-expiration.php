@@ -34,75 +34,90 @@ class Expiration
     }
 
     /**
-     * Daily cron callback to check all users for expired access.
+     * Daily cron callback to check all enrollments for expired access.
+     *
+     * Iterates the canonical enrollment table (wp_slms_user_course) so that
+     * every enrollment is considered, not only PMPro-sourced ones that happened
+     * to leave behind `_lms_enrolled_at` user meta.
      *
      * @return void
      */
     public static function check_expirations()
     {
-        // Get all users who have enrollment data.
-        $query = new \WP_User_Query(array(
-            'meta_key' => '_lms_enrolled_at',
-            'meta_compare' => 'EXISTS',
-            'fields' => 'ID',
-        ));
+        global $wpdb;
 
-        $user_ids = $query->get_results();
+        $table = $wpdb->prefix . 'slms_user_course';
 
-        foreach ($user_ids as $user_id) {
-            self::check_user_expirations($user_id);
+        $rows = $wpdb->get_results(
+            "SELECT user_id, course_id, enrolled_at FROM {$table}"
+        );
+
+        if (empty($rows)) {
+            return;
+        }
+
+        foreach ($rows as $row) {
+            self::maybe_expire_enrollment(
+                (int) $row->user_id,
+                (int) $row->course_id,
+                $row->enrolled_at
+            );
         }
     }
 
     /**
-     * Check a specific user's courses for expiration.
+     * Expire a single enrollment if its access window has elapsed.
      *
-     * @param int $user_id User ID.
+     * @param int    $user_id     User ID.
+     * @param int    $course_id   Course ID.
+     * @param string $enrolled_at Enrollment timestamp (MySQL datetime or UNIX).
      * @return void
      */
-    public static function check_user_expirations($user_id)
+    public static function maybe_expire_enrollment($user_id, $course_id, $enrolled_at)
     {
-        $enrolled_at = get_user_meta($user_id, '_lms_enrolled_at', true);
-        if (!is_array($enrolled_at) || empty($enrolled_at)) {
+        $access_days = (int) get_post_meta($course_id, '_lms_access_days', true);
+
+        // 0 = unlimited access.
+        if ($access_days <= 0) {
             return;
         }
 
+        $enrolled_time = is_numeric($enrolled_at)
+            ? (int) $enrolled_at
+            : strtotime((string) $enrolled_at);
+
+        if (!$enrolled_time) {
+            return;
+        }
+
+        $expiry_time = $enrolled_time + ($access_days * DAY_IN_SECONDS);
+
+        if (time() <= $expiry_time) {
+            return;
+        }
+
+        // Access expired — remove the enrollment.
+        Relationships::unenroll_user($user_id, $course_id);
+
+        // Clear the queryable progress table for this course.
+        if (class_exists(__NAMESPACE__ . '\\Progress')) {
+            Progress::clear_course($user_id, $course_id);
+        }
+
+        // Clear legacy progress meta for this course only.
         $progress = get_user_meta($user_id, '_lms_progress', true);
-        if (!is_array($progress)) {
-            $progress = array();
-        }
-
-        $changed = false;
-
-        foreach ($enrolled_at as $course_id => $timestamp) {
-            $access_days = (int)get_post_meta($course_id, '_lms_access_days', true);
-
-            // 0 = unlimited.
-            if ($access_days <= 0) {
-                continue;
-            }
-
-            $expiry_time = $timestamp + ($access_days * DAY_IN_SECONDS);
-
-            if (time() > $expiry_time) {
-                // Access expired.
-                unset($enrolled_at[$course_id]);
-                unset($progress[$course_id]);
-                $changed = true;
-
-                // Clear the queryable progress table too.
-                if (class_exists(__NAMESPACE__ . '\\Progress')) {
-                    Progress::clear_course($user_id, $course_id);
-                }
-
-                // Optional: log or trigger hook for expiration.
-                do_action('slms_course_access_expired', $user_id, $course_id);
-            }
-        }
-
-        if ($changed) {
-            update_user_meta($user_id, '_lms_enrolled_at', $enrolled_at);
+        if (is_array($progress) && isset($progress[$course_id])) {
+            unset($progress[$course_id]);
             update_user_meta($user_id, '_lms_progress', $progress);
         }
+
+        // Keep the legacy `_lms_enrolled_at` meta in sync for back-compat consumers.
+        $enrolled_meta = get_user_meta($user_id, '_lms_enrolled_at', true);
+        if (is_array($enrolled_meta) && isset($enrolled_meta[$course_id])) {
+            unset($enrolled_meta[$course_id]);
+            update_user_meta($user_id, '_lms_enrolled_at', $enrolled_meta);
+        }
+
+        do_action('slms_course_access_expired', $user_id, $course_id);
     }
 }

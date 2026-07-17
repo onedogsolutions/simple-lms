@@ -82,22 +82,12 @@ class Relationships
 			KEY course_id (course_id)
 		) $charset_collate;";
 
-        // 3. Course History (9-year compliance records)
-        $sql_ch = "CREATE TABLE " . $wpdb->prefix . "slms_course_history (
-			id bigint(20) NOT NULL AUTO_INCREMENT,
-			user_id bigint(20) NOT NULL,
-			course_name varchar(255) NOT NULL,
-			completed_date datetime NOT NULL,
-			gf_entry_id bigint(20) NOT NULL DEFAULT 0,
-			PRIMARY KEY (id),
-			KEY user_id (user_id),
-			KEY gf_entry_id (gf_entry_id)
-		) $charset_collate;";
+        // Note: the slms_course_history table schema is owned solely by
+        // CourseHistory::create_table(); it must not be (re)declared here.
 
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
         dbDelta($sql_cl);
         dbDelta($sql_uc);
-        dbDelta($sql_ch);
     }
 
     /* ─── Course-Lesson Relationships ──────────────────────────────────── */
@@ -265,13 +255,13 @@ class Relationships
     }
 
     /**
-     * Check whether an enrollment row exists for a user/course.
+     * Determine whether a user is currently enrolled in a course.
      *
      * @param int $user_id   User ID.
      * @param int $course_id Course ID.
-     * @return bool
+     * @return bool True if an enrollment row exists.
      */
-    public static function is_enrolled($user_id, $course_id)
+    public static function is_user_enrolled($user_id, $course_id)
     {
         global $wpdb;
         self::init();
@@ -284,12 +274,12 @@ class Relationships
         }
 
         $found = $wpdb->get_var($wpdb->prepare(
-            "SELECT id FROM " . self::$user_course_table . " WHERE user_id = %d AND course_id = %d LIMIT 1",
+            "SELECT id FROM " . self::$user_course_table . " WHERE user_id = %d AND course_id = %d",
             $user_id,
             $course_id
         ));
 
-        return (bool) $found;
+        return !empty($found);
     }
 
     /**

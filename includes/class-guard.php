@@ -203,18 +203,16 @@ class Guard
 
         $data = $response->get_data();
 
-        if (isset($data['content'])) {
-            if (is_array($data['content'])) {
-                $data['content']['rendered']  = '';
-                $data['content']['protected'] = true;
-            } else {
-                $data['content'] = '';
-            }
-        }
+        if (isset($data['content']) && is_array($data['content'])) {
+            $data['content']['rendered']  = '';
+            $data['content']['protected'] = true;
 
-        // Also drop the raw block/content field if present (edit context).
-        if (isset($data['content']['raw'])) {
-            $data['content']['raw'] = '';
+            // Also drop the raw block/content field if present (edit context).
+            if (isset($data['content']['raw'])) {
+                $data['content']['raw'] = '';
+            }
+        } elseif (isset($data['content'])) {
+            $data['content'] = '';
         }
 
         $response->set_data($data);

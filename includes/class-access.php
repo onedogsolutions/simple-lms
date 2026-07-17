@@ -106,7 +106,7 @@ class Access
 
         // If any course records an enrollment row, the denial is expiry.
         foreach ($courses as $course_id) {
-            if (Relationships::is_enrolled($user_id, $course_id) && self::is_expired($user_id, $course_id)) {
+            if (Relationships::is_user_enrolled($user_id, $course_id) && self::is_expired($user_id, $course_id)) {
                 return 'expired';
             }
         }
@@ -173,7 +173,7 @@ class Access
         }
 
         // Default: 'enrolled'.
-        if (!Relationships::is_enrolled($user_id, $course_id)) {
+        if (!Relationships::is_user_enrolled($user_id, $course_id)) {
             return false;
         }
 
