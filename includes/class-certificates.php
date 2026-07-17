@@ -188,4 +188,147 @@ class Certificates
             }
         }
     }
+
+    /**
+     * Resolve a GravityPDF download URL for a completion/compliance history row.
+     *
+     * Two-stage:
+     *  1. GPDFAPI::get_entry_pdfs() evaluates conditional logic against the GF
+     *     entry's actual field values. If it comes back empty, the entry is
+     *     likely missing field 6 (State) and/or field 18 (Course URL) — common
+     *     for entries migrated from the legacy system — so those fields are
+     *     backfilled from billing_state user meta and $raw_course via
+     *     GFAPI::update_entry_field(), then Stage 1 is retried.
+     *  2. If Stage 1 still comes back empty, manually evaluate each PDF
+     *     template's conditionalLogic using the same field 6 / field 18 values
+     *     (stripos + sanitize_title slug comparison, with a last-path-segment
+     *     fallback). This stage exists only because migrated GF entries lacked
+     *     fields 6/18; once the migrator backfills those fields for all
+     *     historical entries, Stage 2 can be removed. Do not remove it until
+     *     that backfill has run.
+     *
+     * @param int    $gf_entry_id GF entry ID stored in the history row.
+     * @param int    $form_id     GF form ID stored in the history row.
+     * @param string $raw_course  Best-known course URL or title (raw stored
+     *                            value, or a resolved permalink if the caller
+     *                            has one) — used both for the field 18 backfill
+     *                            and for the Stage 2 slug match.
+     * @param int    $user_id     Student user ID (for billing_state lookup).
+     * @return string Download URL or empty string.
+     */
+    public static function pdf_url(int $gf_entry_id, int $form_id, string $raw_course, int $user_id): string
+    {
+        if (!$gf_entry_id || !$form_id || !class_exists('GPDFAPI')) {
+            return '';
+        }
+
+        $student_state = (string) get_user_meta($user_id, 'billing_state', true);
+
+        // ── Stage 1: get_entry_pdfs() ────────────────────────────────────────
+        $entry_pdfs = \GPDFAPI::get_entry_pdfs($gf_entry_id);
+
+        // When Stage 1 returns empty the GF entry is likely missing field 6
+        // (State) and/or field 18 (Course URL). Backfill those fields so
+        // GravityPDF's server-side conditional check passes, then retry.
+        if (!is_wp_error($entry_pdfs) && empty($entry_pdfs) && class_exists('GFAPI')) {
+            $entry = \GFAPI::get_entry($gf_entry_id);
+            if (!is_wp_error($entry)) {
+                $backfilled = false;
+                if ($student_state) {
+                    \GFAPI::update_entry_field($gf_entry_id, 6, $student_state);
+                    $backfilled = true;
+                }
+                if ($raw_course && empty($entry['18'])) {
+                    \GFAPI::update_entry_field($gf_entry_id, 18, $raw_course);
+                    $backfilled = true;
+                }
+                if ($backfilled) {
+                    $entry_pdfs = \GPDFAPI::get_entry_pdfs($gf_entry_id);
+                }
+            }
+        }
+
+        if (!is_wp_error($entry_pdfs) && !empty($entry_pdfs)) {
+            $hash_id = array_key_first($entry_pdfs);
+            return home_url('/pdf/' . $hash_id . '/' . $gf_entry_id . '/download/');
+        }
+
+        // ── Stage 2: Manual conditional logic evaluation ─────────────────────
+        $all_pdfs = \GPDFAPI::get_form_pdfs($form_id);
+        if (is_wp_error($all_pdfs) || empty($all_pdfs)) {
+            return '';
+        }
+
+        foreach ($all_pdfs as $id => $pdf_config) {
+            if (empty($pdf_config['active'])) {
+                continue;
+            }
+
+            $logic = !empty($pdf_config['conditionalLogic']) ? $pdf_config['conditionalLogic'] : array();
+
+            if (empty($logic['rules'])) {
+                return home_url('/pdf/' . $id . '/' . $gf_entry_id . '/download/');
+            }
+
+            $logic_type   = isset($logic['logicType']) ? $logic['logicType'] : 'all';
+            $rule_results = array();
+
+            foreach ($logic['rules'] as $rule) {
+                $fid = (string)(isset($rule['fieldId']) ? $rule['fieldId'] : '');
+                $op  = isset($rule['operator']) ? $rule['operator'] : 'is';
+                $val = isset($rule['value']) ? $rule['value'] : '';
+
+                if ('6' === $fid) {
+                    $match = ('is' === $op)
+                        ? ($student_state === $val)
+                        : ($student_state !== $val);
+                } elseif ('18' === $fid) {
+                    $cond_path  = (string) parse_url($val, PHP_URL_PATH);
+                    $cond_parts = array_values(array_filter(explode('/', trim($cond_path, '/'))));
+                    $cidx        = array_search('course', $cond_parts, true);
+                    // Use segment after "course/" if present; fall back to last segment.
+                    $course_slug = ($cidx !== false && isset($cond_parts[$cidx + 1]))
+                        ? $cond_parts[$cidx + 1]
+                        : (!empty($cond_parts) ? end($cond_parts) : '');
+
+                    if ($course_slug !== '') {
+                        // Case-insensitive match against the stored course value.
+                        $match = stripos($raw_course, $course_slug) !== false;
+                        // Also compare via a title-slug conversion (handles plain-text course_name).
+                        if (!$match) {
+                            $title_slug = sanitize_title($raw_course);
+                            $match = $title_slug !== '' && (
+                                stripos($title_slug, $course_slug) !== false ||
+                                stripos($course_slug, $title_slug) !== false
+                            );
+                        }
+                    } else {
+                        $match = false;
+                    }
+
+                    if ('isnot' === $op) {
+                        $match = !$match;
+                    }
+                } else {
+                    continue;
+                }
+
+                $rule_results[] = $match;
+            }
+
+            if (empty($rule_results)) {
+                continue;
+            }
+
+            $passes = ('any' === $logic_type)
+                ? in_array(true, $rule_results, true)
+                : !in_array(false, $rule_results, true);
+
+            if ($passes) {
+                return home_url('/pdf/' . $id . '/' . $gf_entry_id . '/download/');
+            }
+        }
+
+        return '';
+    }
 }

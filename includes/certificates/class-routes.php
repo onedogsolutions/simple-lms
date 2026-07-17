@@ -154,8 +154,8 @@ class Routes
 
         // Legacy fallback: hand off to the GravityPDF resolver if this is a
         // migrated row that never had a native PDF.
-        if (!empty($row->gf_entry_id) && class_exists('\\SimpleLMS\\REST')) {
-            $legacy = \SimpleLMS\REST::resolve_legacy_pdf_url(
+        if (!empty($row->gf_entry_id) && class_exists('\\SimpleLMS\\Certificates')) {
+            $legacy = \SimpleLMS\Certificates::pdf_url(
                 (int) $row->gf_entry_id,
                 (int) $row->form_id,
                 (string) $row->course_name,

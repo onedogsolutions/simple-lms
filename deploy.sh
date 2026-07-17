@@ -66,6 +66,7 @@ rsync -a \
     --exclude='node_modules' \
     --exclude='src' \
     --exclude='dist' \
+    --exclude='simple-lms-migrator' \
     --exclude='*.md' \
     --exclude='*.zip' \
     --exclude='*.log' \

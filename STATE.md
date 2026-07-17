@@ -34,6 +34,18 @@ still resolve through the legacy Gravity Forms + GravityPDF path.
   admin-only compliance export (CSV / ZIP), and a `SimpleLMS > Tools` screen.
   Certificate assets ship via `deploy.sh` (which now runs `composer install
   --no-dev`). See `CHANGELOG.md` for details.
+- **Core/Migrator Split:** the one-time WP Complete/Pods/GF→PMPro migration
+  machinery (engine, Migration Tool, Debug Log, and their `/migration/*` +
+  `/debug-log` REST routes) now lives in a separate, deletable companion
+  plugin, `simple-lms-migrator/`, which depends on core.
+  `/course-history/repair-form-ids` and `/course-history/purge-corrupted`
+  stay in core (Stage 4's permanent Tools screen, not one-time migration).
+  `class-user-meta.php` (a redundant native WP user-profile screen) was
+  removed — legacy user-meta editing lives in the Student Manager admin and
+  the dashboard profile tab. The duplicated two-stage GravityPDF URL
+  resolution (both the legacy fallback path here and in Stage 4's
+  native-first check) is centralized into `Certificates::pdf_url()`. See
+  `CHANGELOG.md` for details.
 - **Known follow-up:** the PHPCS (WordPress-Extra) CI job is currently
   non-blocking (`continue-on-error`). The pre-existing codebase uses spaces for
   indentation and double quotes throughout, which conflicts with
@@ -72,9 +84,12 @@ still resolve through the legacy Gravity Forms + GravityPDF path.
 - `POST /progress` — permission `is_user_logged_in()`. Non-privileged callers
   can only write their own progress; the endpoint validates lesson-in-course
   and enrollment before writing.
-- `GET /progress/{user_id}`, `/students`, `/forms`, `/videos`, migration
-  endpoints, and `GET /student/{id}/history` require `edit_users`/`edit_posts`
-  as appropriate.
+- `GET /progress/{user_id}`, `/students`, `/forms`, `/videos`, `/analytics/*`,
+  `/course-history/repair-form-ids`, `/course-history/purge-corrupted`, and
+  `GET /student/{id}/history` require `edit_users`/`edit_posts`/
+  `manage_options` as appropriate. Migration endpoints (`/migration/*`,
+  `/debug-log`) are registered by the `simple-lms-migrator` plugin under the
+  same `simple-lms/v1` namespace.
 
 ### Enrollment & expiration
 
@@ -101,8 +116,9 @@ still resolve through the legacy Gravity Forms + GravityPDF path.
   builds the HTML; `Certificates\Routes` serves the public download/verify
   URLs. The schema `cert_uuid` column + backfill is Upgrade step 2.
 - **Legacy fallback:** rows with a `gf_entry_id` and no native PDF still resolve
-  through `REST::resolve_legacy_pdf_url()` (two-stage GravityPDF logic); the
-  native cached PDF is always checked first.
+  through `Certificates::pdf_url()` (two-stage GravityPDF logic, shared with
+  the `slms-student-dashboard` certificates tab); the native cached PDF is
+  always checked first.
 - `remove_course_access()` delegates to `PMPro::de_enroll_user()`, which removes
   **only** the course's mapped PMPro level when it matches the user's current
   level (no unconditional level reset).
@@ -116,8 +132,9 @@ still resolve through the legacy Gravity Forms + GravityPDF path.
 
 ## Migration Diagnostic Logging
 
-Comprehensive logging in `class-migration.php` and `MigrationTool.js` to debug
-student progress import issues.
+Comprehensive logging in `simple-lms-migrator/includes/class-migration.php`
+and `MigrationTool.js` (both in the `simple-lms-migrator` companion plugin) to
+debug student progress import issues.
 
 - **Triple-output logging:** every entry writes to an in-memory buffer (returned
   via REST), `wp-content/debug.log` via `error_log()`, and the persistent plugin
@@ -203,8 +220,10 @@ Loaded modules (`slms_load_bb_modules()`): `lms-content`, `lms-outline`,
 - **Build command:** `npm run build` (runs `build:js` then `build:css`; order
   matters — `wp-scripts` clears `build/admin/` and must run first).
 - **Packaging:** `./deploy.sh` runs `npm ci && npm run build`, verifies the
-  enqueued build artifacts exist, and zips the plugin excluding `src/`,
-  `node_modules/`, `.git*`, and `*.md`.
+  enqueued build artifacts exist, and zips the core plugin excluding `src/`,
+  `node_modules/`, `.git*`, `*.md`, and `simple-lms-migrator/` (a separate
+  plugin, packaged independently — `cd simple-lms-migrator && npm ci && npm
+  run build`).
 - **`$wpdb`:** use a WP/plugin API where one exists; raw `$wpdb` only for custom
   tables and bulk migration.
 - **BB cache:** after any BB module JS/CSS change, clear the Beaver Builder

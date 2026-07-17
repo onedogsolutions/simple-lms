@@ -182,143 +182,6 @@ class REST
             },
         ));
 
-        /* ── Migration ──────────────────────────────────────────────── */
-
-        // Status endpoint
-        register_rest_route(self::NAMESPACE , '/migration/status', array(
-            'methods' => 'GET',
-            'callback' => function () {
-                return rest_ensure_response(array(
-                    'progress' => array('pending' => Migration::get_pending_migration_count()),
-                    'content' => array('pending' => Migration::get_pending_content_count()),
-                    'history' => array('pending' => Migration::get_pending_history_count()),
-                    'pmpro' => array('pending' => Migration::get_pending_pmpro_count()),
-                ));
-            },
-            'permission_callback' => function () {
-                return current_user_can('manage_options');
-            }
-        ));
-
-        // CPT Migration endpoint
-        register_rest_route(self::NAMESPACE , '/migration/cpts', array(
-            'methods' => 'POST',
-            'callback' => function ($request) {
-                $limit = $request->get_param('limit') ?? 5;
-                return rest_ensure_response(Migration::migrate_cpt_batch($limit));
-            },
-            'args' => array(
-                'limit' => array(
-                    'sanitize_callback' => 'absint',
-                    'default' => 5,
-                ),
-            ),
-            'permission_callback' => function () {
-                return current_user_can('manage_options');
-            }
-        ));
-
-        // Progress Migration endpoint
-        register_rest_route(self::NAMESPACE , '/migration/progress', array(
-            'methods' => 'POST',
-            'callback' => function ($request) {
-                $limit = $request->get_param('limit') ?? 10;
-                return rest_ensure_response(Migration::migrate_progress_batch($limit));
-            },
-            'args' => array(
-                'limit' => array(
-                    'sanitize_callback' => 'absint',
-                    'default' => 10,
-                ),
-            ),
-            'permission_callback' => function () {
-                return current_user_can('manage_options');
-            }
-        ));
-
-        // History Migration endpoint
-        register_rest_route(self::NAMESPACE , '/migration/history', array(
-            'methods' => 'POST',
-            'callback' => function ($request) {
-                $limit = $request->get_param('limit') ?? 10;
-                $offset = $request->get_param('offset') ?? 0;
-                return rest_ensure_response(Migration::migrate_history_batch($limit, $offset));
-            },
-            'args' => array(
-                'limit' => array(
-                    'sanitize_callback' => 'absint',
-                    'default' => 10,
-                ),
-                'offset' => array(
-                    'sanitize_callback' => 'absint',
-                    'default' => 0,
-                ),
-            ),
-            'permission_callback' => function () {
-                return current_user_can('manage_options');
-            }
-        ));
-
-
-        // PMPro Registration Sync endpoint (Phase 2)
-        register_rest_route(self::NAMESPACE , '/migration/pmpro', array(
-            'methods' => 'POST',
-            'callback' => function ($request) {
-                $limit = $request->get_param('limit') ?? 10;
-                $offset = $request->get_param('offset') ?? 0;
-                return rest_ensure_response(Migration::migrate_pmpro_batch($limit, $offset));
-            },
-            'args' => array(
-                'limit' => array(
-                    'sanitize_callback' => 'absint',
-                    'default' => 10,
-                ),
-                'offset' => array(
-                    'sanitize_callback' => 'absint',
-                    'default' => 0,
-                ),
-            ),
-            'permission_callback' => function () {
-                return current_user_can('manage_options');
-            }
-        ));
-
-        // Reset Phase 2 migration meta so entries can be re-processed.
-        register_rest_route(self::NAMESPACE , '/migration/pmpro/reset', array(
-            'methods' => 'POST',
-            'callback' => function () {
-                return rest_ensure_response(Migration::reset_pmpro_migration());
-            },
-            'permission_callback' => function () {
-                return current_user_can('manage_options');
-            }
-        ));
-
-        /* ── Debug Log ──────────────────────────────────────────────── */
-
-        register_rest_route(self::NAMESPACE , '/debug-log', array(
-            'methods' => 'GET',
-            'callback' => function () {
-                return rest_ensure_response(array(
-                    'log' => Migration::read_log(500),
-                ));
-            },
-            'permission_callback' => function () {
-                return current_user_can('manage_options');
-            },
-        ));
-
-        register_rest_route(self::NAMESPACE , '/debug-log', array(
-            'methods' => 'DELETE',
-            'callback' => function () {
-                Migration::clear_log();
-                return rest_ensure_response(array('success' => true));
-            },
-            'permission_callback' => function () {
-                return current_user_can('manage_options');
-            },
-        ));
-
         register_rest_route(self::NAMESPACE , '/course-history/repair-form-ids', array(
             'methods' => 'POST',
             'callback' => function () {
@@ -1060,7 +923,7 @@ class REST
                     }
                 }
 
-                $pdf_url = $native_url ?: self::resolve_legacy_pdf_url(
+                $pdf_url = $native_url ?: Certificates::pdf_url(
                     (int) $row->gf_entry_id,
                     (int) $row->form_id,
                     (string) $row->course_name,
@@ -1150,7 +1013,7 @@ class REST
                 'id' => $entry['id'],
                 'course_name' => self::resolve_course_name($course_name),
                 'date' => $entry['date_created'] ?? '',
-                'pdf_url' => self::resolve_legacy_pdf_url(
+                'pdf_url' => Certificates::pdf_url(
                     (int) $entry['id'],
                     (int) $entry['form_id'],
                     (string) $course_name,
@@ -1201,113 +1064,6 @@ class REST
         }
 
         return $name;
-    }
-
-    /**
-     * Resolve a GravityPDF download URL for a history row.
-     *
-     * Two-stage: try GPDFAPI::get_entry_pdfs() first (evaluates conditional logic via
-     * GF entry field values). Falls back to get_form_pdfs() + manual conditional logic
-     * evaluation using billing_state user meta (field 6) and raw course URL slug (field 18).
-     *
-     * @param int    $gf_entry_id   GF entry ID stored in the history row.
-     * @param int    $pdf_form_id   GF form ID stored in the history row.
-     * @param string $raw_course    Raw course_name value (URL or plain string).
-     * @param int    $user_id       Student user ID (for billing_state lookup).
-     * @return string Download URL or empty string.
-     */
-    public static function resolve_legacy_pdf_url(int $gf_entry_id, int $pdf_form_id, string $raw_course, int $user_id): string
-    {
-        if (!$gf_entry_id || !$pdf_form_id || !class_exists('GPDFAPI')) {
-            return '';
-        }
-
-        // Stage 1: get_entry_pdfs() evaluates conditional logic against the GF entry's fields.
-        $entry_pdfs = \GPDFAPI::get_entry_pdfs($gf_entry_id);
-        if (!is_wp_error($entry_pdfs) && !empty($entry_pdfs)) {
-            $hash_id = array_key_first($entry_pdfs);
-            return home_url('/pdf/' . $hash_id . '/' . $gf_entry_id . '/download/');
-        }
-
-        // Stage 2: Manual evaluation using billing_state + course slug from stored data.
-        $all_pdfs = \GPDFAPI::get_form_pdfs($pdf_form_id);
-        if (is_wp_error($all_pdfs) || empty($all_pdfs)) {
-            return '';
-        }
-
-        $student_state = (string) get_user_meta($user_id, 'billing_state', true);
-
-        foreach ($all_pdfs as $id => $pdf_config) {
-            if (empty($pdf_config['active'])) {
-                continue;
-            }
-
-            $logic = !empty($pdf_config['conditionalLogic']) ? $pdf_config['conditionalLogic'] : array();
-
-            if (empty($logic['rules'])) {
-                return home_url('/pdf/' . $id . '/' . $gf_entry_id . '/download/');
-            }
-
-            $logic_type   = isset($logic['logicType']) ? $logic['logicType'] : 'all';
-            $rule_results = array();
-
-            foreach ($logic['rules'] as $rule) {
-                $fid = (string)(isset($rule['fieldId']) ? $rule['fieldId'] : '');
-                $op  = isset($rule['operator']) ? $rule['operator'] : 'is';
-                $val = isset($rule['value']) ? $rule['value'] : '';
-
-                if ('6' === $fid) {
-                    $match = ('is' === $op)
-                        ? ($student_state === $val)
-                        : ($student_state !== $val);
-                } elseif ('18' === $fid) {
-                    $cond_path  = (string) parse_url($val, PHP_URL_PATH);
-                    $cond_parts = array_values(array_filter(explode('/', trim($cond_path, '/'))));
-                    $cidx        = array_search('course', $cond_parts, true);
-                    // Use segment after "course/" if present; fall back to last segment.
-                    $course_slug = ($cidx !== false && isset($cond_parts[$cidx + 1]))
-                        ? $cond_parts[$cidx + 1]
-                        : (!empty($cond_parts) ? end($cond_parts) : '');
-
-                    if ($course_slug !== '') {
-                        // Case-insensitive match against the stored course value.
-                        $match = stripos($raw_course, $course_slug) !== false;
-                        // Also compare via a title-slug conversion (handles plain-text course_name).
-                        if (!$match) {
-                            $title_slug = sanitize_title($raw_course);
-                            $match = $title_slug !== '' && (
-                                stripos($title_slug, $course_slug) !== false ||
-                                stripos($course_slug, $title_slug) !== false
-                            );
-                        }
-                    } else {
-                        $match = false;
-                    }
-
-                    if ('isnot' === $op) {
-                        $match = !$match;
-                    }
-                } else {
-                    continue;
-                }
-
-                $rule_results[] = $match;
-            }
-
-            if (empty($rule_results)) {
-                continue;
-            }
-
-            $passes = ('any' === $logic_type)
-                ? in_array(true, $rule_results, true)
-                : !in_array(false, $rule_results, true);
-
-            if ($passes) {
-                return home_url('/pdf/' . $id . '/' . $gf_entry_id . '/download/');
-            }
-        }
-
-        return '';
     }
 
     /* ───────────────────────────────────────────────────────────────────
@@ -1433,7 +1189,7 @@ class REST
     /**
      * Handle analytics CSV export via admin-post.php.
      *
-     * Mirrors handle_log_download(): validates capability + nonce, streams a CSV.
+     * Validates capability + nonce, then streams a CSV.
      *
      * @return void
      */
@@ -1621,36 +1377,6 @@ class REST
         header('X-Content-Type-Options: nosniff');
         readfile($tmp);
         @unlink($tmp);
-        exit;
-    }
-
-    /**
-     * Handle log download via admin-post.php.
-     *
-     * @return void
-     */
-    public static function handle_log_download()
-    {
-        if (!current_user_can('manage_options')) {
-            wp_die('Unauthorized', 403);
-        }
-
-        check_admin_referer('slms_download_log');
-
-        $log_file = \SimpleLMS\Migration::get_log_file_path();
-
-        if (!file_exists($log_file) || filesize($log_file) === 0) {
-            wp_die('No log file found.', 404);
-        }
-
-        $filename = 'slms-migration-' . gmdate('Y-m-d_H-i-s') . '.log';
-
-        header('Content-Type: text/plain; charset=utf-8');
-        header('Content-Disposition: attachment; filename="' . $filename . '"');
-        header('Content-Length: ' . filesize($log_file));
-        header('X-Content-Type-Options: nosniff');
-        header('Cache-Control: no-cache, no-store, must-revalidate');
-        readfile($log_file);
         exit;
     }
 }

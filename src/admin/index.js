@@ -5,8 +5,8 @@
  * - Course edit screen  → CourseEditor
  * - Lesson edit screen  → LessonSettings
  * - Student Manager     → StudentManager
- * - Migration Tool      → MigrationTool
- * - Debug Log           → DebugLog
+ * - Tools               → Tools
+ * - Analytics           → Analytics
  *
  * @package
  */
@@ -17,8 +17,6 @@ import './index.css';
 import CourseEditor from './components/CourseEditor';
 import LessonSettings from './components/LessonSettings';
 import StudentManager from './components/StudentManager';
-import MigrationTool from './components/MigrationTool';
-import DebugLog from './components/DebugLog';
 import Tools from './components/Tools';
 import Analytics from './components/Analytics';
 
@@ -27,12 +25,7 @@ const mount = () => {
 	const postType = window.slmsAdmin?.postType;
 	const page = window.slmsAdmin?.page;
 
-	let rootId = 'slms-admin-root';
-	if ( page === 'slms-migration' ) {
-		rootId = 'slms-migration-root';
-	}
-	
-	const root = document.getElementById( rootId ) || document.getElementById( 'slms-admin-root' );
+	const root = document.getElementById( 'slms-admin-root' );
 	if ( ! root ) {
 		return;
 	}
@@ -45,10 +38,6 @@ const mount = () => {
 		App = <LessonSettings postId={ postId } />;
 	} else if ( page === 'slms-students' ) {
 		App = <StudentManager />;
-	} else if ( page === 'slms-migration' ) {
-		App = <MigrationTool />;
-	} else if ( page === 'slms-debug-log' ) {
-		App = <DebugLog />;
 	} else if ( page === 'slms-tools' ) {
 		App = <Tools />;
 	} else if ( page === 'slms-analytics' ) {

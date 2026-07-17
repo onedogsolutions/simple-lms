@@ -31,9 +31,9 @@ state document (architecture, current status, conventions) is in
   certificates are verifiable too. `SLMS_DB_VERSION` bumped to 2.
 - **Native-first resolution:** `REST::get_student_history()` and the
   `slms-student-dashboard` certificates tab check the cached native PDF first
-  (`Issuer::pdf_exists()`), falling back to the two-stage GravityPDF
-  `REST::resolve_legacy_pdf_url()` (renamed from `resolve_pdf_url`, now public)
-  for migrated rows.
+  (`Issuer::pdf_exists()`), falling back to the two-stage GravityPDF logic for
+  migrated rows — centralized into `Certificates::pdf_url()` (see
+  "Core/Migrator Split" below) rather than duplicated per call site.
 - **Public routes (`Certificates\Routes`):** rewrite rules
   `GET /certificate/{uuid}/download` (streams the PDF; permission = row owner
   OR `edit_users`; regenerates on demand; legacy redirect fallback) and
@@ -49,6 +49,44 @@ state document (architecture, current status, conventions) is in
 - **Packaging:** `deploy.sh` now runs `composer install --no-dev
   --optimize-autoloader` before staging so the bundled certificate
   dependencies ship in the release zip.
+
+## Core/Migrator Split
+
+Streamlined the plugin into a clean LMS connector by extracting one-time
+data-migration machinery into a separate, deletable companion plugin.
+
+- **`simple-lms-migrator/` (new plugin):** the migration engine
+  (`class-migration.php`), the Migration Tool and Debug Log admin
+  pages/React components, and their REST routes (`/migration/*`,
+  `/debug-log`) moved out of core into a standalone plugin that depends on
+  core (checks `class_exists('\SimpleLMS\Relationships')` and declares
+  `Requires Plugins: simple-lms-bridge`). It's deletable once a site's
+  historical data is fully migrated; the REST routes stay under the same
+  `simple-lms/v1` namespace so existing frontends keep working. `deploy.sh`
+  excludes it from the core zip; it's packaged/built independently.
+  `/course-history/repair-form-ids` and `/course-history/purge-corrupted`
+  stay in core — they're permanent compliance-table maintenance tools (the
+  Stage 4 Tools screen), not one-time WP Complete migration.
+- **Dead code removed:** `includes/class-account-dashboard.php` (the
+  `[simple_lms_account]` shortcode, never loaded — superseded by the native
+  `lms-account-dashboard` BB module), the orphan
+  `slms-student-dashboard-tab-2` module (no `FLBuilderModule` class file, so
+  Beaver Builder never registered it), and `cleanup_ghost_enrollments.sql`
+  (a one-time fix artifact).
+- **`class-user-meta.php` removed:** the native WP user-profile screen was a
+  redundant third place to edit the same legacy Pods user meta already
+  editable via the Student Manager admin (kept as-is; further improvements
+  deferred) and the `slms-student-dashboard` BB module's profile tab.
+- **GravityPDF URL resolution centralized:** the duplicated two-stage
+  resolution (Stage 1: `GPDFAPI::get_entry_pdfs()` with a field 6/18 backfill
+  retry; Stage 2: manual conditional-logic evaluation) that lived separately
+  in `slms-student-dashboard/includes/frontend.php` and
+  `REST::get_student_history()` is now one helper,
+  `Certificates::pdf_url(int $gf_entry_id, int $form_id, string $raw_course,
+  int $user_id): string`, called from both places (and from the Stage 4
+  native-first fallback path). The `/student/{id}/history` response shape
+  (`pdf_url` key, plus Stage 4's `cert_uuid`/`verify_url` keys) is unchanged.
+
 ## Stage 2 — Frontend Course Experience
 
 - **Access service (`includes/class-access.php`):** central authority for course
