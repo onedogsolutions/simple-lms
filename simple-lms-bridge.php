@@ -23,7 +23,7 @@ if (!defined('ABSPATH')) {
 /* ─── Constants ─────────────────────────────────────────────────────── */
 define('SLMS_VERSION', '1.0.0');
 // Integer schema version. Bump when adding an Upgrade step (see class-upgrade.php).
-define('SLMS_DB_VERSION', 3);
+define('SLMS_DB_VERSION', 4); // Bumped for progress table creation
 define('SLMS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SLMS_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SLMS_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -47,6 +47,10 @@ require_once SLMS_PLUGIN_DIR . 'includes/class-analytics.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-upgrade.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-access.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-quiz.php';
+require_once SLMS_PLUGIN_DIR . 'includes/class-guard.php';
+require_once SLMS_PLUGIN_DIR . 'includes/class-progress.php';
+require_once SLMS_PLUGIN_DIR . 'includes/class-settings.php';
+require_once SLMS_PLUGIN_DIR . 'includes/class-course-display.php';
 // The legacy [simple_lms_account] shortcode (formerly class-account-dashboard.php)
 // has been removed. The native lms-account-dashboard Beaver Builder module renders
 // the account dashboard; shortcode-based rendering of BB module content is not used.
@@ -73,6 +77,9 @@ function slms_init()
     Relationships::init();
     Analytics::init();
     Upgrade::init();
+    Guard::init();
+    Progress::init();
+    Settings::init();
 
     // Conditionally boot PMPro integration.
     if (function_exists('pmpro_getMembershipLevelForUser')) {
@@ -140,6 +147,17 @@ function slms_admin_menu()
         echo '<div class="wrap slms-admin-wrap tw-preflight"><div id="slms-admin-root"></div></div>';
     }
     );
+
+    add_submenu_page(
+        'simple-lms',
+        __('Settings', 'simple-lms-bridge'),
+        __('Settings', 'simple-lms-bridge'),
+        'manage_options',
+        'slms-settings',
+        function () {
+        echo '<div class="wrap slms-admin-wrap tw-preflight"><div id="slms-admin-root"></div></div>';
+    }
+    );
 }
 
 /* ─── Activation ─────────────────────────────────────────────────────── */
@@ -195,7 +213,7 @@ function slms_enqueue_admin_assets($hook_suffix)
     // Load on our CPT edit screens and the Student Manager / Analytics / Tools pages.
     $is_lms_cpt = in_array($screen->post_type, array('slms_course', 'slms_lesson'), true);
     $screen_id = (string)($screen->id ?? '');
-    $is_slms_page = (strpos($screen_id, 'slms-students') !== false || strpos($screen_id, 'slms-analytics') !== false || strpos($screen_id, 'slms-tools') !== false || $screen_id === 'toplevel_page_simple-lms');
+    $is_slms_page = (strpos($screen_id, 'slms-students') !== false || strpos($screen_id, 'slms-analytics') !== false || strpos($screen_id, 'slms-tools') !== false || strpos($screen_id, 'slms-settings') !== false || $screen_id === 'toplevel_page_simple-lms');
 
     if (!$is_lms_cpt && !$is_slms_page) {
         return;

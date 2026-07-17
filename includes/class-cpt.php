@@ -103,6 +103,21 @@ class CPT
 
         /* ── Course Meta ────────────────────────────────────────────── */
 
+        // Guard mode (public, level, enrolled).
+        register_post_meta('slms_course', '_lms_guard_mode', array(
+            'type'              => 'string',
+            'description'       => 'Course access guard mode (public, level, enrolled).',
+            'single'            => true,
+            'show_in_rest'      => true,
+            'default'           => 'enrolled',
+            'sanitize_callback' => function ($value) {
+                return in_array($value, array('public', 'level', 'enrolled'), true) ? $value : 'enrolled';
+            },
+            'auth_callback'     => function () {
+                return current_user_can('edit_posts');
+            },
+        ));
+
         // Ordered array of lesson IDs.
         register_post_meta('slms_course', '_simple_lms_order', array(
             'type' => 'array',
