@@ -22,6 +22,8 @@ if (!defined('ABSPATH')) {
 
 /* ─── Constants ─────────────────────────────────────────────────────── */
 define('SLMS_VERSION', '1.0.0');
+// Integer schema version. Bump when adding an Upgrade step (see class-upgrade.php).
+define('SLMS_DB_VERSION', 2);
 define('SLMS_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('SLMS_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('SLMS_PLUGIN_BASENAME', plugin_basename(__FILE__));
@@ -43,10 +45,10 @@ require_once SLMS_PLUGIN_DIR . 'includes/class-certificates.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-migration.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-user-meta.php';
 require_once SLMS_PLUGIN_DIR . 'includes/class-relationships.php';
-// class-account-dashboard.php intentionally not loaded.
-// The [simple_lms_account] shortcode has been replaced by the native
-// lms-account-dashboard Beaver Builder module. Shortcode-based rendering
-// of BB module content is no longer used.
+require_once SLMS_PLUGIN_DIR . 'includes/class-upgrade.php';
+// The legacy [simple_lms_account] shortcode (formerly class-account-dashboard.php)
+// has been removed. The native lms-account-dashboard Beaver Builder module renders
+// the account dashboard; shortcode-based rendering of BB module content is not used.
 
 
 /* ─── Boot ───────────────────────────────────────────────────────────── */
@@ -68,10 +70,7 @@ function slms_init()
     Certificates\Routes::init();
     Migration::init();
     Relationships::init();
-
-    // Run certificate schema upgrades (cert_uuid column + backfill) for
-    // existing installs.
-    CourseHistory::maybe_upgrade();
+    Upgrade::init();
 
     // Conditionally boot PMPro integration.
     if (function_exists('pmpro_getMembershipLevelForUser')) {
@@ -164,11 +163,12 @@ function slms_admin_menu()
 function slms_activate()
 {
     CPT::register_post_types();
-    Relationships::create_table();
-    CourseHistory::create_table();
-    CourseHistory::maybe_upgrade();
+    // Run pending schema steps (creates/updates custom tables, incl. the
+    // certificate cert_uuid column). Fresh installs and in-place updates both
+    // converge here rather than in activation-only DDL.
+    Upgrade::run();
+    // Register + force a re-flush of the certificate rewrite rules on next load.
     Certificates\Routes::add_rewrite_rules();
-    // Force the certificate rewrite rules to be re-flushed on next admin load.
     delete_option('slms_cert_rewrite_version');
     flush_rewrite_rules();
 }
@@ -225,15 +225,6 @@ function slms_enqueue_admin_assets($hook_suffix)
     if ($is_lms_cpt) {
         wp_enqueue_media();
     }
-
-    // Tailwind CDN fallback — ensures admin UI renders even if local build is stale.
-    wp_enqueue_script(
-        'slms-tailwind-cdn',
-        'https://cdn.tailwindcss.com',
-        array(),
-        null,
-        false
-    );
 
     if ($is_slms_page) {
         wp_enqueue_style(

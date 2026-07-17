@@ -221,7 +221,7 @@ class Routes
         echo self::verify_html($valid, array( // phpcs:ignore WordPress.Security.EscapeOutput
             'name'       => $name,
             'course'     => self::display_course((string) $row->course_name),
-            'date'       => $row->completed_date ? date_i18n(get_option('date_format') ?: 'F j, Y', strtotime($row->completed_date)) : '',
+            'date'       => $row->completed_date ? date_i18n((string) (get_option('date_format') ?: 'F j, Y'), (int) strtotime((string) $row->completed_date)) : '',
             'uuid'       => (string) ($row->cert_uuid ?: $uuid),
         ));
         exit;
@@ -336,9 +336,9 @@ class Routes
      * Emit a 404 page and exit.
      *
      * @param string $message Message to display.
-     * @return void
+     * @return never
      */
-    private static function not_found(string $message): void
+    private static function not_found(string $message)
     {
         status_header(404);
         wp_die(

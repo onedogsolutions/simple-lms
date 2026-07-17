@@ -26,13 +26,6 @@ class CourseHistory
     private static $table_name;
 
     /**
-     * Current schema version for this table.
-     *
-     * @var string
-     */
-    const DB_VERSION = '2';
-
-    /**
      * Hook into WordPress.
      *
      * @return void
@@ -73,32 +66,27 @@ class CourseHistory
 
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
         dbDelta($sql);
-
-        update_option('slms_ch_db_version', self::DB_VERSION);
     }
 
     /**
-     * Run schema upgrades for existing installs.
-     *
-     * Adds the cert_uuid column + unique key and backfills UUIDs for every
+     * Add the cert_uuid column + unique key and backfill UUIDs for every
      * pre-existing row so legacy certificates remain verifiable by URL.
+     *
+     * Idempotent — guarded ALTERs make it safe to run repeatedly. Invoked as
+     * Upgrade step 2 (see class-upgrade.php); versioning is owned by the
+     * Upgrade framework, not this method.
      *
      * @return void
      */
-    public static function maybe_upgrade()
+    public static function add_cert_uuid_column()
     {
-        if (get_option('slms_ch_db_version') === self::DB_VERSION) {
-            return;
-        }
-
         global $wpdb;
         self::init();
         $table = self::$table_name;
 
-        // Bail if the table doesn't exist yet (fresh installs use create_table()).
+        // Bail if the table doesn't exist yet (create_table() handles fresh installs).
         if ($wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table)) !== $table) {
             self::create_table();
-            return;
         }
 
         // 1. Add the cert_uuid column if missing.
@@ -130,11 +118,9 @@ class CourseHistory
             'cert_uuid'
         ));
         if (!$has_index) {
-            // Suppress errors: a duplicate key here is non-fatal.
+            // A duplicate key here is non-fatal.
             $wpdb->query("ALTER TABLE `" . $table . "` ADD UNIQUE KEY cert_uuid (cert_uuid)");
         }
-
-        update_option('slms_ch_db_version', self::DB_VERSION);
     }
 
     /**
@@ -187,7 +173,7 @@ class CourseHistory
      * Fetch a single history row by its certificate UUID.
      *
      * @param string $uuid Certificate UUID.
-     * @return object|null Row object or null if not found.
+     * @return \stdClass|null Row object or null if not found.
      */
     public static function get_by_uuid(string $uuid)
     {
@@ -203,7 +189,7 @@ class CourseHistory
             $uuid
         ));
 
-        return $row ?: null;
+        return $row instanceof \stdClass ? $row : null;
     }
 
     /**
