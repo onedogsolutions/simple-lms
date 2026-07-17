@@ -83,13 +83,12 @@ class Certificates
      */
     private static function remove_course_access($user_id, $course_id)
     {
-        // Use the PMPro class helpers if available since they already handle this logic cleanly.
+        // Use the PMPro class helpers if available since they already handle this
+        // logic cleanly — de_enroll_user() removes only the course's mapped PMPro
+        // level when it matches the user's current level, clears progress, and
+        // clears the enrollment timestamp.
         if (class_exists(__NAMESPACE__ . '\PMPro')) {
             PMPro::de_enroll_user($user_id, $course_id);
-        }
-
-        if (function_exists('\pmpro_changeMembershipLevel')) {
-            \pmpro_changeMembershipLevel(0, $user_id);
         }
         else {
             // Fallback if PMPro class is missing (should not happen in this plugin).
@@ -184,12 +183,29 @@ class Certificates
 
                 if (class_exists(__NAMESPACE__ . '\CourseHistory')) {
                     $course_title = get_the_title($course_id);
+
+                    // Capture enrollment→completion duration for analytics before
+                    // remove_course_access() wipes the enrollment timestamp.
+                    $enrolled = get_user_meta($user_id, '_lms_enrolled_at', true);
+                    $enrolled_ts = (is_array($enrolled) && isset($enrolled[$course_id]))
+                        ? (int) $enrolled[$course_id]
+                        : 0;
+                    $history_meta = array();
+                    if ($enrolled_ts > 0) {
+                        $history_meta['enrolled_at'] = $enrolled_ts;
+                        $history_meta['days_to_complete'] = round(
+                            (time() - $enrolled_ts) / DAY_IN_SECONDS,
+                            2
+                        );
+                    }
+
                     CourseHistory::insert(
                         $user_id,
                         $course_title,
                         current_time('mysql'),
                         $linked_entry_id,
-                        $form_id > 0 ? $form_id : null
+                        $form_id > 0 ? $form_id : null,
+                        $history_meta
                     );
                 }
 

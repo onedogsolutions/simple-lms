@@ -11,6 +11,7 @@ import {
 	PanelBody,
 	SelectControl,
 	SearchControl,
+	TextControl,
 	Button,
 	Spinner,
 	Notice,
@@ -35,6 +36,7 @@ const CourseEditor = ({ postId }) => {
 	const [allLessons, setAllLessons] = useState([]);
 	const [forms, setForms] = useState([]);
 	const [certificateForm, setCertificateForm] = useState(0);
+	const [completionRedirect, setCompletionRedirect] = useState('');
 	const [pmproLevels, setPmproLevels] = useState([]);
 	const [allPMProLevels, setAllPMProLevels] = useState([]);
 	const [enrolledStudents, setEnrolledStudents] = useState([]);
@@ -75,6 +77,7 @@ const CourseEditor = ({ postId }) => {
 				const meta = postRes.meta || {};
 				setLessonOrder(relationshipsRes.map((l) => l.id) || []);
 				setCertificateForm(meta._lms_certificate_form || 0);
+				setCompletionRedirect(meta._lms_completion_redirect || '');
 				setPmproLevels(meta._lms_pmpro_levels || []);
 			} catch (err) {
 				setNotice({ status: 'error', message: err.message });
@@ -98,6 +101,7 @@ const CourseEditor = ({ postId }) => {
 						meta: {
 							_lms_certificate_form:
 								parseInt(certificateForm, 10) || 0,
+							_lms_completion_redirect: completionRedirect,
 							_lms_pmpro_levels: pmproLevels,
 						},
 					},
@@ -119,7 +123,13 @@ const CourseEditor = ({ postId }) => {
 		} finally {
 			setSaving(false);
 		}
-	}, [postId, lessonOrder, certificateForm, pmproLevels]);
+	}, [
+		postId,
+		lessonOrder,
+		certificateForm,
+		completionRedirect,
+		pmproLevels,
+	]);
 
 	// ── Add lesson to order ───────────────────────────────────────
 	const addLesson = (lessonId) => {
@@ -263,6 +273,26 @@ const CourseEditor = ({ postId }) => {
 					onChange={(val) =>
 						setCertificateForm(parseInt(val, 10))
 					}
+				/>
+			</PanelBody>
+
+			{ /* ── Completion Redirect ───────────────────────────── */}
+			<PanelBody
+				title={__('Completion', 'simple-lms-bridge')}
+				initialOpen={false}
+			>
+				<TextControl
+					label={__(
+						'Completion Redirect URL',
+						'simple-lms-bridge'
+					)}
+					help={__(
+						'When the final lesson is completed, the student is sent to this URL (e.g. a certificate page). Leave blank for no redirect.',
+						'simple-lms-bridge'
+					)}
+					type="url"
+					value={completionRedirect}
+					onChange={setCompletionRedirect}
 				/>
 			</PanelBody>
 

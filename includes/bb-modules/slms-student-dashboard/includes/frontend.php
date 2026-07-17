@@ -29,7 +29,7 @@ if (isset($_POST['slms_profile_nonce']) && wp_verify_nonce($_POST['slms_profile_
 			if (isset($_POST['user_pass_confirm']) && $_POST['user_pass'] === $_POST['user_pass_confirm']) {
 				$user_data['user_pass'] = $_POST['user_pass'];
 			} else {
-				$update_error = __('Passwords do not match.', 'simple-lms');
+				$update_error = __('Passwords do not match.', 'simple-lms-bridge');
 			}
 		}
 	}
@@ -54,7 +54,7 @@ if (isset($_POST['slms_profile_nonce']) && wp_verify_nonce($_POST['slms_profile_
 					update_user_meta($user_id, $meta_key, sanitize_text_field($_POST[$meta_key]));
 				}
 			}
-			$update_success = __('Profile updated successfully.', 'simple-lms');
+			$update_success = __('Profile updated successfully.', 'simple-lms-bridge');
 			$current_user = wp_get_current_user(); // refresh
 		}
 	}
@@ -129,11 +129,13 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 
 	<ul class="slms-tabs-nav" role="tablist">
 		<li class="slms-tab-link active" data-tab="profile" role="tab" aria-selected="true">
-			<?php esc_html_e('User Profile', 'simple-lms'); ?></li>
+			<?php esc_html_e('User Profile', 'simple-lms-bridge'); ?></li>
+		<li class="slms-tab-link" data-tab="courses" role="tab" aria-selected="false">
+			<?php esc_html_e('My Courses', 'simple-lms-bridge'); ?></li>
 		<li class="slms-tab-link" data-tab="history" role="tab" aria-selected="false">
-			<?php esc_html_e('Purchase History', 'simple-lms'); ?></li>
+			<?php esc_html_e('Purchase History', 'simple-lms-bridge'); ?></li>
 		<li class="slms-tab-link" data-tab="certificates" role="tab" aria-selected="false">
-			<?php esc_html_e('Certificates Earned', 'simple-lms'); ?></li>
+			<?php esc_html_e('Certificates Earned', 'simple-lms-bridge'); ?></li>
 	</ul>
 
 	<div class="slms-tabs-content">
@@ -149,13 +151,13 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 				<div class="slms-field-row slms-two-col">
 					<div class="slms-field-group">
 						<label class="slms-field-label"
-							for="slms_first_name"><?php esc_html_e('First Name', 'simple-lms'); ?></label>
+							for="slms_first_name"><?php esc_html_e('First Name', 'simple-lms-bridge'); ?></label>
 						<input class="slms-input" type="text" id="slms_first_name" name="first_name"
 							value="<?php echo esc_attr($current_user->first_name); ?>" required />
 					</div>
 					<div class="slms-field-group">
 						<label class="slms-field-label"
-							for="slms_last_name"><?php esc_html_e('Last Name', 'simple-lms'); ?></label>
+							for="slms_last_name"><?php esc_html_e('Last Name', 'simple-lms-bridge'); ?></label>
 						<input class="slms-input" type="text" id="slms_last_name" name="last_name"
 							value="<?php echo esc_attr($current_user->last_name); ?>" required />
 					</div>
@@ -165,7 +167,7 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 				<div class="slms-field-row">
 					<div class="slms-field-group">
 						<label class="slms-field-label"
-							for="slms_user_email"><?php esc_html_e('Email', 'simple-lms'); ?></label>
+							for="slms_user_email"><?php esc_html_e('Email', 'simple-lms-bridge'); ?></label>
 						<input class="slms-input" type="email" id="slms_user_email" name="user_email"
 							value="<?php echo esc_attr($current_user->user_email); ?>" required />
 					</div>
@@ -175,7 +177,7 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 				<div class="slms-field-row">
 					<div class="slms-field-group">
 						<label class="slms-field-label"
-							for="slms_phone"><?php esc_html_e('Phone', 'simple-lms'); ?></label>
+							for="slms_phone"><?php esc_html_e('Phone', 'simple-lms-bridge'); ?></label>
 						<input class="slms-input" type="text" id="slms_phone" name="phone"
 							value="<?php echo esc_attr(get_user_meta($current_user->ID, 'phone', true)); ?>" />
 					</div>
@@ -185,7 +187,7 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 				<div class="slms-field-row">
 					<div class="slms-field-group">
 						<label class="slms-field-label"
-							for="slms_license_number"><?php esc_html_e('Senior or Professional Laser Hair Removal License Number', 'simple-lms'); ?></label>
+							for="slms_license_number"><?php esc_html_e('Senior or Professional Laser Hair Removal License Number', 'simple-lms-bridge'); ?></label>
 						<input class="slms-input" type="text" id="slms_license_number" name="license_number"
 							value="<?php echo esc_attr(get_user_meta($current_user->ID, 'license_number', true)); ?>" />
 					</div>
@@ -196,7 +198,7 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 					<div class="slms-field-group slms-checkbox-group">
 						<label class="slms-checkbox-label">
 							<input type="checkbox" id="slms_update_password" name="update_password" value="1" />
-							<?php esc_html_e('Update Password', 'simple-lms'); ?>
+							<?php esc_html_e('Update Password', 'simple-lms-bridge'); ?>
 						</label>
 					</div>
 				</div>
@@ -205,13 +207,13 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 				<div id="slms-password-fields" class="slms-field-row slms-two-col slms-hidden" aria-hidden="true">
 					<div class="slms-field-group">
 						<label class="slms-field-label"
-							for="slms_user_pass"><?php esc_html_e('New Password', 'simple-lms'); ?></label>
+							for="slms_user_pass"><?php esc_html_e('New Password', 'simple-lms-bridge'); ?></label>
 						<input class="slms-input" type="password" id="slms_user_pass" name="user_pass" value=""
 							autocomplete="new-password" />
 					</div>
 					<div class="slms-field-group">
 						<label class="slms-field-label"
-							for="slms_user_pass_confirm"><?php esc_html_e('Confirm Password', 'simple-lms'); ?></label>
+							for="slms_user_pass_confirm"><?php esc_html_e('Confirm Password', 'simple-lms-bridge'); ?></label>
 						<input class="slms-input" type="password" id="slms_user_pass_confirm" name="user_pass_confirm"
 							value="" autocomplete="new-password" />
 					</div>
@@ -221,7 +223,7 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 				<div class="slms-field-row">
 					<div class="slms-field-group">
 						<label class="slms-field-label"
-							for="slms_billing_address_1"><?php esc_html_e('Street Address', 'simple-lms'); ?></label>
+							for="slms_billing_address_1"><?php esc_html_e('Street Address', 'simple-lms-bridge'); ?></label>
 						<input class="slms-input" type="text" id="slms_billing_address_1" name="billing_address_1"
 							value="<?php echo esc_attr(get_user_meta($current_user->ID, 'billing_address_1', true)); ?>" />
 					</div>
@@ -231,7 +233,7 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 				<div class="slms-field-row">
 					<div class="slms-field-group">
 						<label class="slms-field-label"
-							for="slms_billing_address_2"><?php esc_html_e('Address Line 2', 'simple-lms'); ?></label>
+							for="slms_billing_address_2"><?php esc_html_e('Address Line 2', 'simple-lms-bridge'); ?></label>
 						<input class="slms-input" type="text" id="slms_billing_address_2" name="billing_address_2"
 							value="<?php echo esc_attr(get_user_meta($current_user->ID, 'billing_address_2', true)); ?>" />
 					</div>
@@ -241,15 +243,15 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 				<div class="slms-field-row slms-three-col">
 					<div class="slms-field-group">
 						<label class="slms-field-label"
-							for="slms_billing_city"><?php esc_html_e('City', 'simple-lms'); ?></label>
+							for="slms_billing_city"><?php esc_html_e('City', 'simple-lms-bridge'); ?></label>
 						<input class="slms-input" type="text" id="slms_billing_city" name="billing_city"
 							value="<?php echo esc_attr(get_user_meta($current_user->ID, 'billing_city', true)); ?>" />
 					</div>
 					<div class="slms-field-group">
 						<label class="slms-field-label"
-							for="slms_billing_state"><?php esc_html_e('State', 'simple-lms'); ?></label>
+							for="slms_billing_state"><?php esc_html_e('State', 'simple-lms-bridge'); ?></label>
 						<select class="slms-input" id="slms_billing_state" name="billing_state">
-							<option value=""><?php esc_html_e('— Select State —', 'simple-lms'); ?></option>
+							<option value=""><?php esc_html_e('— Select State —', 'simple-lms-bridge'); ?></option>
 							<?php foreach ($us_states as $abbr => $name): ?>
 								<option value="<?php echo esc_attr($abbr); ?>" <?php selected($saved_state, $abbr); ?>>
 									<?php echo esc_html($name); ?></option>
@@ -258,7 +260,7 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 					</div>
 					<div class="slms-field-group">
 						<label class="slms-field-label"
-							for="slms_billing_postcode"><?php esc_html_e('ZIP Code', 'simple-lms'); ?></label>
+							for="slms_billing_postcode"><?php esc_html_e('ZIP Code', 'simple-lms-bridge'); ?></label>
 						<input class="slms-input" type="text" id="slms_billing_postcode" name="billing_postcode"
 							value="<?php echo esc_attr(get_user_meta($current_user->ID, 'billing_postcode', true)); ?>" />
 					</div>
@@ -267,11 +269,61 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 				<?php /* Submit */ ?>
 				<div class="slms-field-row slms-form-footer">
 					<button type="submit"
-						class="slms-submit-btn"><?php esc_html_e('Update Profile', 'simple-lms'); ?></button>
+						class="slms-submit-btn"><?php esc_html_e('Update Profile', 'simple-lms-bridge'); ?></button>
 				</div>
 
 			</form>
 		</div><!-- #slms-tab-profile -->
+
+		<?php /* ──────────────────────────────────────────────────────────────
+		  * TAB – My Courses (reuses the lms-my-courses query logic)
+		  * ────────────────────────────────────────────────────────────── */ ?>
+		<div id="slms-tab-courses" class="slms-tab-pane" role="tabpanel">
+			<?php
+			$my_courses = class_exists('\\SimpleLMS\\Access')
+				? \SimpleLMS\Access::get_enrolled_courses_with_progress($current_user->ID)
+				: array();
+			?>
+			<?php if (!empty($my_courses)): ?>
+				<div class="slms-dashboard-courses">
+					<?php foreach ($my_courses as $course):
+						$is_complete = ('completed' === $course['state']);
+						$btn_label = $is_complete
+							? __('Review', 'simple-lms-bridge')
+							: ($course['completed'] > 0 ? __('Continue', 'simple-lms-bridge') : __('Start', 'simple-lms-bridge'));
+						?>
+						<div class="slms-dc-item<?php echo $is_complete ? ' is-complete' : ''; ?>">
+							<div class="slms-dc-body">
+								<h3 class="slms-dc-title">
+									<a href="<?php echo esc_url($course['permalink']); ?>"><?php echo esc_html($course['title']); ?></a>
+								</h3>
+								<div class="slms-dc-progress">
+									<div class="slms-progress-bar-container">
+										<div class="slms-progress-bar-fill" style="width: <?php echo esc_attr($course['percent']); ?>%;"></div>
+									</div>
+									<span class="slms-progress-label">
+										<?php
+										printf(
+											/* translators: 1: completed, 2: total, 3: percent */
+											esc_html__('%1$d of %2$d lessons · %3$d%% complete', 'simple-lms-bridge'),
+											(int) $course['completed'],
+											(int) $course['total'],
+											(int) $course['percent']
+										);
+										?>
+									</span>
+								</div>
+							</div>
+							<div class="slms-dc-action">
+								<a class="slms-cta-button" href="<?php echo esc_url($course['continue_url']); ?>"><?php echo esc_html($btn_label); ?></a>
+							</div>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			<?php else: ?>
+				<p class="slms-empty-message"><?php esc_html_e('You are not enrolled in any courses yet.', 'simple-lms-bridge'); ?></p>
+			<?php endif; ?>
+		</div><!-- #slms-tab-courses -->
 
 		<?php /* ──────────────────────────────────────────────────────────────
 		  * TAB 2 – Purchase History
@@ -288,10 +340,10 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 				<table class="slms-table">
 					<thead>
 						<tr>
-							<th scope="col"><?php esc_html_e('ID', 'simple-lms'); ?></th>
-							<th scope="col"><?php esc_html_e('Purchase Date', 'simple-lms'); ?></th>
-							<th scope="col"><?php esc_html_e('Course Purchases', 'simple-lms'); ?></th>
-							<th scope="col"><?php esc_html_e('Total', 'simple-lms'); ?></th>
+							<th scope="col"><?php esc_html_e('ID', 'simple-lms-bridge'); ?></th>
+							<th scope="col"><?php esc_html_e('Purchase Date', 'simple-lms-bridge'); ?></th>
+							<th scope="col"><?php esc_html_e('Course Purchases', 'simple-lms-bridge'); ?></th>
+							<th scope="col"><?php esc_html_e('Total', 'simple-lms-bridge'); ?></th>
 						</tr>
 					</thead>
 					<tbody>
@@ -321,7 +373,7 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 											esc_html(get_the_title($course_post_id))
 										);
 									} else {
-										echo esc_html($level_name ?: __('Unknown', 'simple-lms'));
+										echo esc_html($level_name ?: __('Unknown', 'simple-lms-bridge'));
 									}
 									?>
 								</td>
@@ -337,7 +389,7 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 					</tbody>
 				</table>
 			<?php else: ?>
-				<p class="slms-empty-message"><?php esc_html_e('No purchase history found.', 'simple-lms'); ?></p>
+				<p class="slms-empty-message"><?php esc_html_e('No purchase history found.', 'simple-lms-bridge'); ?></p>
 			<?php endif; ?>
 
 		</div><!-- #slms-tab-history -->
@@ -353,10 +405,10 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 				<table class="slms-table">
 					<thead>
 						<tr>
-							<th scope="col"><?php esc_html_e('Name', 'simple-lms'); ?></th>
-							<th scope="col"><?php esc_html_e('Course', 'simple-lms'); ?></th>
-							<th scope="col"><?php esc_html_e('Completion Date', 'simple-lms'); ?></th>
-							<th scope="col"><?php esc_html_e('Certificate PDF', 'simple-lms'); ?></th>
+							<th scope="col"><?php esc_html_e('Name', 'simple-lms-bridge'); ?></th>
+							<th scope="col"><?php esc_html_e('Course', 'simple-lms-bridge'); ?></th>
+							<th scope="col"><?php esc_html_e('Completion Date', 'simple-lms-bridge'); ?></th>
+							<th scope="col"><?php esc_html_e('Certificate PDF', 'simple-lms-bridge'); ?></th>
 						</tr>
 					</thead>
 					<tbody>
@@ -427,7 +479,7 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 
 							} else {
 								// Plain string (post-migration data or new completion title) — use directly.
-								$course_name = !empty($raw_course_name) ? $raw_course_name : __('Unknown Course', 'simple-lms');
+								$course_name = !empty($raw_course_name) ? $raw_course_name : __('Unknown Course', 'simple-lms-bridge');
 
 								// Try to resolve a permalink from the title so PDF backfill has a valid URL.
 								if (!empty($raw_course_name)) {
@@ -472,7 +524,7 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 
 									if ($pdf_url) {
 										$pdf_link_html = '<a href="' . esc_url($pdf_url) . '" class="slms-pdf-link">'
-											. esc_html__('Download PDF', 'simple-lms')
+											. esc_html__('Download PDF', 'simple-lms-bridge')
 											. '</a>';
 									}
 								} catch (\Throwable $e) {
@@ -503,7 +555,7 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 									if ($pdf_link_html) {
 										echo $pdf_link_html;
 									} else {
-										echo '<span class="slms-na">' . esc_html__('N/A', 'simple-lms') . '</span>';
+										echo '<span class="slms-na">' . esc_html__('N/A', 'simple-lms-bridge') . '</span>';
 									}
 									?>
 								</td>
@@ -512,7 +564,7 @@ $saved_state = get_user_meta($current_user->ID, 'billing_state', true);
 					</tbody>
 				</table>
 			<?php else: ?>
-				<p class="slms-empty-message"><?php esc_html_e('No certificates found.', 'simple-lms'); ?></p>
+				<p class="slms-empty-message"><?php esc_html_e('No certificates found.', 'simple-lms-bridge'); ?></p>
 			<?php endif; ?>
 
 		</div><!-- #slms-tab-certificates -->

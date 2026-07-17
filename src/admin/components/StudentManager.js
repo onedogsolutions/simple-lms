@@ -214,6 +214,17 @@ const StudentManager = () => {
 		fetchAvailableCourses();
 	}, []);
 
+	// Cross-link deep-link: #/students?course={id} pre-selects the course filter
+	// (mirrors the Analytics course drill-down cross-link).
+	useEffect(() => {
+		const match = (window.location.hash || '').match(
+			/#\/students\?course=(\d+)/
+		);
+		if (match) {
+			setCourseFilter(match[1]);
+		}
+	}, []);
+
 	// Track when search triggers a fetch so page-change effect can skip redundant call.
 	const searchTriggeredFetch = useRef(false);
 

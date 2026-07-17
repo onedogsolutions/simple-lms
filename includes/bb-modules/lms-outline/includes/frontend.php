@@ -76,6 +76,15 @@ $course_progress = isset($progress[$course_id]) ? $progress[$course_id] : array(
 
             $is_current = ($lesson_id === $post->ID);
             $is_completed = isset($course_progress[$lesson_id]);
+
+            // Drip lock state (only meaningful for logged-in, enrolled students).
+            $is_locked = false;
+            $unlock_ts = 0;
+            if ($user_id && class_exists('SimpleLMS\\Access')) {
+                $unlock_ts = \SimpleLMS\Access::get_unlock_timestamp($user_id, $lesson_id, $course_id);
+                $is_locked = $unlock_ts > 0 && current_time('timestamp') < $unlock_ts;
+            }
+
             $classes = array('slms-lesson-item');
             if ($is_current) {
                 $classes[] = 'is-current';
@@ -83,21 +92,45 @@ $course_progress = isset($progress[$course_id]) ? $progress[$course_id] : array(
             if ($is_completed) {
                 $classes[] = 'is-completed';
             }
+            if ($is_locked) {
+                $classes[] = 'is-locked';
+            }
+
+            $unlock_label = $is_locked
+                ? sprintf(
+                    /* translators: %s: unlock date */
+                    __('Unlocks %s', 'simple-lms-bridge'),
+                    date_i18n(get_option('date_format'), $unlock_ts)
+                )
+                : '';
             ?>
             <li class="<?php echo implode(' ', $classes); ?>">
-                <a href="<?php echo get_permalink($lesson_id); ?>">
-                    <span class="slms-lesson-number"><?php echo ($index + 1); ?></span>
-                    <span class="slms-status-icon">
-                        <?php if ($is_completed): ?>
-                            <span class="dashicons dashicons-yes-alt"></span>
-                        <?php else: ?>
-                            <span class="dashicons dashicons-marker"></span>
-                        <?php endif; ?>
+                <?php if ($is_locked): ?>
+                    <span class="slms-lesson-locked" aria-disabled="true" title="<?php echo esc_attr($unlock_label); ?>">
+                        <span class="slms-lesson-number"><?php echo ($index + 1); ?></span>
+                        <span class="slms-status-icon">
+                            <span class="dashicons dashicons-lock"></span>
+                        </span>
+                        <span class="slms-lesson-label">
+                            <?php echo get_the_title($lesson_id); ?>
+                            <span class="slms-lesson-unlock"><?php echo esc_html($unlock_label); ?></span>
+                        </span>
                     </span>
-                    <span class="slms-lesson-label">
-                        <?php echo get_the_title($lesson_id); ?>
-                    </span>
-                </a>
+                <?php else: ?>
+                    <a href="<?php echo get_permalink($lesson_id); ?>">
+                        <span class="slms-lesson-number"><?php echo ($index + 1); ?></span>
+                        <span class="slms-status-icon">
+                            <?php if ($is_completed): ?>
+                                <span class="dashicons dashicons-yes-alt"></span>
+                            <?php else: ?>
+                                <span class="dashicons dashicons-marker"></span>
+                            <?php endif; ?>
+                        </span>
+                        <span class="slms-lesson-label">
+                            <?php echo get_the_title($lesson_id); ?>
+                        </span>
+                    </a>
+                <?php endif; ?>
             </li>
         <?php endforeach; ?>
     </ul>

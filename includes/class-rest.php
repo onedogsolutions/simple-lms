@@ -68,7 +68,7 @@ class REST
             'methods' => 'POST',
             'callback' => array(__CLASS__, 'update_progress'),
             'permission_callback' => function () {
-                return current_user_can('edit_users');
+                return is_user_logged_in();
             },
             'args' => array(
                 'user_id' => array(
@@ -290,6 +290,62 @@ class REST
                 ),
             ),
         ));
+
+        /* ── Analytics (owner-facing, manage_options) ───────────────── */
+
+        register_rest_route(self::NAMESPACE , '/analytics/overview', array(
+            'methods' => 'GET',
+            'callback' => array(__CLASS__, 'get_analytics_overview'),
+            'permission_callback' => function () {
+                return current_user_can('manage_options');
+            },
+            'args' => array(
+                'from' => array('required' => false, 'sanitize_callback' => 'sanitize_text_field'),
+                'to'   => array('required' => false, 'sanitize_callback' => 'sanitize_text_field'),
+            ),
+        ));
+
+        register_rest_route(self::NAMESPACE , '/analytics/course/(?P<id>\d+)', array(
+            'methods' => 'GET',
+            'callback' => array(__CLASS__, 'get_analytics_course'),
+            'permission_callback' => function () {
+                return current_user_can('manage_options');
+            },
+            'args' => array(
+                'id' => array('required' => true, 'sanitize_callback' => 'absint'),
+            ),
+        ));
+
+        register_rest_route(self::NAMESPACE , '/analytics/at-risk', array(
+            'methods' => 'GET',
+            'callback' => array(__CLASS__, 'get_analytics_at_risk'),
+            'permission_callback' => function () {
+                return current_user_can('manage_options');
+            },
+            'args' => array(
+                'days' => array('required' => false, 'default' => 30, 'sanitize_callback' => 'absint'),
+            ),
+        ));
+
+        register_rest_route(self::NAMESPACE , '/analytics/extend-access', array(
+            'methods' => 'POST',
+            'callback' => array(__CLASS__, 'extend_access'),
+            'permission_callback' => function () {
+                return current_user_can('manage_options');
+            },
+            'args' => array(
+                'user_id'   => array('required' => true, 'sanitize_callback' => 'absint'),
+                'course_id' => array('required' => true, 'sanitize_callback' => 'absint'),
+            ),
+        ));
+
+        register_rest_route(self::NAMESPACE , '/analytics/courses', array(
+            'methods' => 'GET',
+            'callback' => array(__CLASS__, 'get_analytics_courses'),
+            'permission_callback' => function () {
+                return current_user_can('manage_options');
+            },
+        ));
     }
 
     /* ───────────────────────────────────────────────────────────────────
@@ -331,41 +387,58 @@ class REST
         $lesson_id = $request->get_param('lesson_id');
         $completed = $request->get_param('completed');
 
+        // Non-privileged users may only update their own progress. Ignore the
+        // supplied user_id and force the acting user when they lack edit_users.
+        if (!current_user_can('edit_users')) {
+            $user_id = get_current_user_id();
+        }
+
         // Validate the user exists.
         if (!get_userdata($user_id)) {
             return new \WP_Error('invalid_user', __('User not found.', 'simple-lms-bridge'), array('status' => 404));
         }
 
-        $progress = get_user_meta($user_id, '_lms_progress', true);
-
-        if (!is_array($progress)) {
-            $progress = array();
+        // Validate the lesson belongs to the course.
+        $lessons = Relationships::get_lessons_for_course($course_id);
+        $course_lesson_ids = array_map('absint', wp_list_pluck($lessons, 'id'));
+        if (!in_array((int) $lesson_id, $course_lesson_ids, true)) {
+            return new \WP_Error('invalid_lesson', __('Lesson does not belong to this course.', 'simple-lms-bridge'), array('status' => 400));
         }
 
-        if ($completed) {
-            if (!isset($progress[$course_id])) {
-                $progress[$course_id] = array();
-            }
-            $progress[$course_id][$lesson_id] = time();
-        } else {
-            unset($progress[$course_id][$lesson_id]);
-
-            // Clean up empty course arrays.
-            if (isset($progress[$course_id]) && empty($progress[$course_id])) {
-                unset($progress[$course_id]);
-            }
+        // Validate the user is enrolled in the course before writing progress.
+        if (!Relationships::is_user_enrolled($user_id, $course_id)) {
+            return new \WP_Error('not_enrolled', __('User is not enrolled in this course.', 'simple-lms-bridge'), array('status' => 403));
         }
 
-        update_user_meta($user_id, '_lms_progress', $progress);
+        // Route through the shared completion path (also fires certificate
+        // automation + completion detection).
+        $progress = Access::set_lesson_progress($user_id, $course_id, $lesson_id, $completed);
 
-        // Check for course completion.
-        Certificates::check_course_completion($user_id, $course_id);
-
-
-        return rest_ensure_response(array(
-            'success' => true,
+        $response = array(
+            'success'  => true,
             'progress' => $progress,
-        ));
+        );
+
+        // On completion of the final lesson, surface the configured redirect URL
+        // so the frontend can send the student onward (e.g. to a certificate).
+        //
+        // NOTE: certificate automation (fired inside set_lesson_progress) may
+        // de-enroll the student and wipe _lms_progress, so we cannot re-read
+        // progress here. Instead we key off _lms_completed_at, which is set when
+        // the course completes and is NOT cleared by de-enrollment.
+        if ($completed) {
+            $completed_map = get_user_meta($user_id, '_lms_completed_at', true);
+            if (is_array($completed_map) && isset($completed_map[$course_id])) {
+                $response['course_complete'] = true;
+
+                $redirect = get_post_meta($course_id, '_lms_completion_redirect', true);
+                if (!empty($redirect)) {
+                    $response['redirect'] = esc_url_raw($redirect);
+                }
+            }
+        }
+
+        return rest_ensure_response($response);
     }
 
     /**
@@ -930,7 +1003,7 @@ class REST
                 $slug = basename(rtrim($path, '/'));
                 if ($slug) {
                     // Try to find a post by slug.
-                    $by_slug = \get_page_to_path($slug, array('slms_course', 'slms_lesson', 'course', 'page', 'post')); // Note: get_page_by_path is deprecated in newer WP but I'll stick to the user's logic if possible or use a safer way. Actually let's just append the method as requested.
+                    $by_slug = get_page_by_path($slug, OBJECT, array('slms_course', 'slms_lesson', 'page', 'post'));
                     if ($by_slug) {
                         return $by_slug->post_title;
                     }
@@ -943,4 +1016,168 @@ class REST
         return $name;
     }
 
+    /* ───────────────────────────────────────────────────────────────────
+     * Analytics callbacks
+     * ─────────────────────────────────────────────────────────────────── */
+
+    /**
+     * GET /analytics/overview
+     *
+     * @param \WP_REST_Request $request Request object.
+     * @return \WP_REST_Response
+     */
+    public static function get_analytics_overview($request)
+    {
+        return rest_ensure_response(Analytics::overview(
+            $request->get_param('from'),
+            $request->get_param('to')
+        ));
+    }
+
+    /**
+     * GET /analytics/course/{id} — funnel + drop-off + time-to-complete.
+     *
+     * @param \WP_REST_Request $request Request object.
+     * @return \WP_REST_Response
+     */
+    public static function get_analytics_course($request)
+    {
+        $course_id = $request->get_param('id');
+
+        return rest_ensure_response(array(
+            'funnel'           => Analytics::course_funnel($course_id),
+            'dropoff'          => Analytics::lesson_dropoff($course_id),
+            'time_to_complete' => Analytics::time_to_complete($course_id),
+        ));
+    }
+
+    /**
+     * GET /analytics/at-risk
+     *
+     * @param \WP_REST_Request $request Request object.
+     * @return \WP_REST_Response
+     */
+    public static function get_analytics_at_risk($request)
+    {
+        $days = $request->get_param('days');
+        return rest_ensure_response(array(
+            'days'     => (int) $days,
+            'students' => Analytics::at_risk($days),
+        ));
+    }
+
+    /**
+     * GET /analytics/courses — published courses for the drill-down selector.
+     *
+     * @return \WP_REST_Response
+     */
+    public static function get_analytics_courses()
+    {
+        $query = new \WP_Query(array(
+            'post_type'      => 'slms_course',
+            'post_status'    => 'publish',
+            'posts_per_page' => -1,
+            'orderby'        => 'title',
+            'order'          => 'ASC',
+            'fields'         => 'ids',
+            'no_found_rows'  => true,
+        ));
+
+        $result = array();
+        foreach ($query->posts as $id) {
+            $result[] = array('id' => (int) $id, 'title' => get_the_title($id));
+        }
+
+        return rest_ensure_response($result);
+    }
+
+    /**
+     * POST /analytics/extend-access
+     *
+     * Resets a user's enrollment clock for a course so access-expiry restarts.
+     * Writes both the `_lms_enrolled_at` meta and the enrollment-table row.
+     *
+     * @param \WP_REST_Request $request Request object.
+     * @return \WP_REST_Response|\WP_Error
+     */
+    public static function extend_access($request)
+    {
+        global $wpdb;
+
+        $user_id   = $request->get_param('user_id');
+        $course_id = $request->get_param('course_id');
+
+        if (!get_userdata($user_id)) {
+            return new \WP_Error('invalid_user', __('User not found.', 'simple-lms-bridge'), array('status' => 404));
+        }
+
+        $now = time();
+
+        // Reset the enrollment-timestamp meta used by the expiration cron.
+        $enrolled = get_user_meta($user_id, '_lms_enrolled_at', true);
+        if (!is_array($enrolled)) {
+            $enrolled = array();
+        }
+        $enrolled[$course_id] = $now;
+        update_user_meta($user_id, '_lms_enrolled_at', $enrolled);
+
+        // Keep the enrollment-table row in sync.
+        $wpdb->update(
+            $wpdb->prefix . 'slms_user_course',
+            array('enrolled_at' => current_time('mysql')),
+            array('user_id' => $user_id, 'course_id' => $course_id),
+            array('%s'),
+            array('%d', '%d')
+        );
+
+        return rest_ensure_response(array(
+            'success'     => true,
+            'enrolled_at' => gmdate('c', $now),
+        ));
+    }
+
+    /**
+     * Handle analytics CSV export via admin-post.php.
+     *
+     * Validates capability + nonce, then streams a CSV.
+     *
+     * @return void
+     */
+    public static function handle_analytics_export()
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized', 403);
+        }
+
+        check_admin_referer('slms_analytics_export');
+
+        $report = isset($_GET['report']) ? sanitize_key(wp_unslash($_GET['report'])) : 'overview';
+        $args = array(
+            'course_id' => isset($_GET['course_id']) ? absint($_GET['course_id']) : 0,
+            'days'      => isset($_GET['days']) ? absint($_GET['days']) : 30,
+            'from'      => isset($_GET['from']) ? sanitize_text_field(wp_unslash($_GET['from'])) : null,
+            'to'        => isset($_GET['to']) ? sanitize_text_field(wp_unslash($_GET['to'])) : null,
+        );
+
+        $csv = Analytics::build_csv($report, $args);
+
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . (string) $csv['filename'] . '"');
+        header('X-Content-Type-Options: nosniff');
+        header('Cache-Control: no-cache, no-store, must-revalidate');
+
+        $out = fopen('php://output', 'w');
+        if (false === $out) {
+            wp_die('Unable to open output stream.', 500);
+        }
+
+        if (!empty($csv['header'])) {
+            fputcsv($out, (array) $csv['header']);
+        }
+        foreach ((array) $csv['rows'] as $row) {
+            fputcsv($out, (array) $row);
+        }
+        fclose($out);
+        exit;
+    }
 }

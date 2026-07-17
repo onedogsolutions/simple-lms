@@ -5,6 +5,7 @@
  * - Course edit screen  → CourseEditor
  * - Lesson edit screen  → LessonSettings
  * - Student Manager     → StudentManager
+ * - Analytics           → Analytics
  *
  * @package
  */
@@ -15,6 +16,7 @@ import './index.css';
 import CourseEditor from './components/CourseEditor';
 import LessonSettings from './components/LessonSettings';
 import StudentManager from './components/StudentManager';
+import Analytics from './components/Analytics';
 
 const mount = () => {
 	const postId = window.slmsAdmin?.postId;
@@ -34,6 +36,8 @@ const mount = () => {
 		App = <LessonSettings postId={ postId } />;
 	} else if ( page === 'slms-students' ) {
 		App = <StudentManager />;
+	} else if ( page === 'slms-analytics' ) {
+		App = <Analytics />;
 	}
 
 	if ( ! App ) {

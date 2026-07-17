@@ -1,0 +1,167 @@
+/* LMS Course Grid — structural */
+.slms-course-grid {
+    display: grid;
+    gap: 1.5rem;
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.slms-course-grid.slms-cols-1 { grid-template-columns: repeat(1, 1fr); }
+.slms-course-grid.slms-cols-2 { grid-template-columns: repeat(2, 1fr); }
+.slms-course-grid.slms-cols-3 { grid-template-columns: repeat(3, 1fr); }
+.slms-course-grid.slms-cols-4 { grid-template-columns: repeat(4, 1fr); }
+
+@media (max-width: 960px) {
+    .slms-course-grid.slms-cols-3,
+    .slms-course-grid.slms-cols-4 { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 600px) {
+    .slms-course-grid { grid-template-columns: 1fr !important; }
+}
+
+.slms-course-card {
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    border: 1px solid #e2e4e7;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.slms-course-card:hover {
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.slms-card-thumb {
+    position: relative;
+    display: block;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    background: #f0f2f5;
+}
+
+.slms-card-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.slms-card-thumb-placeholder {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #e9ecef, #dee2e6);
+}
+
+.slms-enrolled-badge {
+    position: absolute;
+    top: 0.75rem;
+    left: 0.75rem;
+    background: #46b450;
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+}
+
+.slms-card-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    padding: 1.25rem;
+    gap: 0.75rem;
+}
+
+.slms-card-title {
+    margin: 0;
+    font-size: 1.15rem;
+    line-height: 1.3;
+    font-weight: 700;
+}
+
+.slms-card-title a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.slms-card-excerpt {
+    margin: 0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: #646970;
+}
+
+.slms-card-progress .slms-progress-bar-container {
+    background: #f0f2f5;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 0.35rem;
+}
+
+.slms-card-progress .slms-progress-bar-fill {
+    height: 100%;
+    background: #0073aa;
+    border-radius: 4px;
+    transition: width 0.4s ease;
+}
+
+.slms-card-progress .slms-progress-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #646970;
+}
+
+.slms-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-top: auto;
+    padding-top: 0.5rem;
+}
+
+.slms-card-price {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #2c3338;
+}
+
+.slms-course-grid .slms-cta-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.55rem 1.25rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-decoration: none;
+    border: none;
+    border-radius: 50px;
+    background: #0073aa;
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.slms-course-grid .slms-cta-button:hover {
+    filter: brightness(0.92);
+}
+
+.slms-grid-placeholder {
+    padding: 2rem;
+    background: #f8f9fa;
+    border: 2px dashed #dee2e6;
+    border-radius: 12px;
+    text-align: center;
+    color: #6c757d;
+    font-style: italic;
+}
