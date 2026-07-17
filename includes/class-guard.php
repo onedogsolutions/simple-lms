@@ -66,13 +66,22 @@ class Guard
         $post_id = get_queried_object_id();
         $user_id = get_current_user_id();
 
-        if (Access::can_view($user_id, $post_id)) {
+        $post = get_post($post_id);
+        $course_id = Access::resolve_course_id($post_id);
+
+        $can_view = false;
+        if ($post && $post->post_type === 'slms_course') {
+            $can_view = Access::can_view_course($user_id, $course_id);
+        } else {
+            $can_view = Access::can_view($user_id, $post_id, $course_id);
+        }
+
+        if ($can_view) {
             return;
         }
 
         // Respect the course's denial behavior: 'message' leaves the request on
         // the page so the the_content CTA renders instead of redirecting.
-        $course_id = Access::resolve_course_id($post_id);
         if (!$course_id) {
             $course_id = $post_id;
         }
@@ -129,7 +138,17 @@ class Guard
             return $content;
         }
 
-        if (Access::can_view(get_current_user_id(), $post->ID)) {
+        $user_id = get_current_user_id();
+        $course_id = Access::resolve_course_id($post->ID);
+
+        $can_view = false;
+        if ($post->post_type === 'slms_course') {
+            $can_view = Access::can_view_course($user_id, $course_id);
+        } else {
+            $can_view = Access::can_view($user_id, $post->ID, $course_id);
+        }
+
+        if ($can_view) {
             return $content;
         }
 
@@ -144,14 +163,14 @@ class Guard
      */
     private static function denied_markup($post)
     {
-        $reason = Access::denial_reason(get_current_user_id(), $post->ID);
-
-        $excerpt = has_excerpt($post) ? get_the_excerpt($post) : wp_trim_words(wp_strip_all_tags($post->post_content), 40);
-
         $course_id = Access::resolve_course_id($post->ID);
         if (!$course_id) {
             $course_id = $post->ID;
         }
+
+        $reason = Access::denial_reason(get_current_user_id(), $post->ID, $course_id);
+
+        $excerpt = has_excerpt($post) ? get_the_excerpt($post) : wp_trim_words(wp_strip_all_tags($post->post_content), 40);
 
         if ('not_logged_in' === $reason) {
             $cta_url  = wp_login_url(self::current_url());
@@ -201,7 +220,17 @@ class Guard
      */
     public static function guard_rest($response, $post, $request)
     {
-        if (Access::can_view(get_current_user_id(), $post->ID)) {
+        $user_id = get_current_user_id();
+        $course_id = Access::resolve_course_id($post->ID);
+
+        $can_view = false;
+        if ($post->post_type === 'slms_course') {
+            $can_view = Access::can_view_course($user_id, $course_id);
+        } else {
+            $can_view = Access::can_view($user_id, $post->ID, $course_id);
+        }
+
+        if ($can_view) {
             return $response;
         }
 

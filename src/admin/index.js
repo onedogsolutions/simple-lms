@@ -7,6 +7,7 @@
  * - Student Manager     → StudentManager
  * - Tools               → Tools
  * - Analytics           → Analytics
+ * - Settings            → Settings
  *
  * @package
  */
@@ -19,6 +20,7 @@ import LessonSettings from './components/LessonSettings';
 import StudentManager from './components/StudentManager';
 import Tools from './components/Tools';
 import Analytics from './components/Analytics';
+import Settings from './components/Settings';
 
 const mount = () => {
 	const postId = window.slmsAdmin?.postId;
@@ -42,6 +44,8 @@ const mount = () => {
 		App = <Tools />;
 	} else if ( page === 'slms-analytics' ) {
 		App = <Analytics />;
+	} else if ( page === 'slms-settings' ) {
+		App = <Settings />;
 	}
 
 	if ( ! App ) {

@@ -179,6 +179,42 @@ class Access
      * ─────────────────────────────────────────────────────────────────── */
 
     /**
+     * Whether a user may view a course.
+     *
+     * @param int $user_id   User ID (0 = current user).
+     * @param int $course_id Course ID.
+     * @return bool
+     */
+    public static function can_view_course($user_id, $course_id)
+    {
+        $user_id = $user_id ? absint($user_id) : get_current_user_id();
+
+        if ($user_id && user_can($user_id, 'edit_posts')) {
+            return true;
+        }
+
+        $guard_mode = get_post_meta($course_id, '_lms_guard_mode', true);
+        if (!$guard_mode) {
+            $guard_mode = class_exists(__NAMESPACE__ . '\\Settings') ? Settings::get('default_guard_mode', 'enrolled') : 'enrolled';
+        }
+
+        if ('public' === $guard_mode) {
+            return true;
+        }
+
+        if (!$user_id) {
+            return false;
+        }
+
+        if ('level' === $guard_mode) {
+            return class_exists(__NAMESPACE__ . '\PMPro') && PMPro::has_course_access($user_id, $course_id);
+        }
+
+        // 'enrolled' or fallback.
+        return Relationships::is_enrolled($user_id, $course_id);
+    }
+
+    /**
      * Whether a user may view a lesson.
      *
      * Combines enrollment/PMPro access with drip scheduling. Editors always
@@ -202,11 +238,11 @@ class Access
             return true;
         }
 
-        if (!$user_id) {
+        if (!self::can_view_course($user_id, $course_id)) {
             return false;
         }
 
-        if (!self::is_enrolled($user_id, $course_id)) {
+        if (!$user_id) {
             return false;
         }
 
@@ -223,6 +259,40 @@ class Access
          * @param int  $course_id Course ID.
          */
         return (bool) apply_filters('slms_can_view_lesson', true, $user_id, $lesson_id, $course_id);
+    }
+
+    /**
+     * Get the reason a user is denied access to a lesson.
+     *
+     * @param int $user_id   User ID.
+     * @param int $lesson_id Lesson ID.
+     * @param int $course_id Course ID (resolved automatically when 0).
+     * @return string Reason: not_logged_in, not_enrolled, expired, or dripped.
+     */
+    public static function denial_reason($user_id, $lesson_id, $course_id = 0)
+    {
+        $user_id = absint($user_id);
+        
+        if (!$course_id) {
+            $course_id = self::resolve_course_id($lesson_id);
+        }
+
+        if (!$user_id) {
+            return 'not_logged_in';
+        }
+
+        if (!self::can_view_course($user_id, $course_id)) {
+            if (class_exists(__NAMESPACE__ . '\Expiration') && Expiration::is_expired($user_id, $course_id)) {
+                return 'expired';
+            }
+            return 'not_enrolled';
+        }
+
+        if (self::is_dripped($user_id, $lesson_id, $course_id)) {
+            return 'dripped';
+        }
+
+        return '';
     }
 
     /* ───────────────────────────────────────────────────────────────────
@@ -422,9 +492,10 @@ class Access
      * PMPro checkout URL for the level mapped to a course.
      *
      * @param int $course_id Course ID.
+     * @param string $return_url Optional return URL.
      * @return string Checkout URL, or '' when no level is mapped / PMPro absent.
      */
-    public static function get_checkout_url($course_id)
+    public static function get_checkout_url($course_id, $return_url = '')
     {
         $levels = get_post_meta($course_id, '_lms_pmpro_levels', true);
 
@@ -438,7 +509,11 @@ class Access
         }
 
         if (function_exists('pmpro_url')) {
-            return \pmpro_url('checkout', '?level=' . $level_id);
+            $url = \pmpro_url('checkout', '?level=' . $level_id);
+            if ($return_url) {
+                $url = add_query_arg('return', urlencode($return_url), $url);
+            }
+            return $url;
         }
 
         return '';

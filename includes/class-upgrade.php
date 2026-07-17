@@ -52,6 +52,7 @@ class Upgrade
             1 => array(__CLASS__, 'step_1_create_tables'),
             2 => array(__CLASS__, 'step_2_create_analytics_table'),
             3 => array(__CLASS__, 'step_3_certificate_uuid'),
+            4 => array(__CLASS__, 'step_4_create_progress_table'),
         );
     }
 
@@ -114,5 +115,15 @@ class Upgrade
     public static function step_3_certificate_uuid()
     {
         CourseHistory::add_cert_uuid_column();
+    }
+
+    /**
+     * Step 4: Create the lesson progress table via dbDelta.
+     *
+     * @return void
+     */
+    public static function step_4_create_progress_table()
+    {
+        Progress::create_table();
     }
 }

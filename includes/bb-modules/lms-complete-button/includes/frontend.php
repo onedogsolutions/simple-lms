@@ -68,9 +68,8 @@ if ($gate_active) {
     <button type="button"
         class="<?php echo esc_attr(implode(' ', $button_classes)); ?>"
         data-course-id="<?php echo esc_attr($course_id); ?>" data-lesson-id="<?php echo esc_attr($post->ID); ?>"
-        data-user-id="<?php echo esc_attr($user_id); ?>"
         data-nonce="<?php echo esc_attr(wp_create_nonce('wp_rest')); ?>"
-        data-rest-url="<?php echo esc_url(rest_url('simple-lms/v1/progress')); ?>"
+        data-rest-url="<?php echo esc_url(rest_url('simple-lms/v1/me/progress')); ?>"
         <?php if ($gate_active) : ?>
         data-video-gate="<?php echo esc_attr($video_gate_pct); ?>"
         data-video-id="<?php echo esc_attr($video_id); ?>"

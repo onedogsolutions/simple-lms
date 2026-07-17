@@ -43,6 +43,32 @@ class REST
     public static function register_routes()
     {
 
+        /* ── Me / Current User ──────────────────────────────────────── */
+
+        register_rest_route(self::NAMESPACE , '/me/progress', array(
+            array(
+                'methods'             => 'GET',
+                'callback'            => array(__CLASS__, 'get_me_progress'),
+                'permission_callback' => 'is_user_logged_in',
+            ),
+            array(
+                'methods'             => 'POST',
+                'callback'            => array(__CLASS__, 'update_me_progress'),
+                'permission_callback' => 'is_user_logged_in',
+                'args'                => array(
+                    'course_id' => array('required' => true, 'sanitize_callback' => 'absint'),
+                    'lesson_id' => array('required' => true, 'sanitize_callback' => 'absint'),
+                    'completed' => array('required' => true, 'sanitize_callback' => 'rest_sanitize_boolean'),
+                ),
+            ),
+        ));
+
+        register_rest_route(self::NAMESPACE , '/me/courses', array(
+            'methods'             => 'GET',
+            'callback'            => array(__CLASS__, 'get_me_courses'),
+            'permission_callback' => 'is_user_logged_in',
+        ));
+
         /* ── Student Progress ───────────────────────────────────────── */
 
         // GET /progress/{user_id}
@@ -385,6 +411,76 @@ class REST
     /* ───────────────────────────────────────────────────────────────────
      * Callbacks
      * ─────────────────────────────────────────────────────────────────── */
+
+    /**
+     * GET /me/progress
+     */
+    public static function get_me_progress()
+    {
+        $user_id = get_current_user_id();
+        $progress = get_user_meta($user_id, '_lms_progress', true);
+        if (!is_array($progress)) {
+            $progress = array();
+        }
+        return rest_ensure_response($progress);
+    }
+
+    /**
+     * POST /me/progress
+     */
+    public static function update_me_progress($request)
+    {
+        $user_id = get_current_user_id();
+        $course_id = $request->get_param('course_id');
+        $lesson_id = $request->get_param('lesson_id');
+        $completed = $request->get_param('completed');
+
+        // Validate the lesson belongs to the course.
+        $lessons = Relationships::get_lessons_for_course($course_id);
+        $course_lesson_ids = array_map('absint', wp_list_pluck($lessons, 'id'));
+        if (!in_array((int) $lesson_id, $course_lesson_ids, true)) {
+            return new \WP_Error('invalid_lesson', __('Lesson does not belong to this course.', 'simple-lms-bridge'), array('status' => 400));
+        }
+
+        // Validate enrollment.
+        if (!Relationships::is_user_enrolled($user_id, $course_id)) {
+            return new \WP_Error('not_enrolled', __('User is not enrolled in this course.', 'simple-lms-bridge'), array('status' => 403));
+        }
+
+        if ($completed) {
+            Progress::complete($user_id, $course_id, $lesson_id);
+        } else {
+            Progress::uncomplete($user_id, $course_id, $lesson_id);
+        }
+
+        $progress = get_user_meta($user_id, '_lms_progress', true);
+
+        $response = array(
+            'success'  => true,
+            'progress' => $progress,
+        );
+
+        if ($completed) {
+            $completed_map = get_user_meta($user_id, '_lms_completed_at', true);
+            if (is_array($completed_map) && isset($completed_map[$course_id])) {
+                $response['course_complete'] = true;
+                $redirect = get_post_meta($course_id, '_lms_completion_redirect', true);
+                if (!empty($redirect)) {
+                    $response['redirect'] = esc_url_raw($redirect);
+                }
+            }
+        }
+
+        return rest_ensure_response($response);
+    }
+
+    /**
+     * GET /me/courses
+     */
+    public static function get_me_courses()
+    {
+        return rest_ensure_response(CourseDisplay::get_enrolled_courses_with_progress(get_current_user_id()));
+    }
 
     /**
      * GET /progress/{user_id}

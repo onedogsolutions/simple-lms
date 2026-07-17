@@ -27,7 +27,6 @@
 				}
 
 				var data = {
-					user_id: parseInt(btn.dataset.userId, 10),
 					course_id: parseInt(btn.dataset.courseId, 10),
 					lesson_id: parseInt(btn.dataset.lessonId, 10),
 					completed: !btn.classList.contains('is-completed'),
@@ -231,3 +230,4 @@
 		init();
 	}
 })();
+
