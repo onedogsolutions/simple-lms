@@ -4,6 +4,23 @@ This file is the historical log for the Simple LMS Bridge project. The living
 state document (architecture, current status, conventions) is in
 [`STATE.md`](./STATE.md).
 
+## 1.1.1 — Progress Backfill Trigger Layer
+
+The 1.1.0 notes below anticipated the progress backfill, but its trigger layer
+merged after the `v1.1.0` tag was cut; 1.1.1 completes it.
+
+- **Backfill trigger layer (#13):** `Progress::backfill()` (previously dead
+  code) is now reachable three ways — `wp slms progress backfill` (new
+  `includes/class-cli.php`, loaded only under WP-CLI), an admin-only
+  `POST /simple-lms/v1/tools/progress-backfill` route returning
+  `{processed_users, inserted_rows, skipped_entries, next_offset, complete,
+  parity}`, and a "Progress Table Backfill" panel on the **SimpleLMS → Tools**
+  screen with a batch loop and meta-vs-table parity display. Backfill is
+  idempotent (`INSERT IGNORE` against the `user_course_lesson` unique key) and
+  counts malformed legacy entries instead of failing.
+- **Release packaging:** version bump to 1.1.1; both plugin zips
+  (`simple-lms-bridge`, `simple-lms-migrator`) build from the tagged commit.
+
 ## 1.1.0 — Guarding, Progress Table, Settings, /me API, and Native Certificates
 
 First major release integrating local student progress, robust content guarding, and a native, branded certificate generator.

@@ -10,9 +10,11 @@ Simple LMS Bridge is a lightweight, CPT-based LMS for WordPress with a React
 admin UI and native Beaver Builder integration. Courses and lessons are custom
 post types linked through many-to-many join tables; enrollments, progress, and
 9-year compliance history are tracked in custom tables. Paid Memberships Pro
-(PMPro) drives course enrollment. Certificates are issued natively on
-completion by a bundled dompdf renderer (Stage 4); pre-Stage-4 completions
-still resolve through the legacy Gravity Forms + GravityPDF path.
+(PMPro) drives course enrollment, and content is guarded per course
+(public / enrolled / level modes) at the template, content-filter, and REST
+layers. Certificates are issued natively on completion by a bundled dompdf
+renderer (Stage 4); pre-Stage-4 completions still resolve through the legacy
+Gravity Forms + GravityPDF path.
 
 ## Current Status
 
@@ -46,15 +48,32 @@ still resolve through the legacy Gravity Forms + GravityPDF path.
   resolution (both the legacy fallback path here and in Stage 4's
   native-first check) is centralized into `Certificates::pdf_url()`. See
   `CHANGELOG.md` for details.
-- **Known follow-up:** the PHPCS (WordPress-Extra) CI job is currently
-  non-blocking (`continue-on-error`). The pre-existing codebase uses spaces for
-  indentation and double quotes throughout, which conflicts with
-  WordPress-Extra's tabs/single-quote conventions across essentially every file
-  — a dedicated formatting pass (`composer phpcbf`, reviewed by hand for the
-  handful of non-auto-fixable `WordPress.DB.PreparedSQL.NotPrepared` sniffs) is
-  needed before this can be a hard gate. PHPStan (level 5) is a hard gate; its
-  pre-existing, out-of-scope findings are tracked in `phpstan.neon`'s
-  `ignoreErrors` as a baseline rather than silently disabled.
+- **Content Guarding & /me API (v1.1.0):** guarding is enforced at three
+  layers by `class-guard.php` (`template_redirect`, a `the_content` fallback,
+  and `rest_prepare_*` content stripping), driven by per-course
+  `_lms_guard_mode` (public / enrolled / level, default from Settings). The
+  incumbent `Access` API gained `can_view_course()`, `denial_reason()`, and a
+  return-URL-aware `get_checkout_url()`. Students read/write their own
+  progress via session-derived `/me/*` REST routes.
+- **Progress Table (v1.1.0) + Backfill (v1.1.1):** lesson completions live in
+  `wp_slms_lesson_progress` (Upgrade step 4), dual-written with a legacy
+  `_lms_progress` meta mirror. Historical meta is imported by
+  `Progress::backfill()` — idempotent, batch-paginated, reachable via
+  `wp slms progress backfill`, `POST /tools/progress-backfill`, or the
+  **SimpleLMS → Tools** backfill panel (with meta-vs-table parity check).
+  Analytics queries read the table exclusively (no serialized-meta parsing)
+  and surface a `needs_backfill` notice when the table is empty.
+- **CI gates:** PHPCS (WordPress-Extra) is a required check after the
+  repo-wide `phpcbf` formatting pass; PHPStan (level 5) is a hard gate with
+  pre-existing findings baselined in `phpstan.neon`; PHP lint runs on
+  8.1/8.2/8.3; `deploy.sh` builds both plugin zips (rsync-or-tar staging,
+  `--prefer-dist` composer, 10 MB size guard).
+- **Release state:** `v1.1.1` tagged. Next step: the manual staging smoke test
+  (activation → guarding → student journey → certificates → analytics →
+  migrator dry-run → BB modules), then production rollout: backup, install
+  both plugins, run the progress backfill, verify parity, spot-check students.
+  Parked branches: `prestoplayer-fluentplayer-migration` (new scope, on hold),
+  `student-manager-guardrail` (archived; merged as the core/migrator split).
 
 ## Architecture
 
@@ -65,6 +84,7 @@ still resolve through the legacy Gravity Forms + GravityPDF path.
 | `wp_slms_course_lesson` | M2M course ↔ lesson links (with `sort_order`) | `Relationships::create_table()` |
 | `wp_slms_user_course` | Enrollments (`user_id`, `course_id`, `enrolled_at`, `source`) | `Relationships::create_table()` |
 | `wp_slms_course_history` | 9-year compliance completion records | `CourseHistory::create_table()` |
+| `wp_slms_lesson_progress` | Per-lesson completions (`user_id`, `course_id`, `lesson_id`, `completed_at`; unique `user_course_lesson`) | `Progress::create_table()` (Upgrade step 4) |
 
 ### Schema versioning
 
@@ -81,6 +101,17 @@ still resolve through the legacy Gravity Forms + GravityPDF path.
 ### REST API
 
 - Base namespace: `simple-lms/v1` (`includes/class-rest.php`).
+- `GET/POST /me/progress`, `GET /me/courses` — permission
+  `is_user_logged_in()`; the user is always `get_current_user_id()` (no
+  caller-supplied `user_id`). Writes validate lesson-in-course and enrollment,
+  go through `Progress::complete()/uncomplete()` (table + meta mirror), and
+  trigger `Certificates::check_course_completion()`. The frontend complete
+  button posts here.
+- `POST /tools/progress-backfill` (`manage_options`) — runs one
+  `Progress::backfill()` batch, returns batch stats + `parity`.
+- `GET/POST /settings` (`manage_options`) — global settings consumed by the
+  React Settings screen (default guard mode, checkout page, login redirect,
+  certificate GF field IDs).
 - `POST /progress` — permission `is_user_logged_in()`. Non-privileged callers
   can only write their own progress; the endpoint validates lesson-in-course
   and enrollment before writing.
@@ -90,6 +121,31 @@ still resolve through the legacy Gravity Forms + GravityPDF path.
   `manage_options` as appropriate. Migration endpoints (`/migration/*`,
   `/debug-log`) are registered by the `simple-lms-migrator` plugin under the
   same `simple-lms/v1` namespace.
+
+### Access control & guarding
+
+- `Access` (`includes/class-access.php`) is the single authority:
+  `can_view($user, $lesson, $course)` for lessons, `can_view_course()` for
+  courses, plus drip (`is_dripped`), `denial_reason()`
+  (`not_logged_in|not_enrolled|expired|dripped`), and CTA/checkout helpers.
+- Guard mode per course: `_lms_guard_mode` post meta — `public` (open),
+  `enrolled` (row in `wp_slms_user_course`), `level` (PMPro level via
+  `PMPro::has_course_access()`); unset falls back to the Settings default.
+- `Guard` (`includes/class-guard.php`) enforces at three layers:
+  `template_redirect` on course/lesson singles (logged-out → login; denied →
+  PMPro checkout with return URL), a priority-99 `the_content` fallback
+  (excerpt + CTA; bypassed in the BB builder), and `rest_prepare_slms_course`
+  / `rest_prepare_slms_lesson` filters stripping `content.rendered`.
+
+### Progress data
+
+- Source of truth: `wp_slms_lesson_progress` via `Progress`
+  (`complete/uncomplete/get_for_user_course/stats`). Every write also mirrors
+  the legacy `_lms_progress` user-meta array for back-compat readers.
+- Historical meta → table import: `Progress::backfill()` (idempotent
+  `INSERT IGNORE`, malformed entries counted and skipped) +
+  `Progress::get_parity()`; triggers listed under REST API above.
+- Analytics (`class-analytics.php`) reads the table only.
 
 ### Enrollment & expiration
 
@@ -184,7 +240,8 @@ directly into each module's own template files.
 > scoped via `document.currentScript.previousElementSibling`.
 
 Loaded modules (`slms_load_bb_modules()`): `lms-content`, `lms-outline`,
-`lms-complete-button`, `slms-student-dashboard`.
+`lms-complete-button`, `lms-course-grid`, `lms-my-courses`, `lms-course-cta`,
+`lms-lesson-nav`, `slms-student-dashboard`.
 
 ### Student Dashboard — HTML class reference
 
