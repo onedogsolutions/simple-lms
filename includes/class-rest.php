@@ -297,6 +297,30 @@ class REST {
 			)
 		);
 
+		register_rest_route(
+			self::NAMESPACE,
+			'/tools/progress-backfill',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'progress_backfill' ),
+				'permission_callback' => function () {
+					return current_user_can( 'manage_options' );
+				},
+				'args'                => array(
+					'batch_size' => array(
+						'required'          => false,
+						'default'           => 100,
+						'sanitize_callback' => 'absint',
+					),
+					'offset'     => array(
+						'required'          => false,
+						'default'           => 0,
+						'sanitize_callback' => 'absint',
+					),
+				),
+			)
+		);
+
 		/* ── Relationships ──────────────────────────────────────────── */
 
 		// GET /relationships/course/{id}/lessons
@@ -607,6 +631,26 @@ class REST {
 	 */
 	public static function get_me_courses() {
 		return rest_ensure_response( CourseDisplay::get_enrolled_courses_with_progress( get_current_user_id() ) );
+	}
+
+	/**
+	 * POST /tools/progress-backfill
+	 *
+	 * Runs a single batch of the legacy metadata -> table backfill and
+	 * reports parity between the two sources.
+	 *
+	 * @param \WP_REST_Request $request Request object.
+	 * @return \WP_REST_Response
+	 */
+	public static function progress_backfill( $request ) {
+		$batch_size = (int) $request->get_param( 'batch_size' );
+		$offset     = (int) $request->get_param( 'offset' );
+
+		$result = Progress::backfill( $batch_size, $offset );
+
+		$result['parity'] = Progress::get_parity();
+
+		return rest_ensure_response( $result );
 	}
 
 	/**
