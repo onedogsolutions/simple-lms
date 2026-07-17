@@ -4,60 +4,19 @@ This file is the historical log for the Simple LMS Bridge project. The living
 state document (architecture, current status, conventions) is in
 [`STATE.md`](./STATE.md).
 
-## SQL Analytics Re-pointing & Empty-Table Guard
+## 1.1.0 — Guarding, Progress Table, Settings, /me API, and Native Certificates
 
-Re-pointed student analytics computations at the relational progress table.
+First major release integrating local student progress, robust content guarding, and a native, branded certificate generator.
 
-- **Repointed Analytics Engine:** Rewrote the query layer in `includes/class-analytics.php` to compute course funnel, started/per-lesson completion, drop-off, and at-risk metrics directly from `wp_slms_lesson_progress` joined with `wp_slms_user_course` and `wp_slms_course_history`. Removed all legacy `_lms_progress` usermeta joins and parsing routines.
-- **Empty-Table Guard:** Added an automatic check in `Analytics::overview()`. If the relational progress table has zero rows but active enrollments exist, it includes `needs_backfill: true` in the API payload.
-- **Backfill Warning Banner:** Updated the admin Analytics dashboard (`src/admin/components/Analytics.js`) to display an informative notice pointing to the Tools backfill button when a backfill is required.
-- **Performance Evaluation:** Evaluated query execution paths. The direct SQL queries utilize the unique index prefix `(user_id, course_id)` on `wp_slms_lesson_progress` resulting in fast index-scans (<50ms for thousands of rows), validating that a separate daily rollup or cron is not required for standard analytical payloads.
-
-## Stage 4 — Own the Certificate Pipeline
-
-- **Bundled renderer behind an interface:** dompdf 3.x and
-  chillerlan/php-qrcode are declared as Composer runtime dependencies and used
-  through a `SimpleLMS\Certificates\Renderer` interface. `DompdfRenderer` loads
-  the autoloader lazily and `class_exists`-guards `Dompdf\Dompdf` so a copy
-  loaded by another plugin (or a php-scoper-prefixed build) is never
-  redeclared. Swap engines via the `slms_certificate_renderer` filter.
-- **Per-course template:** new `_lms_cert_template` object meta —
-  background image (media ID), layout preset (classic/modern/minimal),
-  orientation, and per-placeholder position/size/color/align/weight for
-  `{student_name}`, `{course_title}`, `{completed_date}`, `{license_number}`,
-  `{cert_uuid}`. `Certificates\Template::build_html()` /
-  `placeholder_css()` define the anchoring model; the `CourseEditor.js` live
-  preview (`CertificateTemplate.js`) mirrors it exactly, with a wp.media
-  background picker.
-- **Native issuance:** `Certificates::check_course_completion()` calls
-  `Certificates\Issuer::issue()` — allocates a `cert_uuid`, inserts the
-  `CourseHistory` row with it, and renders/caches a branded PDF (embedded QR
-  verify code) to `wp-content/uploads/slms-certs/{uuid}.pdf` (`.htaccess deny
-  from all`, same pattern as `slms-logs`). The old `GFAPI::add_entry`
-  fields-6/18 synthesis is removed for new completions.
-- **Schema:** Upgrade step 2 adds `cert_uuid varchar(36)` + a unique key to
-  `slms_course_history` and backfills UUIDs for all existing rows, so legacy
-  certificates are verifiable too. `SLMS_DB_VERSION` bumped to 2.
-- **Native-first resolution:** `REST::get_student_history()` and the
-  `slms-student-dashboard` certificates tab check the cached native PDF first
-  (`Issuer::pdf_exists()`), falling back to the two-stage GravityPDF logic for
-  migrated rows — centralized into `Certificates::pdf_url()` (see
-  "Core/Migrator Split" below) rather than duplicated per call site.
-- **Public routes (`Certificates\Routes`):** rewrite rules
-  `GET /certificate/{uuid}/download` (streams the PDF; permission = row owner
-  OR `edit_users`; regenerates on demand; legacy redirect fallback) and
-  `GET /certificate/verify/{uuid}` (login-free verification page: student,
-  course, date, validity). Rules auto-flush via `slms_cert_rewrite_version`.
-- **Compliance export:** admin-post `slms_export_certificates` streams a CSV
-  summary or a ZIP of PDFs (rendered on demand) filtered by course/date range.
-- **Admin Tools screen (`Tools.js`, `SimpleLMS > Tools`):** compliance export
-  plus explicit `repair_form_ids()` and `purge_corrupted_records()` actions; the
-  purge is guarded by a typed `DELETE CORRUPTED` confirmation and a matching
-  `POST /course-history/purge-corrupted` endpoint that rejects any request
-  without the exact phrase (never automatic).
-- **Packaging:** `deploy.sh` now runs `composer install --no-dev
-  --optimize-autoloader` before staging so the bundled certificate
-  dependencies ship in the release zip.
+- **Content Guarding & Access Authorizations:** Implemented full content guarding with custom behavior (redirect or on-page message/CTA) based on post meta `_lms_guard_mode` (public, level, or enrolled). Adapted template redirect, REST response hooks, and content fallback filters in `class-guard.php` to leverage main's `Access` API, supporting `can_view_course()` and drip-lock checks.
+- **Relational Progress Table (`wp_slms_lesson_progress`):** Migrated active lesson completions from `usermeta` serialization to a queryable custom SQL table (`DB version 4`). Implemented a secure, dual-writing mechanism that writes to the table and mirrors it to legacy `usermeta`.
+- **REST /me API & Backfill Sorter:** Restored missing endpoints under `/me/progress` (GET/POST) and `/me/courses` (GET) allowing authenticated students to retrieve their enrollment status and safely update completions.
+- **Progress Table Backfill Tool:** Created a paginated backfill script (`Progress::backfill`) to process ~1300 users' historical records idempotently, converting UNIX timestamps to SQL datetime format while ignoring malformed rows. Exposed via WP-CLI command `wp slms progress backfill` and a live-updating Admin Tools interface (featuring meta vs SQL row parity checking).
+- **Global Settings Panel (`class-settings.php`):** Implemented a configuration storage option and a corresponding REST endpoint `/settings`. Built a new React Settings tab in the Admin screen allowing administrators to configure default course guard modes, checkout URLs, custom login redirect behaviors, and Gravity Forms certificate mapping fields.
+- **Direct SQL Analytics Re-pointing:** Removed all `_lms_progress` meta queries from the student reporting backend (`class-analytics.php`). Repointed all KPIs (active learners, course funnels, transition drop-offs, and inactivity at-risk lists) to relational SQL queries using optimal index scans. Installed a `needs_backfill` empty-table warning notice in the React Analytics dashboard.
+- **Native Certificate Pipeline (Stage 4):** Embedded dompdf 3.x and chillerlan/php-qrcode dependencies to enable automated, server-side certificate generation. Added a customizable, per-course visual template builder with live preview, and secure download (`/certificate/{uuid}/download`) and verification (`/certificate/verify/{uuid}`) routes.
+- **Core / Migrator Separation:** Promoted clean composition by moving one-time legacy migration assets to a standalone, optional plugin (`simple-lms-migrator/`), allowing core SimpleLMS Bridge to stay lightweight.
+- **Required PHPCS Gate:** Standardized formatting across the repository with a `phpcbf` formatting pass. Wired `phpcs.xml` and GitHub Actions CI workflow to run PHPCS as a required, strict formatting check.
 
 ## Core/Migrator Split
 

@@ -3,7 +3,7 @@
  * Plugin Name: SimpleLMS Bridge
  * Plugin URI:  https://onedog.solutions
  * Description: A lightweight, CPT-based LMS with React admin UI and Beaver Builder integration.
- * Version:     1.0.0
+ * Version:     1.1.0
  * Author:      Ryan D. Waterbury
  * Author URI:  https://onedog.solutions
  * Text Domain: simple-lms-bridge
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /* ─── Constants ─────────────────────────────────────────────────────── */
-define( 'SLMS_VERSION', '1.0.0' );
+define( 'SLMS_VERSION', '1.1.0' );
 // Integer schema version. Bump when adding an Upgrade step (see class-upgrade.php).
 define( 'SLMS_DB_VERSION', 4 ); // Bumped for progress table creation
 define( 'SLMS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
