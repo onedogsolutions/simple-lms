@@ -78,22 +78,6 @@ class MetaBoxes {
 	 * ─────────────────────────────────────────────────────────────────── */
 
 	/**
-	 * Register the Student Manager admin page.
-	 *
-	 * @return void
-	 */
-	public static function register_admin_pages() {
-		add_submenu_page(
-			'simple-lms',
-			__( 'Student Manager', 'simple-lms-bridge' ),
-			__( 'Students', 'simple-lms-bridge' ),
-			'edit_users',
-			'slms-students',
-			array( __CLASS__, 'render_students_page' )
-		);
-	}
-
-	/**
 	 * Render the Student Manager page shell.
 	 *
 	 * @return void

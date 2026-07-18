@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useCallback } from '@wordpress/element';
 import {
+	Panel,
 	PanelBody,
 	SelectControl,
 	TextControl,
@@ -138,6 +139,7 @@ const LessonSettings = ( { postId } ) => {
 				</Notice>
 			) }
 
+			<Panel>
 			<PanelBody
 				title={ __( 'Lesson Type', 'simple-lms-bridge' ) }
 				initialOpen={ true }
@@ -341,6 +343,7 @@ const LessonSettings = ( { postId } ) => {
 					</ul>
 				) }
 			</PanelBody>
+			</Panel>
 
 			<div className="slms-save-bar">
 				<Button

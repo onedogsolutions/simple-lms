@@ -68,6 +68,27 @@ Gravity Forms + GravityPDF path.
   pre-existing findings baselined in `phpstan.neon`; PHP lint runs on
   8.1/8.2/8.3; `deploy.sh` builds both plugin zips (rsync-or-tar staging,
   `--prefer-dist` composer, 10 MB size guard).
+- **Admin-UI corrections pass (post-1.1.1):** PMPro Enrollment now uses
+  toggle switches (custom CSS in `index.css`, Tailwind-toggle styling — the
+  full Tailwind build is deliberately NOT enqueued on CPT edit screens
+  because its global preflight would reset editor styles); Enrolled
+  Students renders as a Name/Email/Source table with a source badge (the
+  old markup had no CSS at all, which is why values ran together); the five
+  "stray meta boxes" (Student Name, Course Title, …) were the certificate
+  placeholder `PanelBody`s from `CertificateTemplate.js` — now grouped and
+  restyled under a "Certificate Text Placement" heading; Course/Lesson/Tools
+  panel stacks are wrapped in `<Panel>`; dead `tw-`-prefixed Tailwind
+  classes (no prefix is configured in the v4 build, so they compiled to
+  nothing) converted to plain utilities in Tools/Settings/Analytics; unused
+  `MetaBoxes::register_admin_pages()` removed. **Duplicate "Set featured
+  image" button: not caused by this plugin** — `thumbnail` support is
+  registered exactly once and no plugin code touches featured-image UI;
+  diagnose on the live site by toggling other plugins/theme (likely a
+  WP Complete/Pods-era leftover).
+- **PrestoPlayer → FluentPlayer migration: dropped for now (2026-07).**
+  `main` is 100% Presto and the old branch is unmergeable; if the
+  migration is still wanted it must be redone against current main as a
+  separately scoped project. The parked branch is untouched.
 - **Release state:** `v1.1.1` tagged. Next step: the manual staging smoke test
   (activation → guarding → student journey → certificates → analytics →
   migrator dry-run → BB modules), then production rollout: backup, install
@@ -147,6 +168,28 @@ Gravity Forms + GravityPDF path.
   `Progress::get_parity()`; triggers listed under REST API above.
 - Analytics (`class-analytics.php`) reads the table only.
 
+### PMPro dependency (assessed 2026-07: still required)
+
+- **PMPro provides:** the only checkout/payment layer (`Access::
+  get_checkout_url()` → `pmpro_url('checkout')`; `Guard` redirects denied
+  users there); automatic enrollment/de-enrollment on level change
+  (`pmpro_after_change_membership_level` → `PMPro::handle_level_change`,
+  including Group Accounts children); the `level` guard mode
+  (`PMPro::has_course_access()` → `pmpro_hasMembershipLevel`); expiring
+  90-day access via PMPro level expiration (level change → de-enroll);
+  the student-dashboard purchase-history tab (`MemberOrder`); price
+  formatting.
+- **Native without PMPro:** the enrollment table + manual enrollment
+  (Student Manager), `public`/`enrolled` guard modes, the `Expiration`
+  daily cron on `_lms_access_days`, progress tracking, certificate
+  issuance and completion-time revocation (all PMPro calls are
+  `function_exists`-guarded — no fatals).
+- **Breaks without PMPro:** no way to sell a course (nothing else takes
+  payment); guard checkout redirects dead-end; `level`-guarded courses
+  deny everyone; no auto-enrollment on purchase; purchase history empty.
+- **Verdict:** keep PMPro. Replacing it means replacing checkout/payments
+  wholesale (e.g. WooCommerce) — a new subsystem, out of scope.
+
 ### Enrollment & expiration
 
 - Enrollment source of truth is `wp_slms_user_course`. `_lms_enrolled_at` user
@@ -158,13 +201,17 @@ Gravity Forms + GravityPDF path.
 
 ### Certificates
 
-- `Certificates::check_course_completion()` fires when the final lesson is
-  marked complete: records completion, then calls
-  `Certificates\Issuer::issue()` to allocate a `cert_uuid`, write a
-  `CourseHistory` row, and render/cache a native branded PDF (dompdf, with an
-  embedded QR verify code) to `uploads/slms-certs/{uuid}.pdf` (`.htaccess`
+- **Verified trigger flow (code-confirmed):** the complete button posts to
+  `POST /me/progress` (or legacy `POST /progress`) → `Progress::complete()`
+  (table write + `_lms_progress` meta mirror) → `Certificates::
+  check_course_completion()`, which compares the mirror against
+  `_simple_lms_order`. On the first full completion it stamps
+  `_lms_completed_at` (idempotency guard), fires `slms_course_completed`,
+  then calls `Certificates\Issuer::issue()` to allocate a `cert_uuid`, write
+  a `CourseHistory` row, and render/cache a native branded PDF (dompdf, with
+  an embedded QR verify code) to `uploads/slms-certs/{uuid}.pdf` (`.htaccess`
   protected). No Gravity Forms / GravityPDF involvement for new completions.
-  Finally it calls `remove_course_access()`.
+  Finally it calls `remove_course_access()` → `PMPro::de_enroll_user()`.
 - **Renderer abstraction:** `Certificates\Renderer` (interface) →
   `DompdfRenderer` (bundled under `vendor/`, loaded lazily and
   `class_exists`-guarded; swap via the `slms_certificate_renderer` filter).
@@ -174,7 +221,20 @@ Gravity Forms + GravityPDF path.
 - **Legacy fallback:** rows with a `gf_entry_id` and no native PDF still resolve
   through `Certificates::pdf_url()` (two-stage GravityPDF logic, shared with
   the `slms-student-dashboard` certificates tab); the native cached PDF is
-  always checked first.
+  always checked first. Two other legacy remnants exist: the
+  `gform_after_submission` hook (`Certificates::handle_certificate_submission`,
+  revokes access for courses with `_lms_certificate_form` set) and the
+  "Certificate Gravity Form" dropdown / `certificate_gf_fields` setting.
+- **Gravity PDF fallback — keep for now (assessed 2026-07).** Removal is
+  gated on: (a) legacy history rows (pre-Stage-4, `gf_entry_id` set, no
+  cached native PDF) getting a native re-render backfill — until then their
+  only download path is GravityPDF, and 9-year compliance requires those
+  PDFs stay downloadable; (b) the GF-entry field 6/18 backfill noted in the
+  `pdf_url()` docblock (Stage 2 exists solely for migrated entries missing
+  those fields); (c) confirming no live course still relies on
+  `gform_after_submission` revocation. Recommended path: build a small
+  Tools backfill that renders native PDFs for legacy rows, then delete
+  `pdf_url()`, the GF hook, and the legacy dropdown in one release.
 - `remove_course_access()` delegates to `PMPro::de_enroll_user()`, which removes
   **only** the course's mapped PMPro level when it matches the user's current
   level (no unconditional level reset).

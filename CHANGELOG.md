@@ -4,6 +4,44 @@ This file is the historical log for the Simple LMS Bridge project. The living
 state document (architecture, current status, conventions) is in
 [`STATE.md`](./STATE.md).
 
+## Unreleased — Admin-UI Corrections
+
+Corrective pass over the course/lesson edit screens and SimpleLMS admin
+pages; no new subsystems.
+
+- **PMPro Enrollment toggles:** the raw membership-level checkbox list in the
+  Course Settings meta box is now a list of toggle switches (level name +
+  "N-day access" hint per row). Styling is hand-rolled in
+  `src/admin/index.css` to match Tailwind-style toggles — the full Tailwind
+  build is intentionally not enqueued on CPT edit screens because its global
+  preflight would reset post-editor styles.
+- **Enrolled Students table:** the metabox listed name/email/source with no
+  CSS backing the markup, so values rendered run together
+  (`Donna Antoskowantosk@comcast.netpmpro_migration`). Now a proper
+  Name / Email / Source table with a badge for the enrollment source and a
+  mailto link on the email.
+- **"Stray meta boxes" scoped:** the collapsed Student Name / Course Title /
+  Completion Date / License Number / Certificate ID boxes on the course edit
+  screen were the certificate-template placeholder panels from
+  `CertificateTemplate.js` rendering as bare sibling panels. They are now
+  grouped inside a bordered "Certificate Text Placement" section with a
+  description, so they read as template controls rather than record fields.
+- **Panel framing:** Course Editor, Lesson Settings, and Tools panel stacks
+  are wrapped in `@wordpress/components` `<Panel>` so they render as one
+  bordered unit (the `#slms-admin-root .components-panel` CSS rule expected
+  this and never matched before).
+- **Dead `tw-` Tailwind classes fixed:** Tools, Settings, and one Analytics
+  element used `tw-`-prefixed utilities, but the Tailwind v4 build defines
+  no prefix, so those classes compiled to nothing and the screens rendered
+  partially unstyled. Converted to plain utilities (matching
+  Analytics/StudentManager convention).
+- **Dead code removed:** `MetaBoxes::register_admin_pages()` (never hooked;
+  the Student Manager submenu is registered in `slms_admin_menu()`).
+- **Duplicate "Set featured image" button:** investigated — not caused by
+  this plugin (single `thumbnail` support registration; no featured-image
+  code anywhere in the repo). Needs live-site diagnosis (theme/other
+  plugin, likely a WP Complete/Pods-era leftover).
+
 ## 1.1.1 — Progress Backfill Trigger Layer
 
 The 1.1.0 notes below anticipated the progress backfill, but its trigger layer

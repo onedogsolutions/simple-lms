@@ -8,6 +8,7 @@
 
 import { useState, useEffect, useCallback } from '@wordpress/element';
 import {
+	Panel,
 	PanelBody,
 	SelectControl,
 	SearchControl,
@@ -213,6 +214,7 @@ const CourseEditor = ({ postId }) => {
 				</Notice>
 			)}
 
+			<Panel>
 			{ /* ── Lesson Sorter ─────────────────────────────────── */}
 			<PanelBody
 				title={__('Course Lessons', 'simple-lms-bridge')}
@@ -393,22 +395,37 @@ const CourseEditor = ({ postId }) => {
 						)}
 					</p>
 				) : (
-					<ul className="slms-student-list">
-						{enrolledStudents.map((student) => (
-							<li
-								key={student.id}
-								className="slms-student-item"
-							>
-								<strong>{student.display_name}</strong>
-								<span>{student.email}</span>
-								<span className="slms-badge slms-badge-secondary">
-									{student.source}
-								</span>
-							</li>
-						))}
-					</ul>
+					<table className="slms-enrolled-table">
+						<thead>
+							<tr>
+								<th>{__('Name', 'simple-lms-bridge')}</th>
+								<th>{__('Email', 'simple-lms-bridge')}</th>
+								<th>{__('Source', 'simple-lms-bridge')}</th>
+							</tr>
+						</thead>
+						<tbody>
+							{enrolledStudents.map((student) => (
+								<tr key={student.id}>
+									<td className="slms-enrolled-name">
+										{student.display_name}
+									</td>
+									<td>
+										<a href={`mailto:${student.email}`}>
+											{student.email}
+										</a>
+									</td>
+									<td>
+										<span className="slms-badge">
+											{(student.source || 'unknown').replace(/_/g, ' ')}
+										</span>
+									</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
 				)}
 			</PanelBody>
+			</Panel>
 
 			{ /* ── Save Button ────────────────────────────────────── */}
 			<div className="slms-save-bar">

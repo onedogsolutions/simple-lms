@@ -10,6 +10,7 @@
 
 import { useState, useEffect } from '@wordpress/element';
 import {
+	Panel,
 	PanelBody,
 	Button,
 	TextControl,
@@ -182,7 +183,7 @@ const Tools = () => {
 
 	return (
 		<div className="slms-tools">
-			<h1 className="tw-text-2xl tw-font-semibold tw-mb-4">
+			<h1 className="text-2xl font-semibold mb-4">
 				{ __( 'SimpleLMS Tools', 'simple-lms-bridge' ) }
 			</h1>
 
@@ -196,6 +197,7 @@ const Tools = () => {
 				</Notice>
 			) }
 
+			<Panel>
 			{ /* ── Compliance Export ─────────────────────────────── */ }
 			<PanelBody
 				title={ __( 'Compliance Export', 'simple-lms-bridge' ) }
@@ -219,7 +221,7 @@ const Tools = () => {
 					] }
 					onChange={ setExportCourse }
 				/>
-				<div className="tw-flex tw-gap-4">
+				<div className="flex gap-4">
 					<TextControl
 						type="date"
 						label={ __( 'From', 'simple-lms-bridge' ) }
@@ -259,11 +261,11 @@ const Tools = () => {
 					) }
 				</p>
 				{ parity && (
-					<div className="tw-bg-gray-50 tw-p-4 tw-rounded tw-mb-4 tw-text-sm">
-						<p className="tw-font-medium tw-mb-1">
+					<div className="bg-gray-50 p-4 rounded mb-4 text-sm">
+						<p className="font-medium mb-1">
 							{ __( 'Sync Parity Status', 'simple-lms-bridge' ) }:
 						</p>
-						<ul className="tw-list-disc tw-pl-4">
+						<ul className="list-disc pl-4">
 							<li>
 								{ __( 'Metadata tuples', 'simple-lms-bridge' ) }: { parity.meta_tuples }
 							</li>
@@ -273,8 +275,8 @@ const Tools = () => {
 							<li
 								className={
 									parity.in_sync
-										? 'tw-text-green-600'
-										: 'tw-text-amber-600 tw-font-semibold'
+										? 'text-green-600'
+										: 'text-amber-600 font-semibold'
 								}
 							>
 								{ parity.in_sync
@@ -287,7 +289,7 @@ const Tools = () => {
 						</ul>
 					</div>
 				) }
-				<div className="tw-flex tw-items-center tw-gap-4">
+				<div className="flex items-center gap-4">
 					<Button
 						variant="secondary"
 						isBusy={ backfilling }
@@ -301,7 +303,7 @@ const Tools = () => {
 						) }
 					</Button>
 					{ backfilling && (
-						<span className="tw-text-sm tw-text-gray-600">
+						<span className="text-sm text-gray-600">
 							{ `Processed: ${ backfillStats.processed_users } users…` }
 						</span>
 					) }
@@ -363,6 +365,7 @@ const Tools = () => {
 					) }
 				</Button>
 			</PanelBody>
+			</Panel>
 		</div>
 	);
 };

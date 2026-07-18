@@ -205,10 +205,25 @@ const CertificateTemplate = ( { template, onChange, courseTitle } ) => {
 			</div>
 
 			{ /* ── Per-placeholder position controls ────────────── */ }
+			<div className="slms-cert-placeholders">
+				<h4 className="slms-cert-placeholders-heading">
+					{ __( 'Certificate Text Placement', 'simple-lms-bridge' ) }
+				</h4>
+				<p className="slms-panel-desc">
+					{ __(
+						'Position and style each line of text printed on the certificate PDF.',
+						'simple-lms-bridge'
+					) }
+				</p>
 			{ PLACEHOLDERS.map( ( { key, label } ) => {
 				const p = template.placeholders[ key ];
 				return (
-					<PanelBody key={ key } title={ label } initialOpen={ false }>
+					<PanelBody
+						key={ key }
+						title={ label }
+						initialOpen={ false }
+						className="slms-cert-placeholder-panel"
+					>
 						<div style={ { display: 'flex', gap: '16px' } }>
 							<RangeControl
 								label={ __( 'X %', 'simple-lms-bridge' ) }
@@ -264,6 +279,7 @@ const CertificateTemplate = ( { template, onChange, courseTitle } ) => {
 					</PanelBody>
 				);
 			} ) }
+			</div>
 		</>
 	);
 };

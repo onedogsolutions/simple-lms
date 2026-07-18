@@ -716,7 +716,7 @@ const Analytics = () => {
 					{ ' ' }
 					<a
 						href={ window.slmsAdmin?.studentsUrl ? window.slmsAdmin.studentsUrl.replace('page=slms-students', 'page=slms-tools') : '#' }
-						className="tw-font-semibold tw-underline"
+						className="font-semibold underline"
 					>
 						{ __( 'Go to Tools Screen', 'simple-lms-bridge' ) }
 					</a>

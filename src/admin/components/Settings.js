@@ -45,9 +45,9 @@ export default function Settings() {
 	};
 
 	return (
-		<div className="slms-settings-wrap tw-p-6 tw-max-w-4xl tw-mx-auto">
-			<div className="tw-flex tw-justify-between tw-items-center tw-mb-6">
-				<h1 className="tw-text-2xl tw-font-bold tw-m-0">SimpleLMS Settings</h1>
+		<div className="slms-settings-wrap p-6 max-w-4xl mx-auto">
+			<div className="flex justify-between items-center mb-6">
+				<h1 className="text-2xl font-bold m-0">SimpleLMS Settings</h1>
 				<Button isPrimary isBusy={ isSaving } onClick={ handleSave }>
 					{ isSaving ? 'Saving...' : 'Save Settings' }
 				</Button>
