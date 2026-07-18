@@ -93,8 +93,11 @@ Gravity Forms + GravityPDF path.
   (activation → guarding → student journey → certificates → analytics →
   migrator dry-run → BB modules), then production rollout: backup, install
   both plugins, run the progress backfill, verify parity, spot-check students.
-  Parked branches: `prestoplayer-fluentplayer-migration` (new scope, on hold),
-  `student-manager-guardrail` (archived; merged as the core/migrator split).
+  Remote branch state (2026-07-18): merged branches deleted; PR #6 closed
+  (its docs adopted onto the corrections branch);
+  `claude/prestoplayer-fluentplayer-migration-hmprhw` remains parked
+  (dropped for now — see above); `claude/wordpress-plugin-roadmap-l58oco`
+  is pending manual deletion (branch deletes are blocked from CI sessions).
 
 ## Architecture
 
