@@ -17,8 +17,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Registers the native content schema and its admin columns.
  */
 final class Post_Types {
-	public const COURSE = 'slms_course';
-	public const LESSON = 'slms_lesson';
+	public const COURSE  = 'slms_course';
+	public const LESSON  = 'slms_lesson';
+	public const ARCHIVE = 'courses';
 
 	/**
 	 * Register WordPress hooks.
@@ -26,6 +27,7 @@ final class Post_Types {
 	 * @return void
 	 */
 	public static function init(): void {
+		self::register_rewrite_precedence();
 		add_action( 'init', array( self::class, 'register' ) );
 		add_filter( 'manage_edit-' . self::COURSE . '_columns', array( self::class, 'course_columns' ) );
 		add_action( 'manage_' . self::COURSE . '_posts_custom_column', array( self::class, 'course_column' ), 10, 2 );
@@ -39,6 +41,7 @@ final class Post_Types {
 	 * @return void
 	 */
 	public static function activate(): void {
+		self::register_rewrite_precedence();
 		self::register();
 		flush_rewrite_rules();
 	}
@@ -60,11 +63,11 @@ final class Post_Types {
 					'edit_item'     => __( 'Edit Course', 'simple-lms' ),
 				),
 				'public'       => true,
-				'has_archive'  => 'courses',
+				'has_archive'  => self::ARCHIVE,
 				'show_ui'      => true,
 				'show_in_rest' => true,
 				'menu_icon'    => 'dashicons-welcome-learn-more',
-				'rewrite'      => array( 'slug' => 'courses', 'with_front' => false ),
+				'rewrite'      => array( 'slug' => self::ARCHIVE, 'with_front' => false ),
 				'supports'     => array( 'title', 'editor', 'thumbnail', 'excerpt', 'custom-fields', 'revisions' ),
 			)
 		);
@@ -120,6 +123,34 @@ final class Post_Types {
 		self::register_meta( self::LESSON, '_lms_quiz_pass_score', 'number' );
 		self::register_meta( self::LESSON, '_lms_drip_days', 'integer' );
 		self::register_meta( self::LESSON, '_lms_video_gate_pct', 'integer' );
+	}
+
+	/**
+	 * Register the late filter that resolves legacy archive-rule collisions.
+	 *
+	 * @return void
+	 */
+	private static function register_rewrite_precedence(): void {
+		add_filter( 'rewrite_rules_array', array( self::class, 'prefer_course_archive' ), PHP_INT_MAX );
+	}
+
+	/**
+	 * Prefer native archive routes without changing legacy single-course URLs.
+	 *
+	 * @param array<string,string> $rules Existing rewrite rules.
+	 * @return array<string,string>
+	 */
+	public static function prefer_course_archive( array $rules ): array {
+		$pagination_base = $GLOBALS['wp_rewrite']->pagination_base ?? 'page';
+		$pagination_base = is_string( $pagination_base ) && '' !== $pagination_base ? $pagination_base : 'page';
+
+		$archive_rules = array(
+			self::ARCHIVE . '/?$' => 'index.php?post_type=' . self::COURSE,
+		);
+		$archive_rules[ self::ARCHIVE . '/' . preg_quote( $pagination_base ) . '/([0-9]{1,})/?$' ] =
+			'index.php?post_type=' . self::COURSE . '&paged=$matches[1]';
+
+		return $archive_rules + $rules;
 	}
 
 	/**

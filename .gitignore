@@ -52,3 +52,6 @@ wp-config.php
 /build/
 /dist/
 /vendor/
+
+# Local Novamira staging test output
+/.novamira-staging-*.json

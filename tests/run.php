@@ -335,6 +335,23 @@ namespace {
 	same( 1, $GLOBALS['slms_rewrite_flushes'], 'Activation should persist native CPT rewrite rules.' );
 	same( true, $GLOBALS['slms_post_types']['slms_course']['show_in_rest'], 'Courses should support the REST API.' );
 	same( 'courses', $GLOBALS['slms_post_types']['slms_course']['rewrite']['slug'], 'Course archive should use /courses/.' );
+	$legacy_rewrite_rules = array(
+		'courses/?$'                            => 'index.php?post_type=course',
+		'courses/page/([0-9]{1,})/?$'            => 'index.php?post_type=course&paged=$matches[1]',
+		'course/([^/]+)/?$'                      => 'index.php?post_type=course&name=$matches[1]',
+		'courses/sample-course/?$'               => 'index.php?post_type=slms_course&name=$matches[1]',
+		'uncollided-page/?$'                     => 'index.php?pagename=uncollided-page',
+	);
+	$preferred_rewrite_rules = Post_Types::prefer_course_archive( $legacy_rewrite_rules );
+	same( 'index.php?post_type=slms_course', $preferred_rewrite_rules['courses/?$'], 'Native courses should win the archive root rewrite collision.' );
+	same( 'index.php?post_type=slms_course&paged=$matches[1]', $preferred_rewrite_rules['courses/page/([0-9]{1,})/?$'], 'Native courses should win paginated archive routing.' );
+	same(
+		array( 'courses/?$', 'courses/page/([0-9]{1,})/?$', 'course/([^/]+)/?$', 'courses/sample-course/?$', 'uncollided-page/?$' ),
+		array_keys( $preferred_rewrite_rules ),
+		'Native archive rules should take precedence without disturbing unrelated legacy rules.'
+	);
+	same( 'index.php?post_type=course&name=$matches[1]', $preferred_rewrite_rules['course/([^/]+)/?$'], 'Legacy single-course URLs should remain untouched.' );
+	same( 'index.php?pagename=uncollided-page', $preferred_rewrite_rules['uncollided-page/?$'], 'Unrelated rewrite rules should remain untouched.' );
 	check( in_array( 'excerpt', $GLOBALS['slms_post_types']['slms_lesson']['supports'], true ), 'Lessons should support excerpts.' );
 	check( isset( $GLOBALS['slms_meta_fields']['slms_course']['_slms_lesson_ids'] ), 'Ordered lesson meta should be registered.' );
 	Access::register_meta();

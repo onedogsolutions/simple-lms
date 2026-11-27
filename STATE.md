@@ -1,12 +1,12 @@
 # SimpleLMS Project State
 
-Last updated: 2026-11-26
+Last updated: 2026-11-27
 
 ## Current objective
 
-SimpleLMS is now a WordPress-native LMS with separate course and lesson post types, ordered many-to-many curricula, native enrollment, context-aware learner progress, Presto Player tracking, Gravity Forms verification, and Gravity PDF certificates. Pods is not a runtime dependency of the core plugin.
+SimpleLMS is a WordPress-native LMS with separate course and lesson post types, ordered many-to-many curricula, native enrollment, context-aware learner progress, Presto Player event tracking, Gravity Forms verification, and Gravity PDF certificate integration. Pods is not a runtime dependency of the core plugin.
 
-The separate `simple-lms-migrator` plugin owns the one-time conversion from the legacy hierarchical `course` schema. Staging cutover remains pending explicit operational approval.
+The separate `simple-lms-migrator` plugin has completed the approved three-batch staging conversion. Native content, relationships, enrollment, and historical progress are migrated and verified. Learner-facing runtime acceptance remains blocked because course curriculum rendering, Presto player rendering, completion UI, and Beaver Builder modules have not been implemented.
 
 ## Target site
 
@@ -14,12 +14,13 @@ The separate `simple-lms-migrator` plugin owns the one-time conversion from the 
 - Authorized NovaMira profile: `staging.laseraesthetics.org`.
 - Authorized site URL: `https://staging.laseraesthetics.org/`.
 - Verified environment: WordPress 7.1.5, PHP 8.3.37, MariaDB 11.8.10.
-- Relevant versions: Presto Player 4.5.7, Presto Player Pro 3.3.1, Gravity Forms 3.2.3.1, Gravity PDF 6.18.0, Pods 3.3.9.2, WPComplete 2.9.6.
-- No staging deployment, migration, plugin activation, form submission, certificate action, or layout mutation has occurred in this work.
+- Relevant versions: Presto Player 4.5.7, Presto Player Pro 3.3.1, Gravity Forms 3.2.3.1, Gravity PDF 6.18.1, Pods 3.3.9.2, WPComplete 2.9.6, Beaver Builder 2.10.3.1, Beaver Themer 1.6.1.1.
+- SimpleLMS core and the migrator were deployed to staging, and Batches 1–3 were completed and verified.
+- No runtime-acceptance remediation, form submission, certificate-entry change, legacy-plugin deactivation, decommissioning, or production action occurred.
 
 ## Verified legacy schema
 
-The following observations describe the source system that the migrator must read before cutover:
+The following observations describe the source system that the migrator read during conversion:
 
 - Pods defined one hierarchical `course` post type for both courses and lessons.
 - Course-to-lesson relationships used core `post_parent`; lesson order used `menu_order`.
@@ -48,6 +49,8 @@ These legacy structures are migration inputs only. SimpleLMS core no longer reso
 - `slms_course_cat` is a public hierarchical taxonomy available to both post types.
 
 Plugin activation registers the native schema and flushes rewrite rules so the new permalinks are persisted.
+
+Staging currently contains `10` published `slms_course` posts (`1863`–`1872`) and `26` published `slms_lesson` posts (`1873`–`1898`). Batch 2 stored `57` ordered curriculum links and synchronized the reverse lesson-to-course lookups.
 
 ### Ordered relationships
 
@@ -89,6 +92,8 @@ When a shared lesson is completed, every related course recalculates completion 
 - Admin styles are mounted in a shadow root to avoid changing WordPress core admin styling.
 - `player-tracker.js` uses native `fetch`, listens for Presto Player's `endedMedia` event, and retains a native `<video> ended` fallback.
 - Completion requests are duplicate-safe and return the active course progress, next-step URL, and verification URL when complete.
+- The REST completion endpoint and event tracker exist, but the plugin does not render a Presto player, curriculum outline, lesson navigation, or completion button.
+- No SimpleLMS Beaver Builder module library exists yet. Existing staging layouts still use legacy Pods conditions and hierarchical shortcodes.
 
 ## Verification and certificate integration
 
@@ -100,9 +105,11 @@ Local defaults preserve the identifiers requested in the brief:
 - Gravity PDF template: `324` / `aala-certificate`.
 - Account page: `322`.
 
-Staging reconnaissance observed Gravity PDF template post `334` / slug `aalp-certificate`, with eleven conditional configurations for form `5`. This discrepancy must be reconciled before production rollout. The integration prefers Gravity PDF's entry-specific conditional configuration rather than forcing one universal configuration.
+Staging settings use Gravity PDF template ID `324` with slug `aalp-certificate`. Live Gravity Forms field `18` and the Gravity PDF conditional rules still contain legacy `/course/...` URLs, while native course permalinks use `/courses/...`. `Gravity_Forms::url_path()` normalizes trailing slashes but does not translate those prefixes. This is a suspected certificate blocker and has not been confirmed through an approved learner submission.
 
-The published account page uses Beaver Builder tabs. Replacing the full layout requires separate approval; the lower-risk integration path is to place `[simple_lms_certificates]` in the existing certificate module `478`.
+The published account page uses Beaver Builder tabs. Its certificate tab still contains `Coming Soon!`, although the existing certificate block `478` lists Gravity PDF downloads. The native account shortcode is not present in the live layout.
+
+The certificate page `465` places Gravity Form `5` inside a column gated by legacy referrer rules. Direct native verification links therefore render a blank page. Any layout or Gravity Forms/PDF reconciliation requires separate approval.
 
 ## REST API
 
@@ -125,21 +132,40 @@ Migration writes do not fire SimpleLMS completion or verification hooks and do n
 
 ## Validation results
 
-- Core dependency-free integration suite: `64` assertions passed.
-- Coverage includes native CPT registration, activation rewrite flushing, ordered many-to-many storage, O(1) reverse lookup, context-aware URLs, enrollment, shared completion, active-course next steps, REST curriculum updates, settings cleanup, and verification identifiers.
-- PHP syntax checks passed for the bootstrap and modified native post-type class.
-- Vite production build passed and emitted the admin bundle, stylesheet, account assets, and player tracker under `build/`.
+- Core dependency-free integration suite: `69` assertions passed.
+- Migrator dependency-free integration suite: `301` assertions passed.
+- Coverage includes native CPT registration, activation rewrite flushing, archive rewrite precedence, ordered many-to-many storage, O(1) reverse lookup, context-aware URLs, enrollment, shared completion, active-course next steps, REST curriculum updates, guarded and idempotent migration batches, learner-state remapping, rollback behavior, settings cleanup, and verification identifiers.
+- PHP syntax checks passed for both plugin bootstraps and all core/migrator includes.
+- The migrator ZIP passed archive-integrity and source-content comparisons.
+
+Completed staging migration:
+
+```text
+Batch 1: 10 courses created; 26 canonical lessons created
+Batch 2: 10 courses linked; 57 curriculum links; 0 products; 0 levels
+Batch 3: 70 users updated; 57 lesson records; 10 course records
+         37 enrollment records; 0 verification records
+```
+
+Post-Batch-3 verification confirmed `70` valid pre-migration backups, `280` native learner-meta rows, preserved legacy enrollments, unchanged curricula and reverse lookups, and zero pending learner-state writes. Stable hashes:
+
+```text
+plan_hash:        c6b4c57b0fd8b55843906ee983ad6bcab4038b037e99c9a318bee6b9cf0bfc1e
+relationship_hash: 9668dd366b9b3c94bd876834825a67b7b24b976c02a2f90b5c383bcfe65ad0ae
+progress_hash:    9ea219f55ef0ed15e161291f784cf5374fcbcc411f4845919afb7f385ca10840
+```
 
 ## Known limitations and approval gates
 
-- The brief's hostname differs from the authorized NovaMira profile by one letter; confirm the deployment target.
-- Native `/courses/` rewrites can overlap the legacy Pods course rewrite while both plugins are active. Flush permalinks after Pods deactivation and verify course and lesson URLs.
-- Authenticated Presto playback and `endedMedia` capture still require an approved learner test account.
-- Gravity PDF template `324` / `aala-certificate` versus observed `334` / `aalp-certificate` remains unresolved.
-- Account page `322` contains published content and unpublished draft changes; do not overwrite it without a layout decision.
-- No new native-content dry run has been executed on staging. The earlier staging audit covered only the legacy progress source.
-- No plugin deployment, activation, database migration, rollback, or deactivation is authorized by local development.
+- Native single-course URLs resolve, but no curriculum or lesson links render because native singular rendering and Beaver Builder modules are missing.
+- Native lesson URLs resolve and retain `_lms_presto_video_id`, but no Presto player renders. The tracker cannot complete a player that is absent from the DOM.
+- The account page loads SimpleLMS assets but has no native account dashboard; its Beaver tabs still use legacy/Pods content.
+- Direct native certificate links are blank because the live form column depends on legacy referrer rules.
+- Gravity Forms and Gravity PDF still use legacy `/course/...` values; native-to-legacy URL reconciliation remains unapproved and untested.
+- Authenticated playback, completion writes, verification submissions, and certificate downloads require an approved learner test account and explicit approval.
+- Native `/courses/` rewrites can overlap the legacy Pods course rewrite while both plugins remain active. Recheck routing after any future permalink flush or Pods deactivation.
+- Legacy Pods, WPComplete, and other legacy plugins remain active. No decommissioning or production action is authorized.
 
 ## Exact next task
 
-After explicit approval, back up staging, run the migrator's read-only native-content analyzer, and review the four-course deduplication plan before any write batch. Confirm the hostname and Gravity PDF identifiers first. Execute the three migration batches in order, verify shared completion and active-course navigation, then deactivate legacy plugins only after runtime acceptance.
+Stop at the migration-complete gate. No further staging changes are planned in this session. Future work must first implement the learner-facing curriculum, Presto player/completion UI, and Beaver Builder modules, then integrate the native account and certificate surfaces. Runtime acceptance and legacy-plugin decommissioning remain blocked until those features exist and an approved learner test account passes the full flow.
