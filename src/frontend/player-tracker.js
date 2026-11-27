@@ -67,6 +67,14 @@
           detail: payload,
         }),
       );
+
+      if (payload.next_step_url) {
+        const nextLink = document.createElement('a');
+        nextLink.href = payload.next_step_url;
+        nextLink.textContent = payload.progress?.complete ? 'Continue to verification' : 'Continue to next lesson';
+        nextLink.dataset.simpleLmsNextStep = '';
+        getStatus().append(' ', nextLink);
+      }
     } catch (error) {
       console.error('[SimpleLMS]', error);
       setStatus(config.messages.error, 'error');

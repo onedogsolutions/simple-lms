@@ -43,12 +43,10 @@ final class Shortcodes {
 			'simple_lms_courses'
 		);
 
-		$course_type = (string) Settings::get( 'course_post_type', 'course' );
-		$courses     = get_posts(
+		$courses = get_posts(
 			array(
-				'post_type'      => $course_type,
+				'post_type'      => Post_Types::COURSE,
 				'post_status'    => 'publish',
-				'post_parent'    => 0,
 				'posts_per_page' => (int) $atts['limit'],
 				'orderby'        => array(
 					'menu_order' => 'ASC',
@@ -131,7 +129,7 @@ final class Shortcodes {
 		foreach ( $verified as $course_id => $record ) {
 			$course_id = absint( $course_id );
 			$course    = get_post( $course_id );
-			if ( ! $course || 'publish' !== $course->post_status ) {
+			if ( ! $course || Post_Types::COURSE !== $course->post_type || 'publish' !== $course->post_status ) {
 				continue;
 			}
 
@@ -169,7 +167,7 @@ final class Shortcodes {
 		} elseif ( $has_access ) {
 			$lesson_id = Progress::first_incomplete_lesson( $course->ID, $user_id );
 			if ( $lesson_id > 0 ) {
-				$url   = (string) get_permalink( $lesson_id );
+				$url   = Relationships::lesson_url( $lesson_id, $course->ID );
 				$label = __( 'Continue course', 'simple-lms' );
 			}
 		}

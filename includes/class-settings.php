@@ -14,9 +14,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Stores plugin settings without assuming a site-specific Pods schema.
+ * Stores native SimpleLMS settings and integration identifiers.
  */
 final class Settings {
+	public const COURSE_POST_TYPE = 'slms_course';
+	public const LESSON_POST_TYPE = 'slms_lesson';
+	public const ENROLLMENT_META = '_slms_enrolled_courses';
+
 	/**
 	 * Option name.
 	 */
@@ -29,17 +33,10 @@ final class Settings {
 	 */
 	public static function defaults(): array {
 		return array(
-			'course_post_type'                    => 'course',
-			'lesson_post_type'                    => 'course',
-			'relationship_mode'                   => 'post_parent',
-			'relationship_field'                  => '',
-			'relationship_storage'                => 'meta',
-			'relationship_direction'              => 'course_to_lessons',
-			'lesson_order_field'                  => 'menu_order',
-			'standalone_courses_as_lessons'       => true,
-			'access_method'                       => 'pods',
-			'pods_access_field'                   => 'enrolled_courses',
-			'access_meta_key'                     => 'enrolled_courses',
+			'course_post_type'                    => self::COURSE_POST_TYPE,
+			'lesson_post_type'                    => self::LESSON_POST_TYPE,
+			'enrollment_meta_key'                 => self::ENROLLMENT_META,
+			'access_method'                       => 'native',
 			'woocommerce_course_meta'             => '_slms_course_id',
 			'pmpro_course_meta'                   => '_slms_course_ids',
 			'tracking_enabled'                    => true,
@@ -54,8 +51,8 @@ final class Settings {
 			'user_email_field_id'                 => '17',
 			'state_field_id'                      => '6',
 			'completion_date_field_id'            => '21',
-			'pdf_template_id'                     => 334,
-			'pdf_template_slug'                   => 'aalp-certificate',
+			'pdf_template_id'                     => 324,
+			'pdf_template_slug'                   => 'aala-certificate',
 			'account_page_id'                     => 322,
 			'completed_lessons_meta'              => '_slms_completed_lessons',
 			'completed_courses_meta'              => '_slms_completed_courses',
@@ -75,7 +72,15 @@ final class Settings {
 			$saved = array();
 		}
 
-		return array_replace( self::defaults(), $saved );
+		$settings = array_replace( self::defaults(), array_intersect_key( $saved, self::defaults() ) );
+		$settings['course_post_type']    = self::COURSE_POST_TYPE;
+		$settings['lesson_post_type']    = self::LESSON_POST_TYPE;
+		$settings['enrollment_meta_key'] = self::ENROLLMENT_META;
+		if ( ! in_array( $settings['access_method'], array( 'native', 'woocommerce', 'pmpro', 'logged_in' ), true ) ) {
+			$settings['access_method'] = 'native';
+		}
+
+		return $settings;
 	}
 
 	/**
@@ -100,18 +105,7 @@ final class Settings {
 	public static function sanitize( array $input ): array {
 		$clean = array();
 
-		$slugs = array( 'course_post_type', 'lesson_post_type' );
-		foreach ( $slugs as $key ) {
-			if ( array_key_exists( $key, $input ) ) {
-				$clean[ $key ] = sanitize_key( (string) $input[ $key ] );
-			}
-		}
-
 		$keys = array(
-			'relationship_field',
-			'lesson_order_field',
-			'pods_access_field',
-			'access_meta_key',
 			'woocommerce_course_meta',
 			'pmpro_course_meta',
 			'presto_event',
@@ -141,7 +135,7 @@ final class Settings {
 			}
 		}
 
-		$booleans = array( 'tracking_enabled', 'standalone_courses_as_lessons' );
+		$booleans = array( 'tracking_enabled' );
 		foreach ( $booleans as $key ) {
 			if ( array_key_exists( $key, $input ) ) {
 				$clean[ $key ] = rest_sanitize_boolean( $input[ $key ] );
@@ -149,10 +143,7 @@ final class Settings {
 		}
 
 		$enums = array(
-			'relationship_mode'     => array( 'post_parent', 'pods_field' ),
-			'relationship_storage'   => array( 'meta', 'table' ),
-			'relationship_direction' => array( 'course_to_lessons', 'lesson_to_course' ),
-			'access_method'          => array( 'pods', 'woocommerce', 'pmpro', 'logged_in' ),
+			'access_method' => array( 'native', 'woocommerce', 'pmpro', 'logged_in' ),
 		);
 		foreach ( $enums as $key => $allowed ) {
 			if ( array_key_exists( $key, $input ) ) {
@@ -185,18 +176,14 @@ final class Settings {
 	public static function is_configured(): bool {
 		$settings = self::all();
 
-		$relationship_ok = 'post_parent' === $settings['relationship_mode']
-			|| '' !== $settings['relationship_field'];
 		$access_ok = match ( $settings['access_method'] ) {
-			'pods'        => '' !== $settings['pods_access_field'] || '' !== $settings['access_meta_key'],
-			'woocommerce' => '' !== $settings['woocommerce_course_meta'],
-			'pmpro'       => '' !== $settings['pmpro_course_meta'],
-			'logged_in'   => true,
-			default       => false,
+			'native', 'logged_in' => '' !== $settings['enrollment_meta_key'],
+			'woocommerce'         => '' !== $settings['woocommerce_course_meta'],
+			'pmpro'               => '' !== $settings['pmpro_course_meta'],
+			default               => false,
 		};
 
-		return $relationship_ok
-			&& $access_ok
+		return $access_ok
 			&& post_type_exists( (string) $settings['course_post_type'] )
 			&& post_type_exists( (string) $settings['lesson_post_type'] )
 			&& absint( $settings['verification_form_id'] ) > 0

@@ -1,54 +1,71 @@
 # SimpleLMS
 
-SimpleLMS is a lean WordPress connector for Pods courses, Presto Player completion tracking, Gravity Forms verification, Gravity PDF certificates, and a student account area. It keeps Pods as the content source of truth and stores learner progress in user meta.
+SimpleLMS is a WordPress-native LMS with separate course and lesson post types, ordered many-to-many curricula, native enrollment, Presto Player completion tracking, Gravity Forms verification, Gravity PDF certificates, and a student account area. It does not require Pods.
 
 ## Requirements
 
 - WordPress 6.5+
 - PHP 8.2+
-- Pods
-- Presto Player
-- Gravity Forms
-- Gravity PDF for certificate delivery
+- Presto Player for video completion tracking
+- Gravity Forms and Gravity PDF for verification and certificates
 - WooCommerce or Paid Memberships Pro only when selected for access control
+
+## Native data model
+
+- Courses use the `slms_course` post type and `/courses/` rewrite slug.
+- Lessons use the `slms_lesson` post type and `/lessons/` rewrite slug.
+- `_slms_lesson_ids` stores each course's ordered lesson IDs.
+- `_slms_course_ids` stores each lesson's synchronized reverse course lookup.
+- `_slms_enrolled_courses` stores native user enrollment as an array of course IDs.
+- A canonical lesson can belong to multiple courses without duplicating its post or video.
+- Lesson URLs carry `?course_id={id}` so completion and next-step navigation stay in the active course.
+
+Plugin activation flushes rewrite rules after registering the native post types.
 
 ## Development
 
 ```sh
 npm install
 npm run build
+php tests/run.php
 ```
 
 The build writes the React admin bundle and vanilla frontend scripts to `build/`. Admin Tailwind CSS is injected into a shadow root, so Tailwind preflight and utilities do not affect WordPress core admin. Frontend scripts use native ES2022+ APIs and have no jQuery dependency.
 
 ## Configuration
 
-After activation, open **SimpleLMS → Settings**. The defaults match the verified staging schema recorded in [STATE.md](STATE.md):
+After activation, open **SimpleLMS → Settings**. Defaults use:
 
-- One hierarchical `course` post type; lessons are child posts through `post_parent`.
-- Lesson ordering uses `menu_order`.
-- Enrollment uses the Pods user field and meta key `enrolled_courses`.
-- Presto completion uses the `endedMedia` custom event.
-- Verification uses page `465`, Gravity Form `5`, and course URL field `18`.
-- Gravity PDF template post `334` / slug `aalp-certificate` is selected through the form's conditional PDF configurations.
+- Native `slms_course` and `slms_lesson` post types.
+- Native enrollment through `_slms_enrolled_courses`.
+- Presto Player's `endedMedia` completion event.
+- Verification page `465`, Gravity Form `5`, and course URL field `18`.
+- Gravity PDF template `324` / `aala-certificate` as requested in the project brief.
+- Account page `322`.
 
-Settings are stored in the `simple_lms_settings` option and can be overridden for another site without changing core completion logic.
+Settings are stored in the `simple_lms_settings` option. WooCommerce product meta `_slms_course_id` and PMPro level meta `_slms_course_ids` remain supported as optional access adapters.
+
+Staging reconnaissance observed Gravity PDF template `334` / `aalp-certificate`; reconcile that difference before rollout. See [STATE.md](STATE.md) for verified identifiers and approval gates.
 
 ## Architecture
 
-- `includes/class-settings.php` centralizes defaults, sanitization, and persistence.
-- `includes/class-access.php` resolves Pods, WooCommerce, PMPro, or logged-in access.
-- `includes/class-progress.php` resolves course/lesson hierarchy and stores idempotent progress.
+- `includes/class-post-types.php` registers native CPTs, taxonomy, meta, admin columns, and activation rewrite flushing.
+- `includes/class-relationships.php` stores ordered curricula and synchronized reverse lookups.
+- `includes/class-access.php` resolves native, WooCommerce, PMPro, or logged-in access.
+- `includes/class-progress.php` stores canonical completion and resolves course-context navigation.
 - `includes/class-gravity-forms.php` pre-populates and validates verification, maps course URLs, and resolves conditional PDF configurations.
-- `includes/class-rest-api.php` exposes the versioned REST namespace.
+- `includes/class-rest-api.php` exposes completion, curriculum, and settings endpoints.
 - `includes/class-shortcodes.php` renders course, account, and certificate views.
-- `includes/class-admin.php` loads the scoped React admin shell.
+- `src/admin/CurriculumBuilder.jsx` provides search, attachment, removal, and ordering controls.
 
 ## REST API
 
 Namespace: `/wp-json/simple-lms/v1/`
 
-- `POST /complete` — records completion for the authenticated user and returns course progress.
+- `POST /complete` — records completion using `lesson_id` and optional `course_id`, then returns active-course progress and navigation.
+- `GET /courses` — lists courses for the Curriculum Builder.
+- `GET /lessons` — searches canonical lessons for the Curriculum Builder.
+- `POST /courses/{id}/lessons` — saves an ordered curriculum.
 - `GET /settings` — returns settings and system status for administrators.
 - `POST /settings` — validates and saves administrator settings.
 
@@ -61,6 +78,9 @@ Actions:
 - `simple_lms_lesson_completed`
 - `simple_lms_course_completed`
 - `simple_lms_course_verified`
+- `simple_lms_course_lessons_updated`
+- `simple_lms_user_enrolled`
+- `simple_lms_user_unenrolled`
 
 Filters:
 
@@ -75,13 +95,13 @@ The global helper `simple_lms_user_has_course_access( $user_id, $course_id )` wr
 
 - `[simple_lms_courses]` — course catalog and progress-aware calls to action.
 - `[simple_lms_account]` — User Profile, Purchase History, and Certificates Earned tabs.
-- `[simple_lms_certificates]` — current student's verified certificates.
+- `[simple_lms_certificates]` — the current student's verified certificates.
 
 Existing Beaver Builder account tabs can be retained by placing `[simple_lms_certificates]` in the certificate panel. Replace the full tab set with `[simple_lms_account]` only when a layout migration is approved.
 
 ## Migration and safety
 
-The WP Complete migrator is intentionally separate from this repository. It must remain disposable and require an explicit dry-run/apply workflow. SimpleLMS does not activate, migrate, or deploy anything automatically, and shared-staging rollout remains a separate approval gate.
+The WP Complete/Pods content migrator is intentionally separate from this repository. It provides read-only analysis followed by three confirmed batches for content, relationships/product links, and learner progress. SimpleLMS does not activate, migrate, or deploy anything automatically, and shared-staging rollout remains a separate approval gate.
 
 ## License
 

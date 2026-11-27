@@ -59,6 +59,8 @@ final class Admin {
 		if ( ! file_exists( $asset ) ) {
 			return;
 		}
+		$style_asset = SIMPLE_LMS_DIR . 'build/admin/admin.css';
+		$style_ver   = file_exists( $style_asset ) ? (string) filemtime( $style_asset ) : SIMPLE_LMS_VERSION;
 
 		wp_enqueue_script(
 			'simple-lms-admin',
@@ -72,8 +74,10 @@ final class Admin {
 			'simpleLMSAdmin',
 			array(
 				'restUrl' => esc_url_raw( rest_url( Rest_API::NAMESPACE ) ),
-				'cssUrl'  => esc_url_raw( SIMPLE_LMS_URL . 'build/admin/admin.css' ),
-				'nonce'   => wp_create_nonce( 'wp_rest' ),
+				'cssUrl'    => esc_url_raw( SIMPLE_LMS_URL . 'build/admin/admin.css?ver=' . $style_ver ),
+				'nonce'     => wp_create_nonce( 'wp_rest' ),
+				'courseType' => Post_Types::COURSE,
+				'lessonType' => Post_Types::LESSON,
 			)
 		);
 	}

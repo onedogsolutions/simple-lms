@@ -1,17 +1,10 @@
 import { useEffect, useState } from 'react';
+import CurriculumBuilder from './CurriculumBuilder.jsx';
 
 const groups = [
   {
     title: 'Content and progress',
     fields: [
-      ['course_post_type', 'Course post type', 'text'],
-      ['lesson_post_type', 'Lesson post type', 'text'],
-      ['relationship_mode', 'Relationship mode', 'select', ['post_parent', 'pods_field']],
-      ['relationship_field', 'Pods relationship field', 'text'],
-      ['relationship_storage', 'Pods relationship storage', 'select', ['meta', 'table']],
-      ['relationship_direction', 'Relationship direction', 'select', ['course_to_lessons', 'lesson_to_course']],
-      ['lesson_order_field', 'Lesson order field', 'text'],
-      ['standalone_courses_as_lessons', 'Treat video courses as standalone lessons', 'checkbox'],
       ['completed_lessons_meta', 'Completed lessons meta key', 'text'],
       ['completed_courses_meta', 'Completed courses meta key', 'text'],
       ['verified_courses_meta', 'Verified courses meta key', 'text'],
@@ -20,9 +13,7 @@ const groups = [
   {
     title: 'Access',
     fields: [
-      ['access_method', 'Access method', 'select', ['pods', 'woocommerce', 'pmpro', 'logged_in']],
-      ['pods_access_field', 'Pods enrollment field', 'text'],
-      ['access_meta_key', 'Enrollment user meta key', 'text'],
+      ['access_method', 'Access method', 'select', ['native', 'woocommerce', 'pmpro', 'logged_in']],
       ['woocommerce_course_meta', 'WooCommerce course meta key', 'text'],
       ['pmpro_course_meta', 'PMPro course meta key', 'text'],
     ],
@@ -107,7 +98,9 @@ function SystemStatus({ system }) {
     ['PHP', system.php_version],
     ['SimpleLMS', system.plugin_version],
     ['Configured', system.configured ? 'Yes' : 'No'],
-    ['Pods', system.pods || 'Not detected'],
+    ['Course post type', system.course_post_type],
+    ['Lesson post type', system.lesson_post_type],
+    ['Enrollment meta', system.enrollment_meta],
     ['Presto Player', system.presto_player || 'Not detected'],
     ['Gravity Forms', system.gravity_forms || 'Not detected'],
     ['Gravity PDF', system.gravity_pdf ? 'Active' : 'Not detected'],
@@ -196,7 +189,7 @@ export default function App() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#ec2991]">Lean LMS connector</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#ec2991]">Native WordPress LMS</p>
           <h1 className="mt-1 text-2xl font-semibold text-[#011638]">Settings</h1>
         </div>
         <div className="flex gap-2 rounded-xl bg-white p-1 shadow-sm ring-1 ring-slate-200">
@@ -207,6 +200,14 @@ export default function App() {
             className={`rounded-lg px-4 py-2 text-sm font-medium ${activeTab === 'general' ? 'bg-[#011638] text-[#b7c3f3]' : 'text-slate-600 hover:bg-slate-50'}`}
           >
             General Settings
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('curriculum')}
+            aria-pressed={activeTab === 'curriculum'}
+            className={`rounded-lg px-4 py-2 text-sm font-medium ${activeTab === 'curriculum' ? 'bg-[#011638] text-[#b7c3f3]' : 'text-slate-600 hover:bg-slate-50'}`}
+          >
+            Curriculum Builder
           </button>
           <button
             type="button"
@@ -225,7 +226,9 @@ export default function App() {
         </div>
       )}
 
-      {activeTab === 'status' ? (
+      {activeTab === 'curriculum' ? (
+        <CurriculumBuilder />
+      ) : activeTab === 'status' ? (
         <SystemStatus system={system} />
       ) : settings ? (
         <form onSubmit={saveSettings} className="space-y-6">

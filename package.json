@@ -3,12 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Lean WordPress LMS connector for Pods, Presto Player, Gravity Forms, and Gravity PDF.",
+  "description": "Native WordPress LMS with Presto Player, Gravity Forms, and Gravity PDF integrations.",
   "license": "GPL-2.0-or-later",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "php tests/run.php"
   },
   "dependencies": {
     "react": "^19.0.0",

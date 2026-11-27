@@ -258,7 +258,7 @@ final class Gravity_Forms {
 		}
 
 		$course_id  = url_to_postid( $url );
-		$course_type = (string) Settings::get( 'course_post_type', 'course' );
+		$course_type = Post_Types::COURSE;
 		if ( $course_id > 0 && $course_type === get_post_type( $course_id ) && 'publish' === get_post_status( $course_id ) ) {
 			return $course_id;
 		}
@@ -325,10 +325,10 @@ final class Gravity_Forms {
 	private static function course_id_from_request(): int {
 		$course_id = absint( $_GET['simple_lms_course'] ?? 0 );
 		if ( $course_id > 0 ) {
-			return $course_id;
+			return Post_Types::COURSE === get_post_type( $course_id ) ? $course_id : 0;
 		}
 
-		$course_type = (string) Settings::get( 'course_post_type', 'course' );
+		$course_type = Post_Types::COURSE;
 		if ( ! is_singular( $course_type ) ) {
 			return 0;
 		}

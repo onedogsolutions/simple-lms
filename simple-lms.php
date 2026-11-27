@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: SimpleLMS
- * Description: Lean Pods, Presto Player, Gravity Forms, and Gravity PDF connector.
+ * Description: Native course and lesson LMS with Presto Player, Gravity Forms, and Gravity PDF integrations.
  * Version: 0.1.0
  * Requires at least: 6.5
  * Requires PHP: 8.2
@@ -25,6 +25,8 @@ define( 'SIMPLE_LMS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'SIMPLE_LMS_URL', plugin_dir_url( __FILE__ ) );
 
 require_once SIMPLE_LMS_DIR . 'includes/class-settings.php';
+require_once SIMPLE_LMS_DIR . 'includes/class-post-types.php';
+require_once SIMPLE_LMS_DIR . 'includes/class-relationships.php';
 require_once SIMPLE_LMS_DIR . 'includes/class-access.php';
 require_once SIMPLE_LMS_DIR . 'includes/class-progress.php';
 require_once SIMPLE_LMS_DIR . 'includes/class-gravity-forms.php';
@@ -44,21 +46,35 @@ function simple_lms_user_has_course_access( int $user_id, int $course_id ): bool
 }
 
 /**
+ * Resolve the native courses that share a canonical lesson.
+ *
+ * @param int $lesson_id Lesson post ID.
+ * @return int[]
+ */
+function simple_lms_get_lesson_courses( int $lesson_id ): array {
+	return \SimpleLMS\Relationships::get_lesson_courses( $lesson_id );
+}
+
+/**
  * Initialize plugin modules.
  *
  * @return void
  */
 function simple_lms_init(): void {
+	\SimpleLMS\Post_Types::init();
+	\SimpleLMS\Access::init();
 	\SimpleLMS\Gravity_Forms::init();
 	\SimpleLMS\Rest_API::init();
 	\SimpleLMS\Shortcodes::init();
 	\SimpleLMS\Admin::init();
 
 	add_action( 'update_option_simple_lms_settings', array( \SimpleLMS\Access::class, 'flush_cache' ) );
+	add_action( 'update_user_meta', array( \SimpleLMS\Access::class, 'flush_cache' ) );
 	add_action( 'wp_enqueue_scripts', 'simple_lms_enqueue_frontend_assets' );
 }
 
 add_action( 'plugins_loaded', 'simple_lms_init' );
+register_activation_hook( SIMPLE_LMS_FILE, array( \SimpleLMS\Post_Types::class, 'activate' ) );
 
 /**
  * Enqueue vanilla frontend assets for the current request.
@@ -66,13 +82,14 @@ add_action( 'plugins_loaded', 'simple_lms_init' );
  * @return void
  */
 function simple_lms_enqueue_frontend_assets(): void {
-	$course_type = (string) \SimpleLMS\Settings::get( 'course_post_type', 'course' );
-	if ( \SimpleLMS\Settings::get( 'tracking_enabled', true ) && is_singular( $course_type ) ) {
-		$lesson_id = absint( get_queried_object_id() );
-		$course_id = \SimpleLMS\Progress::course_for_lesson( $lesson_id );
-		$asset     = SIMPLE_LMS_DIR . 'build/frontend/player-tracker.js';
+	if ( \SimpleLMS\Settings::get( 'tracking_enabled', true ) && is_singular( \SimpleLMS\Post_Types::LESSON ) ) {
+		$lesson_id  = absint( get_queried_object_id() );
+		$requested  = absint( $_GET['course_id'] ?? 0 );
+		$requested  = $requested > 0 && in_array( $lesson_id, \SimpleLMS\Progress::lesson_ids_for_course( $requested ), true ) ? $requested : 0;
+		$course_id  = $requested > 0 ? $requested : ( absint( $_GET['course_id'] ?? 0 ) > 0 ? 0 : \SimpleLMS\Progress::course_for_lesson( $lesson_id ) );
+		$asset      = SIMPLE_LMS_DIR . 'build/frontend/player-tracker.js';
 
-		if ( $course_id > 0 && file_exists( $asset ) ) {
+		if ( $course_id > 0 && \SimpleLMS\Access::can_access( $course_id ) && file_exists( $asset ) ) {
 			wp_enqueue_script(
 				'simple-lms-player-tracker',
 				SIMPLE_LMS_URL . 'build/frontend/player-tracker.js',
@@ -88,6 +105,7 @@ function simple_lms_enqueue_frontend_assets(): void {
 					'nonce'     => wp_create_nonce( 'wp_rest' ),
 					'lessonId'  => $lesson_id,
 					'courseId'  => $course_id,
+					'lessonUrl' => \SimpleLMS\Relationships::lesson_url( $lesson_id, $course_id ),
 					'eventName' => (string) \SimpleLMS\Settings::get( 'presto_event', 'endedMedia' ),
 					'loggedIn'  => is_user_logged_in(),
 					'messages'  => array(
